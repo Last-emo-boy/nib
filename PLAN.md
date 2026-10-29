@@ -80,7 +80,20 @@ open-pencil and ZSeven-W/openpencil (both MIT) are references for interaction de
 
 ## Open semantics
 
-- Default `strokeAlignment` (assumed `inner` until checked).
+Settled from the corpus and pen.dev's exports:
+- Frames without `layout` are horizontal; pen.dev drops default values when saving.
+- Image `mode` also takes `fill` (= cover) and `fit` (= contain) in older files; shadows take `spread`.
+- pen.dev draws text with Chromium on macOS: Han characters fall back to PingFang SC, fullwidth forms
+  (U+FF00-FFEF) to Hiragino Sans. Line boxes follow CSS: explicit `lineHeight` gives fractional line heights
+  with the primary font centred; `normal` unites rounded ascent/descent/line gap of the fonts a line uses,
+  a fallback counting only for glyphs the primary font lacks.
+- Strokes in pen.dev's renders sit crisply inside the box: default `strokeAlignment` is `inner`.
+
+Still open (calibrate with the bounds oracle):
+- Lines mixing Latin and CJK without `lineHeight` come out 1-2 px taller in pen.dev than the CSS model
+  predicts; long columns drift by up to 7 px. The system locale (Traditional Chinese) may change which
+  fallback face Chromium picks.
 - What `layoutIncludeStroke` adds to a child's layout size.
 - Reference syntax for imported components and variables (assumed `alias:id`).
 - Differences between format versions 2.18, 2.20 and 2.21 (nib preserves the version it read).
+- lucide no longer ships brand icons (`figma` is used in the corpus).

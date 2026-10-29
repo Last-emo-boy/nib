@@ -1,0 +1,6 @@
+{
+  "name": "@nib/scripts",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@nib/core": "workspace:*", "@nib/format": "workspace:*", "@nib/render": "workspace:*" }
+}

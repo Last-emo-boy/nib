@@ -18,6 +18,14 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(@types/node@26.6.5)(vite@8.3.5(@types/node@26.6.5))
 
+  packages/core:
+    dependencies:
+      '@nib/format':
+        specifier: workspace:*
+        version: link:../format
+
+  packages/format: {}
+
 packages:
 
   '@jridgewell/resolve-uri@3.1.2':

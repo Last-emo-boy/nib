@@ -50,10 +50,32 @@ Each milestone ends with a usable state and its own verification gate.
 - **M7 AI.** built-in agent chat with BYO providers (Anthropic, OpenAI, Gemini, OpenRouter, DeepSeek, OpenAI-compatible endpoints; Claude Code and Codex through their own CLIs), sessions, skills, permission prompts, parallel agents (split work, side by side, iterations), `spawn_agents`, `Generate`, nib's own style archetypes.
 - **M8 Ecosystem.** CLI (export, agent mode, interactive), VS Code/Cursor extension, slides panel with present mode and PDF, share links (static snapshot, self-hostable), Figma import (`.fig` files and clipboard).
 
+## UX: better than pen.dev
+
+pen.dev's layout (from the user's screenshots): dark UI of floating rounded panels over the canvas; a left panel whose tabs (Agent, Layers, Slides, Components, Libraries) share one slot, so chat hides the layer tree; a vertical tool strip beside it; top-right pill with Agents, Goodies, Share, Settings, Present, Browser; right panel for properties or the web-import browser; zoom control at the bottom. The dashboard is prompt-first: category chips, Import from Figma / browser / screenshot, recents grid with thumbnails.
+
+pen.dev is the model for nib's UI: same structure, same visual language (dark floating panels, vertical tool strip, prompt-first dashboard). The user's own past designs are not a UI model; they serve only as rendering test data.
+
+Templates, style presets and UI kits take ZSeven-W/openpencil (MIT) as the reference: its 96 scene templates (`crates/op-editor-core/assets/scene_templates/*.op`, catalogue in `scene_templates.toml`, scenes such as card, infographic, slides, app, site), 63 style guides (`crates/op-ai-skills/skills/style-guides/*.md`) and `shadcn-kit.json`. A converter turns `.op` into `.pen` (their format differs in names: `linear_gradient`/`solid` fills, `clipContent`), kept with MIT attribution. These feed the dashboard template gallery, `get_style`, and the default design-system library.
+
+On top of pen.dev's structure, nib fixes what gets in the way:
+
+- **Chat and layers at the same time.** The agent panel docks on its own (right or bottom), so the layer tree and inspector stay visible while an agent works.
+- **See what the agent did.** A live change feed lists each agent operation (inserted, updated, moved, deleted) with click-to-select; each agent step is one undo checkpoint; per-agent cursors and labels on the canvas instead of only a placeholder tint.
+- **Visual diffs.** `.pen` files live in Git, so nib shows a before/after diff of any frame between two versions (commit, checkpoint, or agent step).
+- **Problems panel.** The same checks agents get from `Get` (clipped or overflowing nodes, collapsed layouts, missing fills, low contrast) are shown to people, with jump-to-node.
+- **Command palette.** One searchable palette for every action, node names and frames (pen.dev puts chat on Cmd+K).
+- **Chinese and English UI from the start.**
+- **No account, no limits, local-first.** Agents use the user's own subscriptions or keys.
+- **Fast on large files.** The corpus includes a 3.2 MB document; panning and selection must stay at 60 fps there.
+
+open-pencil and ZSeven-W/openpencil (both MIT) are references for interaction details. pen.dev's binaries are not decompiled: nib stays a clean-room implementation built from docs, screenshots and observed file behaviour.
+
 ## Conformance
 
 - Corpus: the 13 local `.pen` files (private designs, referenced by path through `NIB_CORPUS`, never committed). Synthetic fixtures live in the repo.
-- Oracle: pen.dev's own resolved bounds and PNG exports of the corpus, stored outside the repo in `~/Playground/nib-oracle` (`NIB_ORACLE`). Not captured yet: the pen.dev plan limit was already reached on 2026-10-29. Capture in one agent day after the billing period resets, or from manual PNG exports.
+- Pixel oracle: 34 frames already exported from pen.dev at 1x in the corpus projects (`*/design/exports/*.png` in aris-lab, inkwords, mactoys, silicon-agent). Some `.pen` files may have changed since export, so each PNG is matched to its frame by name and size first.
+- Bounds oracle: pen.dev's resolved bounds for every node, stored outside the repo in `~/Playground/nib-oracle` (`NIB_ORACLE`). Not captured yet: the pen.dev plan limit was already reached on 2026-10-29. Capture in one agent day after the billing period resets.
 - Behaviour that the reference leaves open is decided by the oracle once available and listed under "Open semantics" until then.
 
 ## Open semantics

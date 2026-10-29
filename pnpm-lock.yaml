@@ -26,6 +26,15 @@ importers:
 
   packages/format: {}
 
+  packages/layout:
+    dependencies:
+      '@nib/core':
+        specifier: workspace:*
+        version: link:../core
+      '@nib/format':
+        specifier: workspace:*
+        version: link:../format
+
 packages:
 
   '@jridgewell/resolve-uri@3.1.2':

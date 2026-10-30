@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Op } from '@nib/core';
-import { copyAsPng, copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, nudge, paste, saveAs, setProps } from '../app/actions.ts';
+import { copyAsPng, copySelection, deleteSelection, duplicateSelection, frameSelection, nudge, paste, saveAs, setProps } from '../app/actions.ts';
 import { Connection, authHeaders, fileFromUrl } from '../app/connection.ts';
 import { desktop, openDashboard } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
@@ -10,6 +10,7 @@ import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
 import { LeftPanel, layerName } from './LeftPanel.tsx';
 import { Dashboard } from './Dashboard.tsx';
+import { Settings } from './Settings.tsx';
 import { Palette } from './Palette.tsx';
 import { Properties } from './Properties.tsx';
 
@@ -30,6 +31,7 @@ export function App() {
     return () => { off(); conn.close(); };
   }, [file]);
   useShortcuts();
+  if (new URLSearchParams(location.hash.slice(1)).get('view') === 'settings') return <Settings />;
   if (!file) return <Dashboard />;
   return (
     <div className={`editor${desktop ? ' in-desktop-editor' : ''}`}>
@@ -216,7 +218,48 @@ function OpenScreen({ onOpen }: { onOpen: (file: string) => void }) {
   );
 }
 
-/** Keyboard shortcuts, following the common design-tool set. */
+/** Editor commands, shared by keyboard shortcuts and the desktop app's menus. */
+export function runCommand(name: string): void {
+  const s = store.get();
+  const typing = isTypingTarget(document.activeElement);
+  const zoomBy = (f: number) => {
+    const { width, height } = document.querySelector('.canvas')?.getBoundingClientRect() ?? { width: 0, height: 0 };
+    const zoom = Math.max(0.02, Math.min(64, s.view.zoom * f));
+    const cx = width / 2, cy = height / 2;
+    store.set({ view: { zoom, tx: cx - ((cx - s.view.tx) / s.view.zoom) * zoom, ty: cy - ((cy - s.view.ty) / s.view.zoom) * zoom } });
+  };
+  switch (name) {
+    case 'undo': if (typing) document.execCommand('undo'); else s.conn?.undo(); break;
+    case 'redo': if (typing) document.execCommand('redo'); else s.conn?.redo(); break;
+    case 'duplicate': if (!typing) void duplicateSelection(); break;
+    case 'delete': if (!typing) deleteSelection(); break;
+    case 'select-all': {
+      if (typing) { document.execCommand('selectAll'); break; }
+      const doc = s.doc;
+      if (!doc) break;
+      const parent = s.selection.length ? doc.locate(s.selection[0])?.parent ?? null : null;
+      store.set({ selection: doc.siblings(parent).map((n) => n.id) });
+      break;
+    }
+    case 'palette': store.set({ paletteOpen: !s.paletteOpen }); break;
+    case 'zoom-in': zoomBy(1.25); break;
+    case 'zoom-out': zoomBy(1 / 1.25); break;
+    case 'zoom-100': store.set({ view: { ...s.view, zoom: 1 } }); break;
+    case 'zoom-fit': store.set({ view: fitView(boundsOf()) }); break;
+    case 'zoom-selection': if (s.selection.length) store.set({ view: fitView(boundsOf(s.selection), 4) }); break;
+    case 'toggle-panel': store.set({ leftOpen: !s.leftOpen }); break;
+    case 'toggle-activity': store.set({ activityOpen: !s.activityOpen }); break;
+    case 'save-as': void saveAs(); break;
+    case 'export': store.set({ leftOpen: s.leftOpen }); document.querySelector<HTMLButtonElement>('.wide-button')?.scrollIntoView({ block: 'center' }); break;
+    case 'frame-selection': frameSelection(); break;
+    case 'make-component': void setProps(s.selection, { reusable: true }, 'Make component'); break;
+    case 'copy-png': void copyAsPng(); break;
+  }
+}
+
+const isTypingTarget = (t: Element | null) => !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || (t as HTMLElement).isContentEditable);
+
+/** Keyboard shortcuts, following the common design-tool set; the clipboard goes through copy/cut/paste events. */
 function useShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -225,30 +268,16 @@ function useShortcuts() {
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
       const tools: Record<string, Tool> = { v: 'move', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', p: 'polygon', t: 'text', i: 'icon', n: 'note', h: 'hand' };
-      if (mod && key === 'z') { e.preventDefault(); if (e.shiftKey) s.conn?.redo(); else s.conn?.undo(); return; }
-      if (mod && key === 'y') { e.preventDefault(); s.conn?.redo(); return; }
-      if (mod && e.shiftKey && key === 'c') { e.preventDefault(); void copyAsPng(); return; }
-      if (mod && e.shiftKey && key === 's') { e.preventDefault(); void saveAs(); return; }
-      if (mod && key === 's') { e.preventDefault(); toast(store.get().lang === 'zh' ? '已自动保存：每次修改都会立即写入文件。' : 'Saved: nib writes every change to the file right away.'); return; }
-      if (mod && key === 'k') { e.preventDefault(); store.set({ paletteOpen: !s.paletteOpen }); return; }
-      if (mod && key === 'c') { e.preventDefault(); copySelection(); return; }
-      if (mod && key === 'x') { e.preventDefault(); cutSelection(); return; }
-      if (mod && key === 'v') { e.preventDefault(); void paste(); return; }
-      if (mod && key === 'd') { e.preventDefault(); void duplicateSelection(); return; }
-      if (mod && e.altKey && key === 'g') { e.preventDefault(); frameSelection(); return; }
-      if (mod && e.altKey && key === 'k') { e.preventDefault(); void setProps(s.selection, { reusable: true }, 'Make component'); return; }
-      if (mod && key === 'a') {
-        e.preventDefault();
-        const doc = s.doc;
-        if (!doc) return;
-        const parent = s.selection.length ? doc.locate(s.selection[0])?.parent ?? null : null;
-        store.set({ selection: doc.siblings(parent).map((n) => n.id) });
-        return;
-      }
-      if (mod && key === '\\') { e.preventDefault(); store.set({ leftOpen: !s.leftOpen }); return; }
-      if (mod && (key === '0')) { e.preventDefault(); store.set({ view: { ...s.view, zoom: 1 } }); return; }
-      if (e.shiftKey && key === '1') { store.set({ view: fitView(boundsOf()) }); return; }
-      if (e.shiftKey && key === '2' && s.selection.length) { store.set({ view: fitView(boundsOf(s.selection), 4) }); return; }
+      const chords: Record<string, string> = { z: e.shiftKey ? 'redo' : 'undo', y: 'redo', d: 'duplicate', k: 'palette', a: 'select-all', '\\': 'toggle-panel', '0': 'zoom-100', '=': 'zoom-in', '-': 'zoom-out' };
+      if (mod && e.altKey && key === 'g') { e.preventDefault(); runCommand('frame-selection'); return; }
+      if (mod && e.altKey && key === 'k') { e.preventDefault(); runCommand('make-component'); return; }
+      if (mod && e.shiftKey && key === 'c') { e.preventDefault(); runCommand('copy-png'); return; }
+      if (mod && e.shiftKey && key === 's') { e.preventDefault(); runCommand('save-as'); return; }
+      if (mod && key === 's') { e.preventDefault(); toast(s.lang === 'zh' ? '已自动保存：每次修改都会立即写入文件。' : 'Saved: nib writes every change to the file right away.'); return; }
+      if (mod && chords[key]) { e.preventDefault(); runCommand(chords[key]); return; }
+      if (e.shiftKey && key === '!') { runCommand('zoom-fit'); return; }
+      if (e.shiftKey && (key === '1')) { runCommand('zoom-fit'); return; }
+      if (e.shiftKey && (key === '2' || key === '@')) { runCommand('zoom-selection'); return; }
       if (mod) return;
       if (key === 'backspace' || key === 'delete') { e.preventDefault(); deleteSelection(); return; }
       if (key === 'escape') {
@@ -266,7 +295,20 @@ function useShortcuts() {
       if (arrows[key]) { e.preventDefault(); const [dx, dy] = arrows[key]; const step = e.shiftKey ? 10 : 1; nudge(dx * step, dy * step); return; }
       if (tools[key]) { store.set({ tool: tools[key] }); return; }
     };
+    const onCopy = (e: ClipboardEvent) => { if (isTypingTarget(document.activeElement) || !store.get().selection.length) return; e.preventDefault(); copySelection(e.clipboardData ?? undefined); };
+    const onCut = (e: ClipboardEvent) => { if (isTypingTarget(document.activeElement) || !store.get().selection.length) return; e.preventDefault(); copySelection(e.clipboardData ?? undefined); deleteSelection(); };
+    const onPaste = (e: ClipboardEvent) => { if (isTypingTarget(document.activeElement)) return; e.preventDefault(); void paste(e.clipboardData?.getData('text/plain')); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    document.addEventListener('copy', onCopy);
+    document.addEventListener('cut', onCut);
+    document.addEventListener('paste', onPaste);
+    const offDesktop = desktop?.onCommand(runCommand);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('copy', onCopy);
+      document.removeEventListener('cut', onCut);
+      document.removeEventListener('paste', onPaste);
+      offDesktop?.();
+    };
   }, []);
 }

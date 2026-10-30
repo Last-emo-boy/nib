@@ -54,6 +54,8 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
     <div className="overlay">
       <svg width="100%" height="100%">
         {doc.data.children.map((n) => {
+          // Like Figma, only frames (screens, artboards) and instances get a name label.
+          if (n.type !== 'frame' && n.type !== 'ref') return null;
           const b = cache.box(n.id);
           if (!b) return null;
           const s = screen(view, b);

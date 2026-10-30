@@ -144,12 +144,14 @@ interface Clip { nib: 1; nodes: Node[]; parent: string | null }
 let clipboard: Clip | undefined;
 
 /** Copy the selection, to nib's own clipboard and as JSON text to the system's (so it pastes into other nib windows). */
-export function copySelection(): void {
+export function copySelection(data?: DataTransfer): void {
   const { selection, doc } = store.get();
   if (!doc || !selection.length) return;
   const at = selection.map((id) => doc.locate(id)).filter((a) => !!a);
   clipboard = { nib: 1, nodes: at.map((a) => structuredClone(a.node)), parent: at[0].parent?.id ?? null };
-  void navigator.clipboard?.writeText(JSON.stringify(clipboard)).catch(() => {});
+  const text = JSON.stringify(clipboard);
+  if (data) data.setData('text/plain', text);
+  else void navigator.clipboard?.writeText(text).catch(() => {});
 }
 
 export function cutSelection(): void {
@@ -161,10 +163,10 @@ export function cutSelection(): void {
  * Paste into the selected frame, else next to where the nodes were copied from (shifted when they sit
  * at their own x/y), else onto the canvas.
  */
-export async function paste(): Promise<void> {
+export async function paste(given?: string): Promise<void> {
   let clip = clipboard;
   try {
-    const text = await navigator.clipboard?.readText();
+    const text = given ?? (await navigator.clipboard?.readText());
     const parsed = text ? JSON.parse(text) : undefined;
     if (parsed?.nib === 1 && Array.isArray(parsed.nodes)) clip = parsed as Clip;
   } catch {

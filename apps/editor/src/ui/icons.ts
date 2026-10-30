@@ -45,6 +45,7 @@ import user from 'lucide-static/icons/user.svg?raw';
 import sparkles from 'lucide-static/icons/sparkles.svg?raw';
 import trash from 'lucide-static/icons/trash-2.svg?raw';
 import copy from 'lucide-static/icons/copy.svg?raw';
+import check from 'lucide-static/icons/check.svg?raw';
 import settings from 'lucide-static/icons/settings.svg?raw';
 import hexagon from 'lucide-static/icons/hexagon.svg?raw';
 import alignLeft from 'lucide-static/icons/align-start-vertical.svg?raw';
@@ -55,5 +56,5 @@ import alignVCenter from 'lucide-static/icons/align-center-horizontal.svg?raw';
 import alignBottom from 'lucide-static/icons/align-end-horizontal.svg?raw';
 import maximize from 'lucide-static/icons/maximize.svg?raw';
 
-export const ICONS = { settings, hexagon, alignLeft, alignHCenter, alignRight, alignTop, alignVCenter, alignBottom, pointer, hand, square, circle, type, frame, note, layers, component, variable, undo, redo, minus, plus, panelLeft, eye, eyeOff, chevronRight, chevronDown, activity, download, languages, bot, hash, image, smile, penTool, lock, box, grid, text, diamond, folder, file, x, alignStart, arrowRight, arrowDown, scan, command, link, search, user, sparkles, trash, copy, maximize };
+export const ICONS = { check, settings, hexagon, alignLeft, alignHCenter, alignRight, alignTop, alignVCenter, alignBottom, pointer, hand, square, circle, type, frame, note, layers, component, variable, undo, redo, minus, plus, panelLeft, eye, eyeOff, chevronRight, chevronDown, activity, download, languages, bot, hash, image, smile, penTool, lock, box, grid, text, diamond, folder, file, x, alignStart, arrowRight, arrowDown, scan, command, link, search, user, sparkles, trash, copy, maximize };
 export type IconName = keyof typeof ICONS;

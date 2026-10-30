@@ -8,7 +8,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p apps/editor",
-    "dev": "sh scripts/dev.sh"
+    "dev": "sh scripts/dev.sh",
+    "desktop": "pnpm --filter @nib/editor build && pnpm --filter @nib/desktop exec electron ."
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -181,3 +181,4 @@ Still open (calibrate with the bounds oracle):
 - Reference syntax for imported components and variables (assumed `alias:id`).
 - Differences between format versions 2.18, 2.20 and 2.21 (nib preserves the version it read).
 - lucide no longer ships brand icons (`figma` is used in the corpus).
+- Mesh gradients: no example in the corpus. nib reads `points` as positions in the node's unit box (row by row, `columns` × `rows`) and `leftHandle`/`rightHandle`/`topHandle`/`bottomHandle` as absolute control points in the same box (as SwiftUI's MeshGradient bezier points); edges without them are straight, colors blend bicubically. Check against pen.dev's rendering once the oracle exists.

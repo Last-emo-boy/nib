@@ -37,7 +37,8 @@ export const faceKey = (f: FontFace) => `${f.family}|${f.weight}|${f.italic ? 'i
 /** Vertical metrics in px, rounded to whole pixels the way Chromium rounds them for layout. */
 export interface LineMetricsPx { ascent: number; descent: number; lineGap: number }
 
-interface Registered { weight: number; italic: boolean; typeface: Typeface }
+/** A face lives in the provider under its own family name (`alias`), so text layout uses exactly the face nib picked. */
+interface Registered { weight: number; italic: boolean; typeface: Typeface; alias: string }
 
 /** Fonts registered with CanvasKit, loaded on demand. */
 export class FontStore {
@@ -67,6 +68,11 @@ export class FontStore {
     if (!list?.length) return undefined;
     const cost = (f: Registered) => (f.italic === italic ? 0 : 1e4) + Math.abs(f.weight - weight);
     return list.reduce((a, b) => (cost(b) < cost(a) ? b : a));
+  }
+
+  /** The family name text layout should ask for to get the face of `family` closest to `weight`/`italic`. */
+  alias(family: string, weight: number, italic: boolean): string | undefined {
+    return this.face(family, weight, italic)?.alias;
   }
 
   /** Whether that face has a glyph for every character of `text`. */
@@ -136,10 +142,13 @@ export class FontStore {
     const key = requested.family.toLowerCase();
     const list = this.faces.get(key) ?? [];
     if (list.some((f) => f.weight === weight && f.italic === italic)) return;
-    const typeface = this.ck.Typeface.MakeTypefaceFromData(bytes.slice().buffer);
+    // One copy of the font in WebAssembly memory: the provider's, also used for measuring. Emoji fonts run
+    // to 200 MB, so a second copy per face exhausts the heap.
+    const alias = `${requested.family}#${weight}${italic ? 'i' : ''}`;
+    this.provider.registerFont(bytes, alias);
+    const typeface = this.provider.matchFamilyStyle(alias, {});
     if (!typeface) return;
-    this.provider.registerFont(bytes, requested.family);
-    list.push({ weight, italic, typeface });
+    list.push({ weight, italic, typeface, alias });
     this.faces.set(key, list);
   }
 }

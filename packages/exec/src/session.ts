@@ -41,6 +41,8 @@ export interface SessionOptions {
   baseDir: string;
   timeoutMs?: number;
   exporters?: Partial<Record<ExportFormat, Exporter>>;
+  /** Map every resolved export path, e.g. to keep a test run's files inside a scratch folder. */
+  exportPath?: (path: string) => string;
 }
 
 const SCREENSHOT_SIDE = 1568;
@@ -249,7 +251,8 @@ export class ExecSession {
   }
 
   private async export(scenes: CapturedScene[], format: ExportFormat, outputPath: string, options: ExportOptions): Promise<string[]> {
-    const target = resolvePath(this.opts.baseDir, outputPath);
+    const resolved = resolvePath(this.opts.baseDir, outputPath);
+    const target = this.opts.exportPath ? this.opts.exportPath(resolved) : resolved;
     if (format === 'png' || format === 'jpeg' || format === 'webp') {
       await mkdir(target, { recursive: true });
       const files: string[] = [];

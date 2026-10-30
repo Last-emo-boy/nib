@@ -248,3 +248,40 @@ describe('reports', () => {
     expect(r.text).toMatch(/"Button \(instance\)": "\w+"/);
   });
 });
+
+describe('export paths', () => {
+  it('can be redirected, so test runs never write outside their folder', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nib-redirect-'));
+    const doc = new PenDoc({ version: '2.20', children: [{ type: 'frame', id: 'box', x: 0, y: 0, width: 4, height: 4, fill: '#000000' }] } as unknown as PenDocument);
+    const s = await ExecSession.open(doc, { renderer, images: noImages, baseDir: tmpdir(), exportPath: (p) => join(dir, p.replace(/^\/+/, '')) });
+    const r = await s.execute({ input: 'Export(["box"], "png", "/nowhere/real", {scale: 1})' });
+    expect(r.ok, r.text).toBe(true);
+    expect(await readdir(join(dir, 'nowhere', 'real'))).toEqual(['box.png']);
+  });
+});
+
+describe('pen.dev compatibility', () => {
+  const nested = () => new PenDoc({ version: '2.20', children: [
+    { type: 'frame', id: 'btn', name: 'Button', reusable: true, x: 0, y: 0, children: [{ type: 'icon', id: 'ic', icon: 'plus', width: 16, height: 16 }, { type: 'text', id: 'lb', content: 'Add', fill: '#000000' }] },
+    { type: 'frame', id: 'bar', name: 'Bar', reusable: true, x: 0, y: 100, children: [{ type: 'ref', id: 'b1', ref: 'btn' }] },
+    { type: 'frame', id: 'page', name: 'Page', x: 0, y: 200, children: [{ type: 'ref', id: 'barI', ref: 'bar' }] },
+  ] } as unknown as PenDocument);
+
+  it('accepts descendants nested inside an override of a nested instance', async () => {
+    const doc = nested();
+    const s = await ExecSession.open(doc, { renderer, images: noImages, baseDir: tmpdir() });
+    const r = await s.execute({ input: 'i = Insert("page", {type: "ref", ref: "bar", descendants: {b1: {opacity: 0.5, descendants: {ic: {icon: "x"}}}}})' });
+    expect(r.ok, r.text).toBe(true);
+    const id = /"(\w+)" \(= i\)/.exec(r.text)![1];
+    expect((doc.get(id) as unknown as { descendants: unknown }).descendants).toEqual({ b1: { opacity: 0.5 }, 'b1/ic': { icon: 'x' } });
+  });
+
+  it('accepts Copy descendants keyed by a path into an instance inside the copy', async () => {
+    const doc = nested();
+    const s = await ExecSession.open(doc, { renderer, images: noImages, baseDir: tmpdir() });
+    const r = await s.execute({ input: 'c = Copy("page", document, {y: 400, descendants: {"barI/b1": {opacity: 0.5}, "barI/b1/lb": {content: "New"}}})' });
+    expect(r.ok, r.text).toBe(true);
+    const copy = doc.get(/"(\w+)" \(= c\)/.exec(r.text)![1]) as unknown as { children: { descendants: unknown }[] };
+    expect(copy.children[0].descendants).toEqual({ b1: { opacity: 0.5 }, 'b1/lb': { content: 'New' } });
+  });
+});

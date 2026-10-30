@@ -214,13 +214,14 @@ export class TextEngine implements TextMeasurer {
     const ck = this.ck;
     const color = solidTextColor(node.fill) ?? TRANSPARENT;
     const decoration = (node.underline === true ? ck.UnderlineDecoration : 0) | (node.strikethrough === true ? ck.LineThroughDecoration : 0);
+    const weight = fontWeight(node.fontWeight), italic = isItalic(node.fontStyle);
     return new ck.TextStyle({
       color: ck.Color4f(...color),
-      fontFamilies: [familyOf(node), ...fallbackFamilies(segment, this.fallbacks)],
+      fontFamilies: [familyOf(node), ...fallbackFamilies(segment, this.fallbacks)].map((f) => this.fonts.alias(f, weight, italic) ?? f),
       fontSize: fontSizeOf(node),
       fontStyle: {
-        weight: { value: fontWeight(node.fontWeight) },
-        slant: isItalic(node.fontStyle) ? ck.FontSlant.Italic : ck.FontSlant.Upright,
+        weight: { value: weight },
+        slant: italic ? ck.FontSlant.Italic : ck.FontSlant.Upright,
       },
       letterSpacing: typeof node.letterSpacing === 'number' ? node.letterSpacing : 0,
       ...(decoration ? { decoration, decorationColor: ck.Color4f(...color), decorationThickness: 1 } : {}),

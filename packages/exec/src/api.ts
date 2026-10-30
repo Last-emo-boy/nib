@@ -342,6 +342,20 @@ export class PenApi {
 
   private prepareDescendants(comp: Node, descendants: Props, fn: string): Record<string, Props> {
     const out = normalizeDescendantKeys(this.doc, comp.id, descendants);
+    // An entry for a nested instance may carry that instance's own `descendants`; they become path keys,
+    // prepared against the nested instance's component.
+    const nestedOut: Record<string, Props> = {};
+    for (const [key, entry] of Object.entries(out)) {
+      if ('type' in entry || entry.descendants === undefined) continue;
+      const { descendants: nested, ...props } = entry;
+      const inner = this.doc.get(key.split('/').pop()!);
+      if (inner?.type !== 'ref' || !isObject(nested)) throw new ExecError(`${fn}: descendants["${key}"] is not a component instance, so it cannot have descendants`);
+      const innerComp = this.doc.get((inner as RefNode).ref);
+      if (!innerComp) throw new ExecError(`${fn}: component "${(inner as RefNode).ref}" not found`);
+      if (Object.keys(props).length) out[key] = props;
+      else delete out[key];
+      for (const [k, v] of Object.entries(this.prepareDescendants(innerComp, nested, fn))) nestedOut[`${key}/${k}`] = v;
+    }
     for (const [key, entry] of Object.entries(out)) {
       const target = componentDescendant(this.doc, comp, key);
       if ('type' in entry) {
@@ -355,6 +369,9 @@ export class PenApi {
           out[key] = { ...props, children: children.map((c) => this.prepareNew(c, fn)) };
         }
       }
+    }
+    for (const [k, v] of Object.entries(nestedOut)) {
+      out[k] = out[k] && !('type' in v) && !('type' in out[k]) ? { ...out[k], ...v } : v;
     }
     return out;
   }
@@ -422,6 +439,20 @@ export class PenApi {
   private applyToCopy(copy: Node, descendants: Props, map: Map<string, string>): void {
     for (const [key, entry] of Object.entries(descendants)) {
       if (!isObject(entry)) throw new ExecError(`Copy: descendants["${key}"] must be an object`);
+      if (key.includes('/')) {
+        // A path into an instance inside the copy: override that instance.
+        const [first, ...rest] = key.split('/');
+        const inst = findById(copy, map.get(first) ?? first);
+        if (inst?.type !== 'ref') throw new ExecError(`Copy: descendants["${key}"]: "${first}" is not a component instance in the copied node`);
+        const comp = this.doc.get((inst as RefNode).ref);
+        if (!comp) throw new ExecError(`Copy: component "${(inst as RefNode).ref}" not found`);
+        const merged = { ...((inst as RefNode).descendants ?? {}) };
+        for (const [k, v] of Object.entries(this.prepareDescendants(comp, { [rest.join('/')]: entry }, 'Copy'))) {
+          merged[k] = 'type' in v || !merged[k] || 'type' in merged[k] ? v : { ...merged[k], ...v };
+        }
+        (inst as RefNode).descendants = merged;
+        continue;
+      }
       let id = map.get(key) ?? key;
       let hit = findById(copy, id);
       if (!hit) {

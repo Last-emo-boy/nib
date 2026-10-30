@@ -2,5 +2,11 @@
   "name": "@nib/scripts",
   "private": true,
   "type": "module",
-  "dependencies": { "@nib/core": "workspace:*", "@nib/format": "workspace:*", "@nib/render": "workspace:*" }
+  "dependencies": {
+    "@nib/core": "workspace:*",
+    "@nib/exec": "workspace:*",
+    "@nib/export": "workspace:*",
+    "@nib/format": "workspace:*",
+    "@nib/render": "workspace:*"
+  }
 }

@@ -118,6 +118,12 @@ importers:
       '@nib/core':
         specifier: workspace:*
         version: link:../packages/core
+      '@nib/exec':
+        specifier: workspace:*
+        version: link:../packages/exec
+      '@nib/export':
+        specifier: workspace:*
+        version: link:../packages/export
       '@nib/format':
         specifier: workspace:*
         version: link:../packages/format

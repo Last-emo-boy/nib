@@ -17,7 +17,7 @@ beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'nib-daemon-'));
   const renderer = await createNodeRenderer();
   host = new DocumentHost({ renderer, images: () => none });
-  daemon = await startDaemon({ host, fonts: none, icons: new PackageIconSource(), images: () => none, fallbacks: renderer.fallbacks, port: 0 });
+  daemon = await startDaemon({ host, renderer, fonts: none, icons: new PackageIconSource(), images: () => none, fallbacks: renderer.fallbacks, port: 0 });
 });
 afterAll(async () => {
   await daemon.close();
@@ -117,5 +117,21 @@ describe('daemon', () => {
     expect(icon.viewBox).toEqual([0, 0, 24, 24]);
     expect((await get('/api/icon?library=lucide&name=no-such-icon')).status).toBe(404);
     expect((await (await get('/api/config')).json()).fallbacks.han.length).toBeGreaterThan(0);
+  });
+});
+
+describe('library', () => {
+  it('lists templates, makes drafts from them, and renders thumbnails', async () => {
+    const get = (p: string) => fetch(`http://127.0.0.1:${daemon.port}${p}`, { headers: { authorization: `Bearer ${daemon.token}` } });
+    const { templates } = await (await get('/api/templates')).json();
+    expect(templates.length).toBeGreaterThanOrEqual(96);
+    expect(templates[0]).toMatchObject({ id: expect.any(String), title: { en: expect.any(String), zh: expect.any(String) } });
+    const r = await (await api('/api/new', { template: 'analytics-metric-card', name: 'Metric card' })).json();
+    expect(r.path).toMatch(/drafts\/Metric card( \d+)?\.pen$/);
+    const thumb = await get(`/api/thumbnail?path=${encodeURIComponent(r.path)}&size=200`);
+    expect(thumb.headers.get('content-type')).toBe('image/png');
+    expect((await thumb.arrayBuffer()).byteLength).toBeGreaterThan(1000);
+    const lib = await (await get('/api/library')).json();
+    expect(lib.drafts.some((d: { path: string }) => d.path === r.path)).toBe(true);
   });
 });

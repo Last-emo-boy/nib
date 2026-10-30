@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { applyOp, childrenOf, DocEditor, PenDoc, type Op } from '@nib/core';
 import { parsePen, serializePen, type Node, type PenDocument } from '@nib/format';
+import { noteOpened } from './library.ts';
 import { ExecSession, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat, type Problem } from '@nib/exec';
 import type { ImageLoader, Renderer } from '@nib/render';
 
@@ -93,6 +94,7 @@ export class DocumentHost {
       if (this.opts.watch !== false) this.watchFile(open);
     }
     this.active = path;
+    await noteOpened(path).catch(() => undefined);
     return open;
   }
 

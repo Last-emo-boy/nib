@@ -1,0 +1,14 @@
+{
+  "name": "@nib/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "nib desktop app",
+  "main": "src/main.ts",
+  "dependencies": {
+    "@nib/daemon": "workspace:*"
+  },
+  "devDependencies": {
+    "electron": "^45.1.0"
+  }
+}

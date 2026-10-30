@@ -20,7 +20,7 @@ const editorDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..'
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 const daemon = await startDaemon({
-  host, fonts, icons, images: imagesFor, fallbacks,
+  host, renderer, fonts, icons, images: imagesFor, fallbacks,
   port: Number(process.env.NIB_PORT ?? DEFAULT_PORT),
   editorDir: existsSync(editorDir) ? editorDir : undefined,
   devOrigins: process.env.NIB_DEV_ORIGIN ? process.env.NIB_DEV_ORIGIN.split(',') : undefined,

@@ -4,14 +4,18 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { extname, join, normalize, relative, resolve as resolvePath } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { Op } from '@nib/core';
-import type { FallbackFamilies, FontLoader, IconSource, ImageLoader } from '@nib/render';
+import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } from '@nib/render';
 import type { DocEvent, DocumentHost, Source } from './host.ts';
+import { drafts, newDraft, recents, thumbnail } from './library.ts';
+import { templateDocument, templateFile, templates } from './templates.ts';
 
 export const DAEMON_VERSION = '0.1.0';
 export const DEFAULT_PORT = 7451;
 
 export interface DaemonOptions {
   host: DocumentHost;
+  /** Renders dashboard thumbnails. */
+  renderer: Renderer;
   fonts: FontLoader;
   icons: IconSource;
   images: (penFile: string) => ImageLoader;
@@ -130,6 +134,28 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           return send(res, 409, { error: (e as Error).message });
         }
       }
+      case 'GET /api/library':
+        return send(res, 200, { recents: await recents(), drafts: await drafts(), open: host.list().map((d) => d.path) });
+      case 'GET /api/templates':
+        return send(res, 200, { templates: await templates() });
+      case 'GET /api/thumbnail': {
+        const file = q.get('path') ?? '';
+        const template = q.get('template');
+        if (template) {
+          const png = await templateThumbnail(template, Number(q.get('size') ?? 480));
+          return png ? sendBytes(res, png, 'image/png') : send(res, 404, { error: 'no such template' });
+        }
+        if (!file.endsWith('.pen')) return send(res, 400, { error: 'path must be a .pen file' });
+        const png = await thumbnail(opts.renderer, opts.images, file, Number(q.get('size') ?? 480));
+        return png ? sendBytes(res, png, 'image/png') : send(res, 404, { error: 'nothing to show' });
+      }
+      case 'POST /api/new': {
+        const body = await readJson(req);
+        const doc = typeof body.template === 'string' ? await templateDocument(body.template) : undefined;
+        if (body.template && !doc) return send(res, 404, { error: 'no such template' });
+        const path = await newDraft(doc, typeof body.name === 'string' ? body.name : undefined);
+        return send(res, 200, { path });
+      }
       case 'GET /api/docs':
         return send(res, 200, { docs: host.list().map((d) => ({ path: d.path, version: d.version, active: d.path === host.active })) });
       case 'GET /api/config':
@@ -152,6 +178,11 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
       default:
         return send(res, 404, { error: 'no such endpoint' });
     }
+  }
+
+  async function templateThumbnail(id: string, size: number): Promise<Uint8Array | undefined> {
+    const file = await templateFile(id);
+    return file ? thumbnail(opts.renderer, opts.images, file, size) : undefined;
   }
 
   async function serveEditor(pathname: string, res: ServerResponse): Promise<void> {

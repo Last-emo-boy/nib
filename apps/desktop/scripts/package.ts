@@ -6,7 +6,7 @@
 // third-party modules installed by pnpm, whose links to workspace packages keep the sources outside
 // node_modules. Symlinks are kept as they are when the app is packaged.
 import { execFileSync } from 'node:child_process';
-import { cp, mkdir, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,6 +51,20 @@ for (const p of [join(lucide, 'font'), join(lucide, 'sprite.svg'), join(lucide, 
   await rm(p, { recursive: true, force: true });
 }
 for (const f of await readdir(join(lucide, 'dist', 'cjs'))) if (f !== 'lucide-static.js') await rm(join(lucide, 'dist', 'cjs', f), { recursive: true, force: true });
+// The agent SDKs' own Claude Code and Codex binaries (600 MB together) stay out: nib's agent uses the
+// ones the person installed and signed in to.
+for (const d of await readdir(store)) {
+  if (/^@anthropic-ai\+claude-agent-sdk-[a-z0-9]+-[a-z0-9]+@/.test(d) || /^@openai\+codex@[^-]+-(darwin|linux|win32)-/.test(d)) await rm(join(store, d), { recursive: true, force: true });
+}
+// ...and the links to them, which codesign would refuse.
+for (const d of await readdir(store)) {
+  for (const scope of ['@anthropic-ai', '@openai']) {
+    const dir = join(store, d, 'node_modules', scope);
+    for (const name of await readdir(dir).catch(() => [] as string[])) {
+      if (!(await stat(join(dir, name)).catch(() => undefined))) await rm(join(dir, name), { force: true });
+    }
+  }
+}
 
 console.log(`Packaging with Electron ${electronVersion}…`);
 const [appDir] = await packager({

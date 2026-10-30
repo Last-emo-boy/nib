@@ -386,6 +386,15 @@ function describe(d: OpenDocument, active: boolean): string {
   if (comps.length > LIST_LIMIT) lines.push(`- … ${comps.length - LIST_LIMIT} more`);
   const vars = Object.keys(doc.data.variables ?? {});
   lines.push('', vars.length ? `Variables: ${vars.length}${doc.data.themes ? `; themes: ${Object.entries(doc.data.themes).map(([a, v]) => `${a} = ${v.join(' | ')}`).join(', ')}` : ''} (read them with GetVariables())` : 'Variables: none');
-  if (doc.imports.size) lines.push(`Imports: ${[...doc.imports.keys()].map((a) => `\`${a}\``).join(', ')} (address their nodes and variables as alias:id)`);
+  // A design system's components and variables are what agents build with, so list them all.
+  for (const [alias, lib] of doc.imports) {
+    const libComps: Node[] = [];
+    const visitLib = (n: Node) => { if (n.reusable) libComps.push(n); childrenOf(n)?.forEach(visitLib); };
+    lib.data.children.forEach(visitLib);
+    const libVars = Object.keys(lib.data.variables ?? {});
+    lines.push('', `Library \`${alias}\` (${doc.data.imports?.[alias] ?? ''}): use its components as \`ref: "${alias}:id"\` and its variables as \`"$${alias}:name"\`; Get("${alias}:id") shows a component's children, whose ids are the keys for \`descendants\` overrides.`);
+    lines.push(`Components (${libComps.length}): ${libComps.map((c) => `\`${alias}:${c.id}\`${c.name ? ` ${c.name}` : ''}`).join(', ')}`);
+    if (libVars.length) lines.push(`Variables (${libVars.length}): ${libVars.join(', ')}`);
+  }
   return lines.join('\n');
 }

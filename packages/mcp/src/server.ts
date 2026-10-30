@@ -42,7 +42,9 @@ export async function handle(host: McpHost, msg: Request): Promise<Reply | undef
       case 'initialize': {
         const requested = String(msg.params?.protocolVersion ?? '');
         const client = (msg.params?.clientInfo as { name?: unknown } | undefined)?.name;
-        if (typeof client === 'string' && client) host.agent = client;
+        // nib's own agent names itself (NIB_AGENT); other clients go by their client name.
+        if (process.env.NIB_AGENT) host.agent = process.env.NIB_AGENT;
+        else if (typeof client === 'string' && client) host.agent = client;
         return ok({
           protocolVersion: PROTOCOL_VERSIONS.includes(requested) ? requested : PROTOCOL_VERSIONS[0],
           capabilities: { tools: { listChanged: false } },

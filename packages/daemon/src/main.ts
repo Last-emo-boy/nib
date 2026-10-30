@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXPORTERS } from '@nib/export';
 import { createNodeRenderer, FallbackFontLoader, GoogleFontsLoader, imagesFor, PackageIconSource, platformFallbacks, SystemFontLoader } from '@nib/render/node';
+import { AgentService } from './agent/service.ts';
 import { BrowserService } from './browser/service.ts';
 import { DocumentHost } from './host.ts';
 import { NIB_HOME } from './library.ts';
@@ -30,11 +31,12 @@ const images = (file: string) => {
 };
 const host = new DocumentHost({ renderer, images, exporters: EXPORTERS });
 browser = new BrowserService({ host, home: NIB_HOME, fonts });
+const agent = new AgentService({ home: NIB_HOME });
 const editorDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'editor', 'dist');
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 const daemon = await startDaemon({
-  host, renderer, browser, fonts, icons, images, fallbacks,
+  host, renderer, browser, agent, fonts, icons, images, fallbacks,
   port: Number(process.env.NIB_PORT ?? DEFAULT_PORT),
   editorDir: existsSync(editorDir) ? editorDir : undefined,
   devOrigins: process.env.NIB_DEV_ORIGIN ? process.env.NIB_DEV_ORIGIN.split(',') : undefined,

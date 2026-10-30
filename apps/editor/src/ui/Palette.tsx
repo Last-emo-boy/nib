@@ -46,6 +46,7 @@ export function Palette() {
       { key: 'fit-selection', label: t.fitSelection, icon: 'maximize', hint: '⇧2', run: () => { const b = boundsOf(store.get().selection); if (b) store.set({ view: fitView(b, 4) }); } },
       { key: 'panel', label: t.togglePanel, icon: 'panelLeft', hint: '⌘\\', run: () => store.set({ leftOpen: !store.get().leftOpen }) },
       { key: 'activity', label: t.toggleActivity, icon: 'activity', run: () => store.set({ activityOpen: !store.get().activityOpen }) },
+      { key: 'agent', label: t.toggleAgent, icon: 'sparkles', run: () => store.set({ agentOpen: !store.get().agentOpen, activityOpen: false }) },
       { key: 'problems', label: t.problems, icon: 'scan', run: () => store.set({ leftOpen: true, leftTab: 'problems' }) },
       { key: 'lang', label: t.switchLanguage, icon: 'languages', run: () => { const lang = store.get().lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', lang); store.set({ lang }); } },
     ];

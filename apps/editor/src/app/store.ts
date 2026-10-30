@@ -27,6 +27,8 @@ export interface EditorState {
   /** Recent changes, newest last, for the activity feed. */
   changes: Change[];
   activityOpen: boolean;
+  /** The chat with nib's agent. */
+  agentOpen: boolean;
   /** The node whose text is being edited on the canvas. */
   editingText?: string;
   lang: Lang;
@@ -67,6 +69,7 @@ export const store = createStore<EditorState>({
   history: { undo: [], redo: [] },
   changes: [],
   activityOpen: false,
+  agentOpen: localStorage.getItem('nib-agent-open') === '1',
   lang: savedLang,
   paletteOpen: false,
 });

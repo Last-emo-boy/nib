@@ -14,6 +14,8 @@ import { Settings } from './Settings.tsx';
 import { Palette } from './Palette.tsx';
 import { Properties } from './Properties.tsx';
 import { agentLabel } from '../canvas/presence.ts';
+import { receive as receiveAgent } from '../app/agent.ts';
+import { AgentPanel } from './Agent.tsx';
 
 export function App() {
   const [file, setFile] = useState(fileFromUrl());
@@ -28,6 +30,7 @@ export function App() {
       if (e.t === 'doc') store.set((s) => ({ doc: e.doc, version: s.version + 1 }));
       if (e.t === 'history') store.set({ history: { undo: e.undo, redo: e.redo } });
       if (e.t === 'change') store.set((s) => ({ version: s.version + 1, changes: [...s.changes.slice(-199), e.change] }));
+      if (e.t === 'agent') receiveAgent(e.event);
     });
     return () => { off(); conn.close(); };
   }, [file]);
@@ -43,6 +46,7 @@ export function App() {
       <Properties />
       <Zoom />
       <ActivityFeed />
+      <AgentPanel />
       <Status />
       <Palette />
       <Toast />
@@ -99,6 +103,7 @@ function TopRight() {
   const t = useT();
   const history = useEditor((s) => s.history);
   const activity = useEditor((s) => s.activityOpen);
+  const agentOpen = useEditor((s) => s.agentOpen);
   const changes = useEditor((s) => s.changes);
   const lang = useEditor((s) => s.lang);
   const agentBusy = changes.length > 0 && changes[changes.length - 1].source.kind === 'agent' && Date.now() - changes[changes.length - 1].at < 4000;
@@ -107,7 +112,10 @@ function TopRight() {
       <button title={`${t.undo}${history.undo.length ? `: ${history.undo[history.undo.length - 1]}` : ''}`} disabled={!history.undo.length} onClick={() => store.get().conn?.undo()}><Icon name="undo" /></button>
       <button title={`${t.redo}${history.redo.length ? `: ${history.redo[history.redo.length - 1]}` : ''}`} disabled={!history.redo.length} onClick={() => store.get().conn?.redo()}><Icon name="redo" /></button>
       <span className="sep" />
-      <button className={`text-button${activity ? ' on' : ''}`} onClick={() => store.set({ activityOpen: !activity })}>
+      <button className={`text-button${agentOpen ? ' on' : ''}`} title={`${t.agent} (⌘J)`} onClick={() => store.set({ agentOpen: !agentOpen, activityOpen: false })}>
+        <Icon name="sparkles" size={15} />{t.agent}
+      </button>
+      <button className={`text-button${activity ? ' on' : ''}`} onClick={() => store.set({ activityOpen: !activity, agentOpen: false })}>
         <span className={`dot${agentBusy ? ' busy' : ''}`} />{t.activity}
       </button>
       <button className="text-button" title={t.language} onClick={() => { const next = lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', next); store.set({ lang: next }); }}><Icon name="languages" size={15} /></button>
@@ -249,7 +257,8 @@ export function runCommand(name: string): void {
     case 'zoom-fit': store.set({ view: fitView(boundsOf()) }); break;
     case 'zoom-selection': if (s.selection.length) store.set({ view: fitView(boundsOf(s.selection), 4) }); break;
     case 'toggle-panel': store.set({ leftOpen: !s.leftOpen }); break;
-    case 'toggle-activity': store.set({ activityOpen: !s.activityOpen }); break;
+    case 'toggle-activity': store.set({ activityOpen: !s.activityOpen, agentOpen: false }); break;
+    case 'toggle-agent': store.set({ agentOpen: !s.agentOpen, activityOpen: false }); break;
     case 'save-as': void saveAs(); break;
     case 'export': store.set({ leftOpen: s.leftOpen }); document.querySelector<HTMLButtonElement>('.wide-button')?.scrollIntoView({ block: 'center' }); break;
     case 'frame-selection': frameSelection(); break;
@@ -269,7 +278,7 @@ function useShortcuts() {
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
       const tools: Record<string, Tool> = { v: 'move', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', p: 'polygon', t: 'text', i: 'icon', n: 'note', h: 'hand' };
-      const chords: Record<string, string> = { z: e.shiftKey ? 'redo' : 'undo', y: 'redo', d: 'duplicate', k: 'palette', a: 'select-all', '\\': 'toggle-panel', '0': 'zoom-100', '=': 'zoom-in', '-': 'zoom-out' };
+      const chords: Record<string, string> = { z: e.shiftKey ? 'redo' : 'undo', y: 'redo', d: 'duplicate', k: 'palette', j: 'toggle-agent', a: 'select-all', '\\': 'toggle-panel', '0': 'zoom-100', '=': 'zoom-in', '-': 'zoom-out' };
       if (mod && e.altKey && key === 'g') { e.preventDefault(); runCommand('frame-selection'); return; }
       if (mod && e.altKey && key === 'k') { e.preventDefault(); runCommand('make-component'); return; }
       if (mod && e.shiftKey && key === 'c') { e.preventDefault(); runCommand('copy-png'); return; }

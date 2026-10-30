@@ -5,11 +5,12 @@ import { dirname, extname, join, normalize, relative, resolve as resolvePath } f
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { Op } from '@nib/core';
 import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } from '@nib/render';
-import type { DocEvent, DocumentHost, Source } from './host.ts';
+import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
 import { DRAFTS_DIR, drafts, newDraft, nodePreview, recents, thumbnail } from './library.ts';
 import { aliasFor, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
 import { templateDocument, templateFile, templates } from './templates.ts';
 import type { BrowserService } from './browser/service.ts';
+import type { AgentService } from './agent/service.ts';
 
 export const DAEMON_VERSION = '0.1.0';
 export const DEFAULT_PORT = 7451;
@@ -20,6 +21,8 @@ export interface DaemonOptions {
   renderer: Renderer;
   /** The `browser` tool; without it the endpoint answers that no browser is available. */
   browser?: BrowserService;
+  /** nib's own agent; without it the agent endpoints answer that there is none. */
+  agent?: AgentService;
   fonts: FontLoader;
   icons: IconSource;
   images: (penFile: string) => ImageLoader;
@@ -144,6 +147,47 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         if (!opts.browser) return send(res, 200, { text: 'No browser is available in this nib.', images: [], isError: true });
         const { filePath, agent, ...args } = body;
         return send(res, 200, await opts.browser.run(filePath, args as never, typeof agent === 'string' ? agent : undefined) as unknown as Json);
+      }
+      case 'GET /api/agent/providers':
+        return send(res, 200, { providers: opts.agent ? await opts.agent.providerInfo() : [] });
+      case 'GET /api/agent/sessions':
+        return send(res, 200, { sessions: opts.agent ? await opts.agent.list(q.get('doc') ?? undefined) : [] });
+      case 'GET /api/agent/session': {
+        const session = await opts.agent?.get(q.get('id') ?? '');
+        return session ? send(res, 200, { session: session as unknown as Json }) : send(res, 404, { error: 'no such session' });
+      }
+      case 'POST /api/agent/send': {
+        if (!opts.agent) return send(res, 404, { error: 'this nib has no agent' });
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || typeof body.provider !== 'string' || typeof body.text !== 'string' || !body.text.trim()) return send(res, 400, { error: 'doc, provider and text are required' });
+        const selection = Array.isArray(body.selection) ? body.selection.filter((x): x is string => typeof x === 'string').slice(0, 50) : [];
+        const open = await host.open(body.doc);
+        try {
+          const session = await opts.agent.send({
+            session: typeof body.session === 'string' ? body.session : undefined, doc: open.path, provider: body.provider,
+            model: typeof body.model === 'string' ? body.model : undefined, text: body.text, selection, context: describeSelection(open, selection),
+          });
+          return send(res, 200, { session: session as unknown as Json });
+        } catch (e) {
+          return send(res, 409, { error: (e as Error).message });
+        }
+      }
+      case 'POST /api/agent/stop': {
+        const body = await readJson(req);
+        if (typeof body.id === 'string') opts.agent?.stop(body.id);
+        return send(res, 200, { ok: true });
+      }
+      case 'POST /api/agent/delete': {
+        const body = await readJson(req);
+        if (typeof body.id === 'string') await opts.agent?.remove(body.id);
+        return send(res, 200, { ok: true });
+      }
+      case 'POST /api/agent/key': {
+        // An API key for a provider nib calls itself; empty removes it. Never sent back.
+        const body = await readJson(req);
+        if (!opts.agent || typeof body.provider !== 'string' || !/^[a-z0-9-]+$/.test(body.provider)) return send(res, 400, { error: 'provider is required' });
+        await opts.agent.keys.set(body.provider, typeof body.key === 'string' && body.key.trim() ? body.key.trim() : undefined);
+        return send(res, 200, { ok: true });
       }
       case 'GET /api/library':
         return send(res, 200, { recents: await recents(), drafts: await drafts(), open: host.list().map((d) => d.path) });
@@ -292,7 +336,11 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           case 'open': {
             const notes: string[] = [];
             const doc = await host.open(path, notes);
-            if (!subscriptions.has(doc.path)) subscriptions.set(doc.path, host.subscribe(doc.path, out));
+            if (!subscriptions.has(doc.path)) {
+              const offDoc = host.subscribe(doc.path, out);
+              const offAgent = opts.agent?.subscribe(doc.path, out);
+              subscriptions.set(doc.path, () => { offDoc(); offAgent?.(); });
+            }
             out({ t: 'doc', path: doc.path, notes, client, ...host.snapshot(doc.path) });
             break;
           }
@@ -355,6 +403,19 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
       server.close(() => resolve());
     }),
   };
+}
+
+/** The selected nodes, as the agent is told about them: id, type, name and box. */
+function describeSelection(open: OpenDocument, ids: string[]): string | undefined {
+  const lines = ids.flatMap((id) => {
+    const n = open.session.doc.get(id);
+    if (!n) return [];
+    const b = open.session.box(id);
+    const size = b ? ` ${Math.round(b.width)}×${Math.round(b.height)} at (${Math.round(b.x)}, ${Math.round(b.y)})` : '';
+    const text = n.type === 'text' && typeof n.content === 'string' ? ` "${n.content.slice(0, 80)}"` : '';
+    return [`- \`${id}\` ${n.type}${n.name ? ` "${n.name}"` : ''}${n.type === 'ref' ? ` (instance of ${n.ref})` : ''}${text}${size}`];
+  });
+  return lines.length ? `Document: ${open.path}\nSelected in the editor:\n${lines.join('\n')}` : `Document: ${open.path}\nNothing is selected in the editor.`;
 }
 
 function send(res: ServerResponse, status: number, body: Json): void {

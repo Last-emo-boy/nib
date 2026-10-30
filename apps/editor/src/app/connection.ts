@@ -1,5 +1,6 @@
 import { applyOp, PenDoc, type Op } from '@nib/core';
 import type { PenDocument } from '@nib/format';
+import type { AgentEvent } from './agent.ts';
 
 declare const __NIB_DEV_TOKEN__: string;
 
@@ -22,6 +23,8 @@ export type ConnectionEvent =
   | { t: 'history'; undo: string[]; redo: string[] }
   /** An image changed without its url changing (a browser node's page snapshot). */
   | { t: 'asset'; url: string }
+  /** A change to one of this document's agent sessions. */
+  | { t: 'agent'; event: AgentEvent }
   | { t: 'status'; status: 'connecting' | 'open' | 'closed'; error?: string };
 
 /** The token comes in the link's hash (`#t=...`), which never reaches a server, and is kept for the tab. */
@@ -142,6 +145,9 @@ export class Connection {
         break;
       case 'asset':
         this.emit({ t: 'asset', url: m.url });
+        break;
+      case 'agent':
+        this.emit({ t: 'agent', event: m as AgentEvent });
         break;
       case 'ack': {
         const p = this.pending.get(m.seq);

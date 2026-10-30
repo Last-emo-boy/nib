@@ -284,6 +284,18 @@ export function CanvasView() {
         g.end = p;
         g.shift = e.shiftKey;
         break;
+      case 'rotate': {
+        // Screen angles grow clockwise (y points down); .pen rotation is counter-clockwise.
+        const c = { x: g.box.x + g.box.width / 2, y: g.box.y + g.box.height / 2 };
+        const pointer = (Math.atan2(p.y - c.y, p.x - c.x) * 180) / Math.PI;
+        // The handle starts straight above the centre (pointer angle -90°): turn the start rotation by as much.
+        let angle = g.start - (pointer + 90);
+        angle = ((angle % 360) + 540) % 360 - 180;
+        if (e.shiftKey) angle = Math.round(angle / 15) * 15;
+        g.angle = angle;
+        g.shift = e.shiftKey;
+        break;
+      }
     }
     forceOverlay();
   };
@@ -299,6 +311,7 @@ export function CanvasView() {
       if (r.width > 1 || r.height > 1) store.set({ selection: [...new Set([...g.add, ...canvas.cache.within(r, 0)])] });
     } else if (g.kind === 'create') void finishCreate(s.doc, g);
     else if (g.kind === 'resize') finishResize(s.doc, g);
+    else if (g.kind === 'rotate') finishRotate(s.doc, g);
     canvas.shift.clear();
     canvas.redraw();
     forceOverlay();
@@ -326,6 +339,11 @@ export function CanvasView() {
       <Overlay gesture={gesture} register={(f) => { forceOverlayRef.current = f; }} startResize={(handle, box) => {
         const s = store.get();
         gesture.current = { kind: 'resize', id: s.selection[0], handle, box, start: { x: 0, y: 0 }, end: undefined, shift: false };
+      }} startRotate={(box) => {
+        const s = store.get();
+        const r = s.doc?.get(s.selection[0])?.rotation;
+        const start = typeof r === 'number' ? r : 0;
+        gesture.current = { kind: 'rotate', id: s.selection[0], box, start, angle: start, shift: false };
       }} />
     </div>
   );
@@ -402,6 +420,25 @@ function finishResize(doc: PenDoc, g: Extract<Gesture, { kind: 'resize' }>): voi
     if (props.textGrowth === 'fixed-width') delete props.height;
   }
   void commit('Resize', (ed) => ed.set(g.id, props));
+}
+
+/**
+ * Set the rotation a rotate gesture chose. `.pen` rotates around the top-left corner; nodes placed by
+ * x/y also move so that their centre stays where it was, as people expect when turning a shape.
+ */
+function finishRotate(doc: PenDoc, g: Extract<Gesture, { kind: 'rotate' }>): void {
+  const node = doc.get(g.id);
+  if (!node || Math.abs(g.angle - g.start) < 0.01) return;
+  const props: Record<string, unknown> = { rotation: Math.round(g.angle * 10) / 10 || undefined };
+  if (isFree(doc, g.id)) {
+    const { width: w, height: h } = g.box;
+    // Centre of a w×h box rotated by a (counter-clockwise on screen) about its top-left corner.
+    const centre = (deg: number) => { const a = (deg * Math.PI) / 180; return { x: (w / 2) * Math.cos(a) + (h / 2) * Math.sin(a), y: -(w / 2) * Math.sin(a) + (h / 2) * Math.cos(a) }; };
+    const before = centre(g.start), after = centre(g.angle);
+    props.x = Math.round((node.x ?? 0) + before.x - after.x);
+    props.y = Math.round((node.y ?? 0) + before.y - after.y);
+  }
+  void commit('Rotate', (ed) => ed.set(g.id, props));
 }
 
 /** The box a resize gesture would give, in document coordinates. */

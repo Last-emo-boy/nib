@@ -15,7 +15,8 @@ export type Gesture =
   | { kind: 'drag'; start: Point; end: Point; ids: string[] }
   | { kind: 'marquee'; start: Point; end: Point; add: string[] }
   | { kind: 'create'; tool: Tool; start: Point; end: Point; parent: string | null }
-  | { kind: 'resize'; id: string; handle: string; box: Box; start: Point; end: Point | undefined; shift: boolean };
+  | { kind: 'resize'; id: string; handle: string; box: Box; start: Point; end: Point | undefined; shift: boolean }
+  | { kind: 'rotate'; id: string; box: Box; start: number; angle: number; shift: boolean };
 
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
 const CURSORS: Record<string, string> = { nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' };
@@ -26,9 +27,10 @@ interface Props {
   gesture: RefObject<Gesture | undefined>;
   register: (force: () => void) => void;
   startResize: (handle: string, box: Box) => void;
+  startRotate: (box: Box) => void;
 }
 
-export function Overlay({ gesture, register, startResize }: Props) {
+export function Overlay({ gesture, register, startResize, startRotate }: Props) {
   const [, force] = useReducer((n: number) => n + 1, 0);
   useEffect(() => register(force), [register]);
   const view = useEditor((s) => s.view);
@@ -81,6 +83,20 @@ export function Overlay({ gesture, register, startResize }: Props) {
               onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture(e.pointerId); startResize(h, single); }} />
           );
         })}
+        {single && !drag && !editing && g?.kind !== 'resize' && (() => {
+          const s = screen(view, single);
+          return <circle className="handle rotate" cx={s.x + s.width / 2} cy={s.y - 18} r={4.5}
+            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture(e.pointerId); startRotate(single); }} />;
+        })()}
+        {g?.kind === 'rotate' && (() => {
+          const s = screen(view, g.box);
+          return (
+            <g>
+              <rect className="selected ghost" x={s.x} y={s.y} width={s.width} height={s.height} transform={`rotate(${-g.angle} ${s.x + s.width / 2} ${s.y + s.height / 2})`} />
+              <text className="angle-label" x={s.x + s.width / 2} y={s.y - 30}>{Math.round(g.angle)}°</text>
+            </g>
+          );
+        })()}
         {all && !editing && <SizeLabel box={screen(view, g?.kind === 'resize' && resizedBox(g) ? resizedBox(g)! : all)} real={g?.kind === 'resize' && resizedBox(g) ? resizedBox(g)! : all} />}
       </svg>
       {editing && <TextEditor id={editing} />}

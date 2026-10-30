@@ -188,3 +188,5 @@ select:focus { border-color: var(--accent); }
 .layer.drop-inside { background: var(--accent-soft); outline: 1px solid var(--accent); }
 .var-input { width: 100%; background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 4px; outline: none; }
 .var-color, .var-plain { cursor: text; }
+.overlay circle.handle { fill: #fff; stroke: var(--accent); stroke-width: 1.5; pointer-events: auto; cursor: grab; }
+.overlay .angle-label { fill: var(--text); font-size: 11px; text-anchor: middle; }

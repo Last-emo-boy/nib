@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import type { Op } from '@nib/core';
 import { copyAsPng, copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, nudge, paste, saveAs, setProps } from '../app/actions.ts';
 import { Connection, authHeaders, fileFromUrl } from '../app/connection.ts';
+import { desktop, openDashboard } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
 import { store, toast, useEditor, type Tool } from '../app/store.ts';
 import { boundsOf, CanvasView, fitView, isTyping } from '../canvas/Canvas.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
 import { LeftPanel, layerName } from './LeftPanel.tsx';
+import { Dashboard } from './Dashboard.tsx';
 import { Palette } from './Palette.tsx';
 import { Properties } from './Properties.tsx';
 
@@ -28,9 +30,9 @@ export function App() {
     return () => { off(); conn.close(); };
   }, [file]);
   useShortcuts();
-  if (!file) return <OpenScreen onOpen={setFile} />;
+  if (!file) return <Dashboard />;
   return (
-    <div className="editor">
+    <div className={`editor${desktop ? ' in-desktop-editor' : ''}`}>
       <CanvasView />
       <TopLeft file={file} />
       <LeftColumn />
@@ -46,11 +48,13 @@ export function App() {
 }
 
 function TopLeft({ file }: { file: string }) {
+  const t = useT();
   const name = file.split('/').pop();
   const folder = file.split('/').slice(-2, -1)[0];
   return (
     <div className="pill top-left">
       <span className="logo">nib</span>
+      <button className="icon-button" title={t.dashboardButton} onClick={openDashboard}><Icon name="grid" size={15} /></button>
       <span className="sep" />
       <Icon name="folder" size={15} />
       <span className="file" title={file}><span className="dim">{folder} / </span>{name}</span>

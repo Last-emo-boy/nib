@@ -37,7 +37,9 @@ await cp(join(desktop, 'src'), join(stage, 'apps', 'desktop', 'src'), { recursiv
 await cp(join(root, 'apps', 'editor', 'dist'), join(stage, 'apps', 'editor', 'dist'), { recursive: true });
 await writeFile(join(stage, 'package.json'), `${JSON.stringify({ name: 'nib', productName: 'nib', version, private: true, type: 'module', main: 'apps/desktop/src/main.ts' }, null, 2)}\n`);
 await writeFile(join(stage, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n  - apps/desktop\n');
-// Every module is already in the pnpm store from the repository's install.
+// The repository's lockfile keeps the versions it was tested with (the stage lists fewer projects, so it
+// is not frozen); every module is already in the pnpm store from the repository's install.
+await cp(join(root, 'pnpm-lock.yaml'), join(stage, 'pnpm-lock.yaml'));
 run('pnpm', ['install', '--prod', '--offline', '--ignore-scripts', '--no-frozen-lockfile'], stage);
 await rm(join(stage, 'pnpm-lock.yaml'), { force: true });
 // nib reads the icon packages' SVG folders (and resolves their main file) and the full CanvasKit build;

@@ -150,8 +150,9 @@ export const CLIENTS: Client[] = [
         `args = [${cmd.args.map((a) => JSON.stringify(a)).join(', ')}]`,
         `env = { ${Object.entries(cmd.env).map(([k, v]) => `${k} = ${JSON.stringify(v)}`).join(', ')} }`,
       ].join('\n');
-      // Replace an existing [mcp_servers.nib] table (up to the next table header), or append one.
-      const re = /^\[mcp_servers\.nib\][\s\S]*?(?=^\[|(?![\s\S]))/m;
+      // Replace an existing [mcp_servers.nib] table and its sub-tables ([mcp_servers.nib.env], …) up to the
+      // next other table header, or append one.
+      const re = /^\[mcp_servers\.nib\][\s\S]*?(?=^\[(?!mcp_servers\.nib[.\]])|(?![\s\S]))/m;
       const next = re.test(text) ? text.replace(re, `${section}\n\n`) : `${text}${text && !text.endsWith('\n') ? '\n' : ''}${text ? '\n' : ''}${section}\n`;
       await mkdir(dirname(file), { recursive: true });
       await writeFile(file, next);

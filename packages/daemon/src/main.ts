@@ -23,8 +23,8 @@ const images = (file: string) => {
   const files = imagesFor(file);
   return {
     load: (url: string) => {
-      const m = /^nib-browser:([^@]+)@/.exec(url);
-      return m ? browser!.snapshot(file, m[1]) : files.load(url);
+      const m = /^nib-browser:([^@]+)@(.*)$/.exec(url);
+      return m ? browser!.snapshot(file, m[1], m[2]) : files.load(url);
     },
   };
 };

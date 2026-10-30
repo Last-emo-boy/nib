@@ -62,6 +62,8 @@ export class BrowserService {
   private chrome?: Chrome;
   private connecting?: Promise<Cdp>;
   private pages = new Map<string, Page>();
+  /** Snapshots already loaded in the background (or tried and failed), so a failure is not retried on every render. */
+  private tried = new Set<string>();
 
   constructor(opts: { host: DocumentHost; home: string; fonts?: FontLoader }) {
     this.host = opts.host;
@@ -86,10 +88,26 @@ export class BrowserService {
     }
   }
 
-  /** The latest snapshot of a browser node's page (JPEG), for drawing the node on the canvas. */
-  async snapshot(docPath: string, nodeId: string): Promise<Uint8Array | undefined> {
-    const bytes = await readFile(this.snapshotFile(`${resolvePath(docPath)}#${nodeId}`)).catch(() => undefined);
-    return bytes ? new Uint8Array(bytes) : undefined;
+  /**
+   * The latest snapshot of a browser node's page at `url` (JPEG), for drawing the node on the canvas.
+   * When there is none yet (a document made elsewhere, a url set by hand) the page is loaded in the
+   * background, once, and its snapshot announced like any other.
+   */
+  async snapshot(docPath: string, nodeId: string, url: string): Promise<Uint8Array | undefined> {
+    const doc = resolvePath(docPath);
+    const bytes = await readFile(this.snapshotFile(doc, nodeId, url)).catch(() => undefined);
+    if (bytes) return new Uint8Array(bytes);
+    const key = `${doc}#${nodeId}@${url}`;
+    // Only for documents open here: thumbnails of other files do not start a browser.
+    if (url && !this.tried.has(key) && this.host.list().some((d) => d.path === doc)) {
+      this.tried.add(key);
+      void (async () => {
+        const page = await this.page(doc, nodeId);
+        if (page.url !== url) await this.navigate(page, url);
+        await this.saveSnapshot(page, url);
+      })().catch((e: Error) => process.stderr.write(`nib: could not load ${url} for browser node ${nodeId}: ${e.message}\n`));
+    }
+    return undefined;
   }
 
   close(): void {
@@ -194,7 +212,8 @@ export class BrowserService {
     const url = await this.navigate(page, args.url);
     const title = await this.evaluate<string>(page, 'document.title');
     if (args.nodeId) {
-      await this.saveSnapshot(page);
+      // Stored under the page's final url first, so editors find it when the node's url changes to it.
+      await this.saveSnapshot(page, url);
       const node = await this.browserNode(filePath, args.nodeId);
       if (node.url !== url) await this.host.execute(filePath, { input: `Update(${JSON.stringify(args.nodeId)}, {url: ${JSON.stringify(url)}})` }, 'browser');
     }
@@ -323,19 +342,22 @@ export class BrowserService {
     await visit(node);
   }
 
-  /** Store what a browser node's page shows, for the canvas. */
-  private async saveSnapshot(page: Page): Promise<void> {
+  /** Store what a browser node's page shows, for the canvas, under `url` (default: the node's url). */
+  private async saveSnapshot(page: Page, url?: string): Promise<void> {
+    if (!page.node) return;
+    const { doc, id } = page.node;
+    const node = (await this.host.open(doc)).session.doc.get(id) as { id: string; url?: unknown } | undefined;
+    if (!node) return;
+    const at = url ?? (typeof node.url === 'string' ? node.url : '');
     const cdp = await this.cdp();
     const shot = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 85 }, page.sessionId);
     await mkdir(this.snapshotDir, { recursive: true });
-    await writeFile(this.snapshotFile(page.key), Buffer.from(shot.data, 'base64'));
-    if (!page.node) return;
-    const node = (await this.host.open(page.node.doc)).session.doc.get(page.node.id);
-    if (node) this.host.assetChanged(page.node.doc, browserSnapshotUrl(node as { id: string; url?: unknown }));
+    await writeFile(this.snapshotFile(doc, id, at), Buffer.from(shot.data, 'base64'));
+    this.host.assetChanged(doc, browserSnapshotUrl({ id, url: at }));
   }
 
-  private snapshotFile(key: string): string {
-    return join(this.snapshotDir, `${createHash('sha1').update(key).digest('hex')}.jpg`);
+  private snapshotFile(doc: string, nodeId: string, url: string): string {
+    return join(this.snapshotDir, `${createHash('sha1').update(`${doc}#${nodeId}@${url}`).digest('hex')}.jpg`);
   }
 }
 

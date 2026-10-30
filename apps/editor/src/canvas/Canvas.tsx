@@ -3,6 +3,7 @@ import type { Surface } from 'canvaskit-wasm';
 import type { PenDoc } from '@nib/core';
 import type { Box } from '@nib/layout';
 import { commit, insertNode, isContainer, isFree, pruneSelection } from '../app/actions.ts';
+import type { Connection } from '../app/connection.ts';
 import { store, type View } from '../app/store.ts';
 import { getEngine, imagesFor, type Engine } from './engine.ts';
 import { Overlay, type Gesture } from './Overlay.tsx';
@@ -155,16 +156,27 @@ export function CanvasView() {
       if (doc) attach(doc, true);
     })();
 
+    // The connection is made by App after this effect runs (children's effects run first), and is
+    // replaced when another file opens: follow whichever one the store holds.
+    let conn: Connection | undefined;
+    let offConn: (() => void) | undefined;
+    const follow = (next: Connection | undefined) => {
+      if (next === conn) return;
+      offConn?.();
+      conn = next;
+      offConn = next?.on((e) => {
+        if (e.t === 'change' && canvas.cache && store.get().doc) {
+          canvas.cache.invalidate(e.change.ops);
+          pruneSelection(store.get().doc!);
+        }
+      });
+    };
+    follow(store.get().conn);
     const offStore = store.subscribe(() => {
       const s = store.get();
+      follow(s.conn);
       if (s.doc && s.doc !== cacheDoc) attach(s.doc, !cacheDoc);
       canvas.redraw();
-    });
-    const offConn = store.get().conn?.on((e) => {
-      if (e.t === 'change' && canvas.cache && store.get().doc) {
-        canvas.cache.invalidate(e.change.ops);
-        pruneSelection(store.get().doc!);
-      }
     });
     const ro = new ResizeObserver(() => engine && makeSurface());
     ro.observe(host.current!);

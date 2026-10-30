@@ -180,7 +180,7 @@ function Variables() {
         {vars.map(([name, v]) => (
           <tr key={name}>
             <td className="var-name" title={name}>{name}</td>
-            {columns.map((ctx, i) => <td key={i}><VarValue v={v} value={resolveVariable(doc, name, ctx)} /></td>)}
+            {columns.map((ctx, i) => <td key={i}><VarValue v={v} value={resolveVariable(doc, name, ctx)} onChange={(value) => setVariable(doc, name, v, axes.length ? { [axes[0][0]]: ctx[axes[0][0]] } : undefined, value)} /></td>)}
           </tr>
         ))}
       </tbody>
@@ -188,9 +188,36 @@ function Variables() {
   );
 }
 
-function VarValue({ v, value }: { v: Variable; value: unknown }) {
-  if (v.type === 'color' && typeof value === 'string') return <span className="var-color"><i style={{ background: value }} />{value}</span>;
-  return <span>{value === undefined ? '—' : String(value)}</span>;
+/**
+ * Change a variable's value for one theme (or its single value). A themed entry for exactly that theme
+ * is updated or added; other entries stay.
+ */
+function setVariable(doc: PenDoc, name: string, v: Variable, theme: Record<string, string> | undefined, raw: string): void {
+  const value: string | number | boolean = v.type === 'number' ? Number(raw) : v.type === 'boolean' ? raw === 'true' : raw;
+  if (v.type === 'number' && !Number.isFinite(value)) return;
+  if (v.type === 'color' && !/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(raw) && !raw.startsWith('$')) return;
+  let next: Variable['value'];
+  if (!theme || !Array.isArray(v.value)) next = theme && !Array.isArray(v.value) ? [{ value: v.value }, { value, theme }] : value;
+  else {
+    const list = v.value.map((e) => ({ ...e }));
+    const same = (t?: Record<string, string>) => !!t && Object.keys(t).length === Object.keys(theme).length && Object.entries(theme).every(([k, x]) => t[k] === x);
+    const hit = list.find((e) => same(e.theme));
+    if (hit) hit.value = value; else list.push({ value, theme });
+    next = list;
+  }
+  void commit(`Set ${name}`, (ed) => ed.setVariables({ ...(doc.data.variables ?? {}), [name]: { ...v, value: next } }));
+}
+
+function VarValue({ v, value, onChange }: { v: Variable; value: unknown; onChange: (raw: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const text = value === undefined ? '' : String(value);
+  if (editing) {
+    return <input className="var-input" autoFocus defaultValue={text}
+      onBlur={(e) => { setEditing(false); if (e.target.value !== text) onChange(e.target.value); }}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditing(false); e.stopPropagation(); }} />;
+  }
+  if (v.type === 'color' && typeof value === 'string') return <span className="var-color" onDoubleClick={() => setEditing(true)}><i style={{ background: value }} />{value}</span>;
+  return <span className="var-plain" onDoubleClick={() => setEditing(true)}>{value === undefined ? '—' : String(value)}</span>;
 }
 
 /** Problems the daemon finds in the whole document; refreshed after changes. */

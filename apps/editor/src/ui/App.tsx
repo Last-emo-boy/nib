@@ -296,6 +296,7 @@ function useShortcuts() {
       if (e.shiftKey && (key === '1')) { runCommand('zoom-fit'); return; }
       if (e.shiftKey && (key === '2' || key === '@')) { runCommand('zoom-selection'); return; }
       if (mod) return;
+      if (key === 'escape' && s.gradientEdit) { store.set({ gradientEdit: undefined }); return; }
       // While a path is drawn or its points edited, these keys work on its points.
       if (s.pen) {
         if (key === 'escape' || key === 'enter') { e.preventDefault(); if (s.pen.mode === 'draw') void finishDrawing(); else finishEditing(); return; }

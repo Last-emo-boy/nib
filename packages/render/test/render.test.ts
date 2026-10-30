@@ -57,6 +57,20 @@ describe('renderer', () => {
     expect(r.at(65, 5)).toEqual([255, 255, 255, 255]);
   });
 
+  it('blends a mesh gradient\'s colors from its points', async () => {
+    const r = await render([{ type: 'rectangle', id: 'm', x: 0, y: 0, width: 100, height: 100, fill: { type: 'mesh_gradient', columns: 2, rows: 2, colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFFFF'] } }]);
+    const near = (got: number[], want: number[]) => got.slice(0, 3).forEach((v, i) => expect(Math.abs(v - want[i])).toBeLessThan(24));
+    near(r.at(1, 1), [255, 0, 0]);
+    near(r.at(98, 1), [0, 255, 0]);
+    near(r.at(1, 98), [0, 0, 255]);
+    near(r.at(98, 98), [255, 255, 255]);
+    // The middle mixes all four.
+    near(r.at(50, 50), [128, 128, 128]);
+    // A point moved in bends the patch: the corner it left is empty.
+    const bent = await render([{ type: 'rectangle', id: 'm', x: 0, y: 0, width: 100, height: 100, fill: { type: 'mesh_gradient', columns: 2, rows: 2, colors: ['#FF0000', '#00FF00', '#0000FF', '#FFFFFF'], points: [[0, 0], [1, 0], [0, 1], [0.5, 0.5]] } }]);
+    expect(bent.at(95, 95)[3]).toBe(0);
+  });
+
   it('draws inner strokes inside the box and per-side widths', async () => {
     const r = await render([{ type: 'frame', id: 'f', width: 40, height: 40, fill: '#ffffff', stroke: '#000000', strokeWidth: { left: 4 } }]);
     expect(r.at(1, 20)).toEqual([0, 0, 0, 255]);

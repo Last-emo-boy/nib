@@ -1,6 +1,7 @@
 import type { BlendMode as CkBlendMode, CanvasKit, Image, InputMatrix, Paint, Shader } from 'canvaskit-wasm';
 import { parseColor, withAlpha, type RGBA } from './color.ts';
 import type { ImageStore } from './images.ts';
+import { meshShader } from './mesh.ts';
 
 type Rec = Record<string, unknown>;
 
@@ -69,14 +70,7 @@ export function fillPaint(ck: CanvasKit, fill: unknown, box: PaintBox, images: I
       if (shader) paint.setAlphaf(opacity);
       break;
     }
-    case 'mesh_gradient': {
-      // Drawn as the average of its colors until mesh patches land.
-      const cs = (Array.isArray(f.colors) ? f.colors : []).map(parseColor).filter((c): c is RGBA => !!c);
-      if (!cs.length) return discard(paint);
-      const avg = [0, 1, 2, 3].map((i) => cs.reduce((s, c) => s + c[i], 0) / cs.length) as RGBA;
-      paint.setColor(ck.Color4f(...withAlpha(avg, opacity)));
-      return paint;
-    }
+    case 'mesh_gradient': shader = meshShader(ck, f, box.width, box.height, opacity); break;
   }
   if (!shader) return discard(paint);
   paint.setShader(shader);

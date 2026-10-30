@@ -8,3 +8,4 @@ export * from './images.ts';
 export * from './paint.ts';
 export * from './renderer.ts';
 export * from './text.ts';
+export * from './mesh.ts';

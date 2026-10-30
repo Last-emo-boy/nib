@@ -7,6 +7,7 @@ import { authHeaders } from '../app/connection.ts';
 import { store, useEditor, type Tool, type View } from '../app/store.ts';
 import { canvas, rectOf, resizedBox } from './Canvas.tsx';
 import { PenOverlay } from './pen.tsx';
+import { GradientOverlay } from './GradientOverlay.tsx';
 
 type Point = { x: number; y: number };
 
@@ -116,6 +117,7 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
           );
         })()}
         <PenOverlay />
+        <GradientOverlay />
         {canvas.guides.map((gd, i) => {
           const a = gd.axis === 'x' ? { x: gd.at, y: gd.from } : { x: gd.from, y: gd.at };
           const b = gd.axis === 'x' ? { x: gd.at, y: gd.to } : { x: gd.to, y: gd.at };

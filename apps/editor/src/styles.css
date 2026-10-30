@@ -46,6 +46,17 @@ input, select { font: inherit; color: var(--text); }
 .overlay .pen-point.closing { fill: var(--accent); stroke: #fff; }
 .canvas.tool-pen { cursor: crosshair; }
 .overlay .guide { stroke: #F24E1E; stroke-width: 1; }
+.overlay .grad-line { stroke: #fff; stroke-width: 1.5; filter: drop-shadow(0 0 1px #000a); fill: none; }
+.overlay .grad-line.dim { opacity: 0.6; stroke-dasharray: 3 3; }
+.overlay .grad-handle { fill: #fff; stroke: #111; stroke-width: 1; pointer-events: auto; cursor: move; }
+.overlay .grad-stop { stroke: #fff; stroke-width: 2; filter: drop-shadow(0 0 1px #000c); pointer-events: auto; cursor: grab; }
+.fill-item { display: flex; flex-direction: column; gap: 4px; }
+.fill-type { width: 76px; flex: none; }
+.fill-preview { flex: 1; min-width: 0; height: 22px; border-radius: 6px; box-shadow: inset 0 0 0 1px #ffffff1f; }
+.stop-row { padding-left: 12px; }
+.add-stop { margin-left: 12px; font-size: 12px; }
+.mesh-colors { display: grid; gap: 6px; padding: 2px 12px 6px; }
+.mesh-colors .swatch { width: 22px; height: 22px; }
 .overlay .measure { stroke: #F24E1E; stroke-width: 1; }
 .overlay .measure-label rect { fill: #F24E1E; }
 .overlay .measure-label text { fill: #fff; font-size: 11px; text-anchor: middle; font-variant-numeric: tabular-nums; }

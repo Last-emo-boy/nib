@@ -18,8 +18,8 @@ export function plan(doc: PenDoc, change: (ed: DocEditor) => void): Op[] {
   }
 }
 
-/** Plan and send one undoable change. */
-export async function commit(label: string, change: (ed: DocEditor, doc: PenDoc) => void): Promise<boolean> {
+/** Plan and send one undoable change; changes with the same `merge` key in a row undo as one. */
+export async function commit(label: string, change: (ed: DocEditor, doc: PenDoc) => void, merge?: string): Promise<boolean> {
   const { conn, doc } = store.get();
   if (!conn || !doc) return false;
   let ops: Op[];
@@ -30,7 +30,7 @@ export async function commit(label: string, change: (ed: DocEditor, doc: PenDoc)
     return false;
   }
   try {
-    await conn.edit(ops, label);
+    await conn.edit(ops, label, merge);
     return true;
   } catch (e) {
     toast(`${label}: ${(e as Error).message}`);

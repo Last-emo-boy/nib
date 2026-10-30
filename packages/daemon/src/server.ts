@@ -454,7 +454,7 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           case 'edit': {
             const source: Source = { kind: 'user', client };
             try {
-              const version = await host.edit(path, msg.ops as Op[], source, typeof msg.label === 'string' ? msg.label : 'Edit');
+              const version = await host.edit(path, msg.ops as Op[], source, typeof msg.label === 'string' ? msg.label : 'Edit', typeof msg.merge === 'string' ? msg.merge : undefined);
               out({ t: 'ack', seq: msg.seq, ok: true, version });
             } catch (e) {
               // The editor's copy was out of date: send it the current document.

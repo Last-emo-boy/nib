@@ -24,7 +24,8 @@ export type DocEvent =
 
 export type Listener = (event: DocEvent) => void;
 
-interface Entry { ops: Op[]; undo: Op[]; source: Source; label: string }
+/** An undo step; `merge` lets the next change with the same key (a drag in progress) join it. */
+interface Entry { ops: Op[]; undo: Op[]; source: Source; label: string; merge?: string }
 
 export interface OpenDocument {
   path: string;
@@ -121,7 +122,11 @@ export class DocumentHost {
   }
 
   /** Apply ops made by an editor as one undoable change. Throws, changing nothing, when one does not apply. */
-  async edit(path: string, ops: Op[], source: Source, label: string): Promise<number> {
+  /**
+   * Apply `ops` as one change. With `merge`, a change right after another with the same key and source joins
+   * its undo step (the steps of a drag undo at once).
+   */
+  async edit(path: string, ops: Op[], source: Source, label: string, merge?: string): Promise<number> {
     const open = this.require(path);
     return this.enqueue(open, async () => {
       const editor = new DocEditor(open.session.doc);
@@ -134,7 +139,7 @@ export class DocumentHost {
       }
       const tx = editor.commit();
       open.session.invalidate();
-      await this.record(open, { ops: tx.ops, undo: tx.undo, source, label });
+      await this.record(open, { ops: tx.ops, undo: tx.undo, source, label, ...(merge ? { merge } : {}) });
       return open.version;
     });
   }
@@ -341,8 +346,13 @@ export class DocumentHost {
   }
 
   private async record(open: OpenDocument, entry: Entry): Promise<void> {
-    open.undo.push(entry);
-    if (open.undo.length > HISTORY_LIMIT) open.undo.shift();
+    const last = open.undo[open.undo.length - 1];
+    if (entry.merge && last?.merge === entry.merge && !open.redo.length && JSON.stringify(last.source) === JSON.stringify(entry.source)) {
+      open.undo[open.undo.length - 1] = { ...last, ops: [...last.ops, ...entry.ops], undo: [...entry.undo, ...last.undo], label: entry.label };
+    } else {
+      open.undo.push(entry);
+      if (open.undo.length > HISTORY_LIMIT) open.undo.shift();
+    }
     open.redo = [];
     open.version++;
     // Saved before anyone hears of it: a change an editor shows is on disk. Nothing else can change the

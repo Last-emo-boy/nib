@@ -72,12 +72,13 @@ export class Connection {
   }
 
   /** Send ops as one undoable change; resolves when the daemon has applied it. */
-  edit(ops: Op[], label: string): Promise<void> {
+  /** Send a change; changes with the same `merge` key in a row undo as one (a drag). */
+  edit(ops: Op[], label: string, merge?: string): Promise<void> {
     if (!ops.length) return Promise.resolve();
     const seq = ++this.seq;
     return new Promise((resolve, reject) => {
       this.pending.set(seq, { resolve, reject });
-      this.send({ t: 'edit', path: this.path, seq, ops, label });
+      this.send({ t: 'edit', path: this.path, seq, ops, label, ...(merge ? { merge } : {}) });
     });
   }
 

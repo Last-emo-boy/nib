@@ -7,6 +7,7 @@ import { toast } from '../app/store.ts';
 import { useT, type Strings } from '../app/i18n.ts';
 import { store, useEditor } from '../app/store.ts';
 import { boundsOf, canvas, fitView } from '../canvas/Canvas.tsx';
+import { resizeMesh } from '../canvas/gradient.ts';
 import { Icon } from './Icon.tsx';
 import { layerName, typeIcon } from './LeftPanel.tsx';
 
@@ -78,8 +79,8 @@ export function Properties() {
           </div>
         ))}
       </Section>
-      {HAS_FILL.has(shownType) && <Fills t={t} title={t.fill} value={shown('fill')} onChange={(fill) => set({ fill }, 'Fill')} />}
-      {HAS_STROKE.has(shownType) && <Strokes t={t} shown={shown} set={set} />}
+      {HAS_FILL.has(shownType) && <Fills t={t} title={t.fill} value={shown('fill')} onChange={(fill) => set({ fill }, 'Fill')} edit={nodes.length === 1 ? { id: n.id, prop: 'fill' } : undefined} />}
+      {HAS_STROKE.has(shownType) && <Strokes t={t} shown={shown} set={set} id={nodes.length === 1 ? n.id : undefined} />}
       {shownType !== 'group' && <Effects t={t} value={shown('effect')} onChange={(effect) => set({ effect }, 'Effects')} />}
       {same && shownType === 'text' && <Typography t={t} shown={shown} set={set} />}
       {same && n.type === 'icon' && (
@@ -183,26 +184,115 @@ function Layout({ t, shown, set }: { t: Strings; shown: (k: string) => any; set:
   );
 }
 
-function Fills({ t, title, value, onChange }: { t: Strings; title: string; value: unknown; onChange: (v: unknown) => void }) {
+function Fills({ t, title, value, onChange, edit }: { t: Strings; title: string; value: unknown; onChange: (v: unknown) => void; edit?: { id: string; prop: 'fill' | 'stroke' } }) {
   const list = value === undefined ? [] : Array.isArray(value) ? value : [value];
   const write = (next: unknown[]) => onChange(next.length === 0 ? undefined : next.length === 1 ? next[0] : next);
+  const editing = useEditor((s) => s.gradientEdit);
   return (
     <Section title={title} add={() => write([...list, '#D9D9D9'])}>
-      {list.map((f, i) => (
-        <FillRow key={i} fill={f} t={t} onChange={(v) => write(list.map((x, j) => (j === i ? v : x)))} onRemove={() => write(list.filter((_, j) => j !== i))} />
-      ))}
+      {list.map((f, i) => {
+        const on = !!edit && editing?.id === edit.id && editing.prop === edit.prop && editing.index === i;
+        const toggle = edit ? () => store.set({ gradientEdit: on ? undefined : { ...edit, index: i } }) : undefined;
+        return (
+          <FillRow key={i} fill={f} t={t} editing={on} onEdit={toggle}
+            onChange={(v) => {
+              write(list.map((x, j) => (j === i ? v : x)));
+              // A fill turned into a gradient shows its handles.
+              if (edit && v && typeof v === 'object' && kindOf(f) !== kindOf(v) && ['gradient', 'mesh_gradient'].includes((v as any).type)) store.set({ gradientEdit: { ...edit, index: i } });
+            }}
+            onRemove={() => write(list.filter((_, j) => j !== i))} />
+        );
+      })}
     </Section>
   );
 }
 
-function FillRow({ fill, t, onChange, onRemove }: { fill: any; t: Strings; onChange: (v: unknown) => void; onRemove: () => void }) {
+type FillKind = 'solid' | 'linear' | 'radial' | 'angular' | 'mesh' | 'image' | 'other';
+
+function kindOf(f: any): FillKind {
+  if (typeof f === 'string' || f?.type === 'color') return 'solid';
+  if (f?.type === 'gradient') return (f.gradientType ?? 'linear') as FillKind;
+  if (f?.type === 'mesh_gradient') return 'mesh';
+  if (f?.type === 'image') return 'image';
+  return 'other';
+}
+
+/** A color a fill could start from when its kind changes. */
+function baseColor(f: any): string {
+  const c = typeof f === 'string' ? f : f?.type === 'color' ? f.color : f?.type === 'gradient' ? f.colors?.[0]?.color : f?.type === 'mesh_gradient' ? f.colors?.[0] : undefined;
+  return typeof c === 'string' && /^#[0-9a-f]{6}/i.test(c) ? c.slice(0, 7).toUpperCase() : '#7048E8';
+}
+
+/** The fill as another kind, keeping its colors where it can. */
+function convert(f: any, kind: FillKind): unknown {
+  const base = baseColor(f);
+  if (kind === 'solid') return base;
+  if (kind === 'linear' || kind === 'radial' || kind === 'angular') {
+    if (f?.type === 'gradient') return { ...f, gradientType: kind };
+    return { type: 'gradient', gradientType: kind, ...(kind === 'linear' ? { rotation: 180 } : {}), colors: [{ color: base, position: 0 }, { color: `${base}00`, position: 1 }] };
+  }
+  if (kind === 'mesh') return { type: 'mesh_gradient', columns: 2, rows: 2, colors: [base, '#4DABF7', '#F783AC', '#FFD43B'] };
+  return f;
+}
+
+function FillRow({ fill, t, editing, onEdit, onChange, onRemove }: { fill: any; t: Strings; editing: boolean; onEdit?: () => void; onChange: (v: unknown) => void; onRemove: () => void }) {
   const color = typeof fill === 'string' ? fill : fill?.type === 'color' ? fill.color : undefined;
+  const kind = kindOf(fill);
+  const kinds: [FillKind, string][] = [['solid', t.solid], ['linear', t.linearGradient], ['radial', t.radialGradient], ['angular', t.angularGradient], ['mesh', t.meshGradient]];
+  const stops: any[] = fill?.type === 'gradient' && Array.isArray(fill.colors) ? fill.colors : [];
+  const putStops = (next: any[]) => onChange({ ...fill, colors: next });
   return (
-    <div className="row fill-row">
-      {color !== undefined ? <ColorField value={color} onChange={(c) => onChange(typeof fill === 'string' ? c : { ...fill, color: c })} /> : <span className="fill-kind">{fillKind(fill, t)}</span>}
-      <button className="icon-button" onClick={onRemove}><Icon name="minus" size={13} /></button>
+    <div className="fill-item">
+      <div className="row fill-row">
+        {kind !== 'image' && kind !== 'other' && (
+          <select className="fill-type" value={kind} onChange={(e) => onChange(convert(fill, e.target.value as FillKind))}>
+            {kinds.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </select>
+        )}
+        {color !== undefined ? <ColorField value={color} onChange={(c) => onChange(typeof fill === 'string' ? c : { ...fill, color: c })} />
+          : kind === 'image' || kind === 'other' ? <span className="fill-kind">{fillKind(fill, t)}</span> : <span className="fill-kind fill-preview" style={{ background: previewOf(fill) }} />}
+        {(fill?.type === 'gradient' || fill?.type === 'mesh_gradient') && onEdit && (
+          <button className={`icon-button${editing ? ' on' : ''}`} title={t.editOnCanvas} onClick={onEdit}><Icon name="penTool" size={13} /></button>
+        )}
+        <button className="icon-button" onClick={onRemove}><Icon name="minus" size={13} /></button>
+      </div>
+      {stops.map((s, i) => (
+        <div key={i} className="row stop-row">
+          <ColorField value={String(s.color)} onChange={(c) => putStops(stops.map((x, j) => (j === i ? { ...x, color: c } : x)))} />
+          <Num label="%" value={Math.round((s.position ?? 0) * 100)} onChange={(v) => putStops(stops.map((x, j) => (j === i ? { ...x, position: Math.max(0, Math.min(100, v)) / 100 } : x)))} />
+          {stops.length > 2 && <button className="icon-button" onClick={() => putStops(stops.filter((_, j) => j !== i))}><Icon name="minus" size={13} /></button>}
+        </div>
+      ))}
+      {stops.length > 0 && <button className="link add-stop" onClick={() => {
+        // A new stop halfway between the two farthest apart.
+        const sorted = [...stops].sort((a, b) => a.position - b.position);
+        let at = 0.5, gap = -1;
+        for (let i = 0; i + 1 < sorted.length; i++) if (sorted[i + 1].position - sorted[i].position > gap) { gap = sorted[i + 1].position - sorted[i].position; at = (sorted[i].position + sorted[i + 1].position) / 2; }
+        putStops([...stops, { color: sorted[0]?.color ?? '#FFFFFF', position: Math.round(at * 1000) / 1000 }]);
+      }}><Icon name="plus" size={12} /> {t.addStop}</button>}
+      {fill?.type === 'mesh_gradient' && (
+        <>
+          <div className="row">
+            <Num label="↔" title={t.meshColumns} value={fill.columns ?? 2} onChange={(v) => onChange(resizeMesh(fill, Math.max(2, Math.min(6, Math.round(v))), fill.rows ?? 2))} />
+            <Num label="↕" title={t.meshRows} value={fill.rows ?? 2} onChange={(v) => onChange(resizeMesh(fill, fill.columns ?? 2, Math.max(2, Math.min(6, Math.round(v)))))} />
+          </div>
+          <div className="mesh-colors" style={{ gridTemplateColumns: `repeat(${fill.columns ?? 2}, 22px)` }}>
+            {(fill.colors ?? []).map((c: string, i: number) => (
+              <span key={i} className="swatch" style={{ background: c }}>
+                <input type="color" value={/^#[0-9a-f]{6}/i.test(c) ? c.slice(0, 7) : '#000000'} onChange={(e) => onChange({ ...fill, colors: fill.colors.map((x: string, j: number) => (j === i ? e.target.value.toUpperCase() : x)) })} />
+              </span>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
+}
+
+/** The colors of a gradient or mesh, left to right, for the row's preview. */
+function previewOf(f: any): string {
+  const colors = (f?.type === 'gradient' ? [...(f.colors ?? [])].sort((a: any, b: any) => a.position - b.position).map((c: any) => `${c.color} ${Math.round(c.position * 100)}%`) : (f?.colors ?? [])).filter((c: string) => typeof c === 'string' && c.startsWith('#'));
+  return colors.length > 1 ? `linear-gradient(90deg, ${colors.join(', ')}), repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 8px 8px` : colors[0] ?? 'transparent';
 }
 
 function fillKind(f: any, t: Strings): string {
@@ -211,11 +301,11 @@ function fillKind(f: any, t: Strings): string {
   return f?.type ?? t.mixed;
 }
 
-function Strokes({ t, shown, set }: { t: Strings; shown: (k: string) => any; set: (p: Props, l?: string) => void }) {
+function Strokes({ t, shown, set, id }: { t: Strings; shown: (k: string) => any; set: (p: Props, l?: string) => void; id?: string }) {
   const w = shown('strokeWidth');
   return (
     <>
-      <Fills t={t} title={t.stroke} value={shown('stroke')} onChange={(stroke) => set({ stroke, ...(stroke !== undefined && w === undefined ? { strokeWidth: 1 } : {}) }, 'Stroke')} />
+      <Fills t={t} title={t.stroke} value={shown('stroke')} onChange={(stroke) => set({ stroke, ...(stroke !== undefined && w === undefined ? { strokeWidth: 1 } : {}) }, 'Stroke')} edit={id ? { id, prop: 'stroke' } : undefined} />
       {shown('stroke') !== undefined && (
         <div className="row indent">
           {typeof w === 'object' && w !== null

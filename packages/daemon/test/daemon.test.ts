@@ -99,6 +99,23 @@ describe('daemon', () => {
     expect(parsePen(await readFile(file, 'utf8')).children.map((n) => n.id)).not.toEqual(['one', 'two']);
   });
 
+  it('folds changes with the same merge key into one undo step', async () => {
+    const file = join(dir, 'merge.pen');
+    await writeFile(file, serializePen({ version: '2.20', children: [{ type: 'frame', id: 'one', x: 0, y: 0, width: 10, height: 10 }] } as PenDocument));
+    await host.open(file);
+    const user = { kind: 'user' as const };
+    await host.edit(file, [{ op: 'set', id: 'one', props: { width: 20 } }], user, 'Resize');
+    for (const w of [30, 40, 50]) await host.edit(file, [{ op: 'set', id: 'one', props: { width: w } }], user, 'Drag', 'drag-1');
+    await host.edit(file, [{ op: 'set', id: 'one', props: { width: 60 } }], user, 'Drag', 'drag-2');
+    const width = async () => (parsePen(await readFile(file, 'utf8')).children[0] as { width: number }).width;
+    await host.undo(file);
+    expect(await width()).toBe(50);
+    await host.undo(file);
+    expect(await width()).toBe(20);
+    await host.redo(file);
+    expect(await width()).toBe(50);
+  });
+
   it('turns a document into a library by renaming it, and keeps editing it there', async () => {
     const file = join(dir, 'kit.pen');
     await writeFile(file, serializePen({ version: '2.20', children: [{ type: 'frame', id: 'k', x: 0, y: 0, width: 10, height: 10, reusable: true }] } as PenDocument));

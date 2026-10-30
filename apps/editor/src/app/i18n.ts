@@ -2,7 +2,8 @@ import { useEditor, type Lang } from './store.ts';
 
 const en = {
   layers: 'Layers', components: 'Components', variables: 'Variables', activity: 'Activity',
-  move: 'Move', hand: 'Hand', frame: 'Frame', rectangle: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', pen: 'Pen', importSvg: 'Import SVG…', togglePixelGrid: 'Show or hide the pixel grid', iconTool: 'Icon', text: 'Text', note: 'Note',
+  move: 'Move', hand: 'Hand', frame: 'Frame', rectangle: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', pen: 'Pen', importSvg: 'Import SVG…', togglePixelGrid: 'Show or hide the pixel grid',
+  solid: 'Solid', linearGradient: 'Linear', radialGradient: 'Radial', angularGradient: 'Angular', meshGradient: 'Mesh', editOnCanvas: 'Edit on the canvas', addStop: 'Add stop', meshColumns: 'Columns', meshRows: 'Rows', iconTool: 'Icon', text: 'Text', note: 'Note',
   align: 'Align', theme: 'Theme', copyPng: 'Copy as PNG', copyHtml: 'Copy as HTML', copyTailwind: 'Copy as HTML (Tailwind)', copyReact: 'Copy as React (library components)', saveAs: 'Save a copy as…',
   undo: 'Undo', redo: 'Redo', export: 'Export', zoomToFit: 'Zoom to fit',
   noSelection: 'Select a layer to see its properties.', mixed: 'Mixed',
@@ -75,7 +76,8 @@ const en = {
 };
 const zh: typeof en = {
   layers: '图层', components: '组件', variables: '变量', activity: '动态',
-  move: '移动', hand: '抓手', frame: '画框', rectangle: '矩形', ellipse: '椭圆', polygon: '多边形', pen: '钢笔', importSvg: '导入 SVG…', togglePixelGrid: '显示或隐藏像素网格', iconTool: '图标', text: '文本', note: '便签',
+  move: '移动', hand: '抓手', frame: '画框', rectangle: '矩形', ellipse: '椭圆', polygon: '多边形', pen: '钢笔', importSvg: '导入 SVG…', togglePixelGrid: '显示或隐藏像素网格',
+  solid: '纯色', linearGradient: '线性', radialGradient: '径向', angularGradient: '角度', meshGradient: '网格', editOnCanvas: '在画布上编辑', addStop: '添加色标', meshColumns: '列数', meshRows: '行数', iconTool: '图标', text: '文本', note: '便签',
   align: '对齐', theme: '主题', copyPng: '复制为 PNG', copyHtml: '复制为 HTML', copyTailwind: '复制为 HTML（Tailwind）', copyReact: '复制为 React（组件库组件）', saveAs: '另存副本…',
   undo: '撤销', redo: '重做', export: '导出', zoomToFit: '缩放到全部',
   noSelection: '选择一个图层以查看属性。', mixed: '多个值',

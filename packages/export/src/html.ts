@@ -1,12 +1,14 @@
 import { dirname, isAbsolute, relative, resolve as resolvePath } from 'node:path';
 import { INSTANCE, UNRESOLVED, type InstanceInfo, type SceneNode } from '@nib/core';
 import type { Box, LayoutResult } from '@nib/layout';
-import { cornerRadii, fillList, fontWeight, isFontIconLibrary, isItalic, shapePath, type ImageLoader, type Renderer } from '@nib/render';
+import { cornerRadii, fillList, fontWeight, isFontIconLibrary, isItalic, meshOf, shapePath, type ImageLoader, type Renderer } from '@nib/render';
 import type { CapturedScene, ExportOptions } from '@nib/exec';
 import type { CodeMap, ComponentCode } from './code.ts';
 
 type Decl = [string, string];
 type Dir = 'horizontal' | 'vertical' | 'none';
+
+const pct = (v: number) => `${Math.round(v * 1000) / 10}%`;
 
 export interface HtmlContext {
   renderer: Renderer;
@@ -282,8 +284,18 @@ export class HtmlWriter {
         return `url("${this.url(fill.url)}") center / ${size} no-repeat`;
       }
       case 'mesh_gradient': {
-        const colors = (fill.colors ?? []).filter(isColor);
-        return colors.length ? `linear-gradient(135deg, ${colors.join(', ')})` : undefined;
+        // CSS has no mesh: each point's color spreads from where it sits, over the first color.
+        const mesh = meshOf(fill);
+        const colors = (fill.colors ?? []) as unknown[];
+        if (!mesh || !colors.some(isColor)) return undefined;
+        const reach = Math.round(100 / Math.max(1, Math.min(mesh.columns, mesh.rows) - 1) * 0.9);
+        const layers = mesh.points.map((p, i) => {
+          const c = colors[i];
+          return isColor(c) ? `radial-gradient(at ${pct(p.at[0])} ${pct(p.at[1])}, ${c} 0, transparent ${reach}%)` : undefined;
+        }).filter(Boolean);
+        // As a layer (not a bare color), so it can sit under other fills.
+        const base = colors.find(isColor);
+        return [...layers, `linear-gradient(${base}, ${base})`].join(', ');
       }
       default: return undefined;
     }

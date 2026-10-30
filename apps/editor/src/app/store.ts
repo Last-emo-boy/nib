@@ -3,6 +3,7 @@ import type { PenDoc } from '@nib/core';
 import type { Change, Connection } from './connection.ts';
 
 import type { PenSession } from '../canvas/pen.tsx';
+import type { GradientEdit } from '../canvas/GradientOverlay.tsx';
 
 export type Tool = 'move' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'pen' | 'text' | 'icon' | 'note';
 export type LeftTab = 'layers' | 'components' | 'libraries' | 'variables' | 'problems';
@@ -38,6 +39,8 @@ export interface EditorState {
   followAgent: boolean;
   /** The 1px grid shown at high zoom. */
   pixelGrid: boolean;
+  /** A gradient fill whose handles are on the canvas. */
+  gradientEdit?: GradientEdit;
   /** A path being drawn with the pen or having its points edited. */
   pen?: PenSession;
   /** The node whose text is being edited on the canvas. */

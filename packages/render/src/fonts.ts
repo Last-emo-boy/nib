@@ -45,6 +45,7 @@ export class FontStore {
   private ck: CanvasKit;
   private loader: FontLoader;
   private pending = new Map<string, Promise<boolean>>();
+  private settled = new Set<string>();
   private missingFaces = new Map<string, FontFace>();
   private faces = new Map<string, Registered[]>();
   private metricsCache = new Map<string, LineMetricsPx>();
@@ -109,12 +110,19 @@ export class FontStore {
             return true;
           },
           () => { this.missingFaces.set(key, face); return false; },
-        );
+        ).finally(() => this.settled.add(key));
         this.pending.set(key, p);
       }
       work.push(p);
     }
     await Promise.all(work);
+  }
+
+  /** Faces whose loading has not finished (or not started). */
+  unsettled(faces: Iterable<FontFace>): FontFace[] {
+    const out = new Map<string, FontFace>();
+    for (const f of faces) if (!this.settled.has(faceKey(f))) out.set(faceKey(f), f);
+    return [...out.values()];
   }
 
   missing(): FontFace[] {

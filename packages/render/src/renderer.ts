@@ -27,6 +27,30 @@ export interface PreparedScene {
   dispose(): void;
 }
 
+export interface SceneAssets {
+  faces: FontFace[];
+  urls: Set<string>;
+  icons: { library: string; name: string; weight: number | undefined }[];
+}
+
+export interface RasterOptions {
+  scale?: number;
+  /** Shrink the scale so the longer side stays within this many pixels. */
+  maxSide?: number;
+  background?: string;
+  format?: 'png' | 'jpeg' | 'webp';
+  /** JPEG/WEBP quality 1-100. */
+  quality?: number;
+}
+
+export class FontsNotLoaded extends Error {
+  readonly faces: FontFace[];
+  constructor(faces: FontFace[]) {
+    super(`fonts not loaded: ${faces.map((f) => `${f.family} ${f.weight}${f.italic ? ' italic' : ''}`).join(', ')}`);
+    this.faces = faces;
+  }
+}
+
 export interface RenderReport {
   missingFonts: FontFace[];
   missingImages: [string, string][];
@@ -60,24 +84,18 @@ export class Renderer {
     return s;
   }
 
-  /** Load the fonts, icons and images `root` uses, then lay it out. */
-  async prepare(root: SceneNode, images: ImageLoader): Promise<PreparedScene> {
+  /** Fonts, image urls and vector icons a scene uses. */
+  assets(root: SceneNode): SceneAssets {
     const faces: FontFace[] = [];
     const urls = new Set<string>();
-    const iconLoads: Promise<void>[] = [];
+    const icons: { library: string; name: string; weight: number | undefined }[] = [];
     const visit = (n: SceneNode) => {
       if (n.type === 'text' || n.type === 'note' || n.type === 'prompt' || n.type === 'context') faces.push(...facesOf(n, this.fallbacks));
       if (n.type === 'icon' && typeof n.icon === 'string') {
         const library = String(n.library ?? 'lucide');
         const weight = typeof n.weight === 'number' ? n.weight : undefined;
         if (isFontIconLibrary(library)) faces.push({ family: library, weight: fontWeight(weight ?? 400), italic: false });
-        else {
-          const key = iconKey(library, n.icon, weight);
-          if (!this.icons.has(key)) {
-            this.icons.set(key, undefined);
-            iconLoads.push(this.iconSource.load(library, n.icon, weight).then((g) => { this.icons.set(key, g); }));
-          }
-        }
+        else icons.push({ library, name: n.icon, weight });
       }
       for (const f of [...fillList(n.fill), ...fillList(n.stroke)]) {
         if (f && typeof f === 'object' && (f as { type?: unknown }).type === 'image') {
@@ -88,7 +106,32 @@ export class Renderer {
       n.children?.forEach(visit);
     };
     visit(root);
-    await Promise.all([this.fonts.ensure(faces), this.images(images).ensure(urls), ...iconLoads]);
+    return { faces, urls, icons };
+  }
+
+  async load(assets: SceneAssets, images: ImageLoader): Promise<void> {
+    const iconLoads = assets.icons.map(({ library, name, weight }) => {
+      const key = iconKey(library, name, weight);
+      if (this.icons.has(key)) return undefined;
+      this.icons.set(key, undefined);
+      return this.iconSource.load(library, name, weight).then((g) => { this.icons.set(key, g); });
+    });
+    await Promise.all([this.fonts.ensure(assets.faces), this.images(images).ensure(assets.urls), ...iconLoads]);
+  }
+
+  /** Load the fonts, icons and images `root` uses, then lay it out. */
+  async prepare(root: SceneNode, images: ImageLoader): Promise<PreparedScene> {
+    await this.load(this.assets(root), images);
+    return this.layoutSync(root);
+  }
+
+  /**
+   * Lay out without loading anything. Throws `FontsNotLoaded` when the scene needs faces whose loading has not
+   * finished, since measuring text with the wrong font would give wrong sizes.
+   */
+  layoutSync(root: SceneNode): PreparedScene {
+    const pending = this.fonts.unsettled(this.assets(root).faces);
+    if (pending.length) throw new FontsNotLoaded(pending);
     const text = new TextEngine(this.ck, this.fonts, this.fallbacks);
     const layout = layoutScene(root, text);
     return { root, layout, text, dispose: () => text.dispose() };
@@ -96,23 +139,25 @@ export class Renderer {
 
   /** Draw a prepared scene. The canvas is in the root's parent space (the root sits at its own x/y). */
   draw(canvas: Canvas, scene: PreparedScene, images: ImageLoader): void {
-    drawNode({
-      ck: this.ck,
-      layout: scene.layout,
-      text: scene.text,
-      images: this.images(images),
-      icons: this.icons,
-      defaultStrokeAlignment: this.strokeAlignment,
-    }, canvas, scene.root);
+    drawNode(this.drawContext(scene, images), canvas, scene.root);
   }
 
   /** PNG of the root node's box at `scale`, with a transparent background unless one is given. */
-  async renderPNG(root: SceneNode, images: ImageLoader, opts: { scale?: number; background?: string } = {}): Promise<Uint8Array> {
+  async renderPNG(root: SceneNode, images: ImageLoader, opts: RasterOptions = {}): Promise<Uint8Array> {
+    return this.renderNode(root, root, images, opts);
+  }
+
+  /**
+   * Image of `target`, a node inside `root`, drawn alone at its own size (ancestors decide its layout but
+   * are not drawn).
+   */
+  async renderNode(root: SceneNode, target: SceneNode, images: ImageLoader, opts: RasterOptions = {}): Promise<Uint8Array> {
     const { ck } = this;
     const scene = await this.prepare(root, images);
     try {
-      const box = scene.layout.box(root);
-      const scale = opts.scale ?? 1;
+      const box = scene.layout.box(target);
+      let scale = opts.scale ?? 1;
+      if (opts.maxSide) scale = Math.min(scale, opts.maxSide / Math.max(1, box.width, box.height));
       const width = Math.max(1, Math.ceil(box.width * scale)), height = Math.max(1, Math.ceil(box.height * scale));
       const surface = ck.MakeSurface(width, height);
       if (!surface) throw new Error(`cannot allocate a ${width}x${height} surface`);
@@ -121,19 +166,37 @@ export class Renderer {
         canvas.clear(opts.background ? ck.parseColorString(opts.background) : ck.TRANSPARENT);
         canvas.scale(scale, scale);
         canvas.translate(-box.x, -box.y);
-        this.draw(canvas, scene, images);
+        drawNode(this.drawContext(scene, images), canvas, target);
         surface.flush();
         const img = surface.makeImageSnapshot();
-        const png = img.encodeToBytes();
+        const format = opts.format === 'jpeg' ? ck.ImageFormat.JPEG : opts.format === 'webp' ? ck.ImageFormat.WEBP : ck.ImageFormat.PNG;
+        const bytes = img.encodeToBytes(format, opts.quality ?? 92);
         img.delete();
-        if (!png) throw new Error('PNG encoding failed');
-        return png;
+        if (!bytes) throw new Error(`${opts.format ?? 'png'} encoding failed`);
+        return bytes;
       } finally {
         surface.delete();
       }
     } finally {
       scene.dispose();
     }
+  }
+
+  private drawContext(scene: PreparedScene, images: ImageLoader) {
+    return {
+      ck: this.ck,
+      layout: scene.layout,
+      text: scene.text,
+      images: this.images(images),
+      icons: this.icons,
+      defaultStrokeAlignment: this.strokeAlignment,
+    };
+  }
+
+  /** Whether a vector icon was found; undefined until it was loaded. */
+  hasIcon(library: string, name: string, weight: number | undefined): boolean | undefined {
+    const key = iconKey(library, name, weight);
+    return this.icons.has(key) ? this.icons.get(key) !== undefined : undefined;
   }
 
   report(images: ImageLoader): RenderReport {

@@ -8,7 +8,8 @@ import { childrenOf, type PenDoc } from './doc.ts';
 export type Op =
   | { op: 'set'; id: string; props: Record<string, unknown>; unset?: string[]; order?: string[] }
   | { op: 'insert'; parent: string | null; index: number; node: Node }
-  | { op: 'remove'; parent: string | null; index: number }
+  /** `dropEmpty`: delete the parent's `children` when this empties it (it did not exist before the insert). */
+  | { op: 'remove'; parent: string | null; index: number; dropEmpty?: boolean }
   | { op: 'document'; props: Record<string, unknown>; unset?: string[]; order?: string[] };
 
 export class EditError extends Error {}
@@ -66,10 +67,20 @@ export class DocEditor {
   }
 
   rollback(): void {
-    for (let i = this.inverse.length - 1; i >= 0; i--) applyOp(this.doc, this.inverse[i]);
+    this.rollbackTo(0);
     this.open = false;
-    this.forward = [];
-    this.inverse = [];
+  }
+
+  /** A point in the open transaction that `rollbackTo` can return to. */
+  savepoint(): number {
+    return this.inverse.length;
+  }
+
+  /** Undo the changes made since `savepoint`, keeping the transaction open. */
+  rollbackTo(savepoint: number): void {
+    for (let i = this.inverse.length - 1; i >= savepoint; i--) applyOp(this.doc, this.inverse[i]);
+    this.forward.length = savepoint;
+    this.inverse.length = savepoint;
   }
 
   apply(op: Op): void {
@@ -81,9 +92,13 @@ export class DocEditor {
   }
 
   insert(parent: Node | null, node: Node, index?: number): Node {
-    const siblings = this.doc.siblings(parent);
-    this.apply({ op: 'insert', parent: parent?.id ?? null, index: index ?? siblings.length, node });
+    this.apply({ op: 'insert', parent: parent?.id ?? null, index: index ?? this.count(parent), node });
     return node;
+  }
+
+  /** Number of children, without creating a `children` list where there is none. */
+  private count(parent: Node | null): number {
+    return parent ? childrenOf(parent)?.length ?? 0 : this.doc.data.children.length;
   }
 
   remove(id: string): Node {
@@ -103,8 +118,8 @@ export class DocEditor {
 
   move(id: string, parent: Node | null, index?: number): void {
     const node = this.remove(id);
-    const siblings = this.doc.siblings(parent);
-    this.insert(parent, node, index === undefined ? siblings.length : Math.max(0, Math.min(index, siblings.length)));
+    const count = this.count(parent);
+    this.insert(parent, node, index === undefined ? count : Math.max(0, Math.min(index, count)));
   }
 
   /** Change top-level document fields such as `variables` and `themes`. */
@@ -139,15 +154,17 @@ export function applyOp(doc: PenDoc, op: Op): Op {
     case 'insert': {
       const parent = op.parent === null ? null : doc.get(op.parent) ?? null;
       if (op.parent !== null && !parent) throw new EditError(`parent "${op.parent}" not found`);
+      const created = parent !== null && !Array.isArray((parent as { children?: unknown }).children);
       doc.siblings(parent).splice(op.index, 0, op.node);
       doc.indexSubtree(op.node, parent);
-      return { op: 'remove', parent: op.parent, index: op.index };
+      return { op: 'remove', parent: op.parent, index: op.index, ...(created ? { dropEmpty: true } : {}) };
     }
     case 'remove': {
       const parent = op.parent === null ? null : doc.get(op.parent) ?? null;
       const siblings = doc.siblings(parent);
       const [node] = siblings.splice(op.index, 1);
       if (!node) throw new EditError(`nothing to remove at ${op.parent ?? 'document'}[${op.index}]`);
+      if (op.dropEmpty && parent && !siblings.length) delete (parent as { children?: Node[] }).children;
       doc.unindexSubtree(node);
       return { op: 'insert', parent: op.parent, index: op.index, node };
     }

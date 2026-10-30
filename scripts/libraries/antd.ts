@@ -48,6 +48,8 @@ export const meta = {
   basedOn: 'Ant Design v5 (default and dark algorithms)',
   license: 'MIT',
   homepage: 'https://ant.design',
+  /** Which variables follow a brand's color, radius and font (see the daemon's brand.ts). */
+  brand: { anchor: 'primary', radius: 'radius', font: 'font-sans', vars: { 'primary-hover': 'recolor', 'primary-bg': 'recolor', 'primary-border': 'recolor' } },
 };
 
 export function antd(): Library {

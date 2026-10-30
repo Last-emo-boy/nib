@@ -212,4 +212,22 @@ describe('library', () => {
     const preview = await get(`/api/node-preview?doc=${encodeURIComponent(path)}&id=heroui:button&size=120`);
     expect(preview.headers.get('content-type')).toBe('image/png');
   });
+
+  it('makes a design system from a logo: reads its colors, writes a themed copy beside the design and imports it', async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="#0CA678" width="10" height="10"/><rect fill="#0ca678"/><circle fill="#212529"/></svg>';
+    const brand = await (await api('/api/brand/read', { image: Buffer.from(svg).toString('base64'), name: 'logo.svg' })).json();
+    expect(brand.primary).toBe('#0CA678');
+    const path = join(dir, 'brand.pen');
+    await writeFile(path, serializePen({ version: '2.20', children: [] } as unknown as PenDocument));
+    const r = await (await api('/api/library/brand', { path, base: 'radix', name: 'Acme Green', brand: { primary: brand.primary, radius: 10 } })).json();
+    expect(r).toEqual({ alias: 'acme-green', path: './libraries/acme-green.lib.pen' });
+    const lib = parsePen(await readFile(join(dir, 'libraries', 'acme-green.lib.pen'), 'utf8'));
+    expect((lib.variables!['accent-9'].value as { value: string }[])[0].value).toBe('#0CA678');
+    expect(lib.variables!['radius-3'].value).toBe(10);
+    expect(await stat(join(dir, 'libraries', 'acme-green.code.json'))).toBeTruthy();
+    expect(parsePen(await readFile(path, 'utf8')).imports).toEqual({ 'acme-green': './libraries/acme-green.lib.pen' });
+    // The same name again makes a second file rather than overwriting the first.
+    expect((await (await api('/api/library/brand', { path, base: 'shadcn', name: 'Acme Green', brand: { primary: '#E8590C' } })).json()).path).toBe('./libraries/acme-green-2.lib.pen');
+    expect((await api('/api/library/brand', { path, base: 'nope', brand: { primary: '#E8590C' } })).status).toBe(422);
+  });
 });

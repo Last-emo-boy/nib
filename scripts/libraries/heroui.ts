@@ -82,6 +82,8 @@ export const meta = {
   basedOn: 'HeroUI v3 (default theme)',
   license: 'Apache-2.0',
   homepage: 'https://heroui.com',
+  /** Which variables follow a brand's color, radius and font (see the daemon's brand.ts). */
+  brand: { anchor: 'accent', radius: 'radius', font: 'font-sans', vars: { 'accent-foreground': 'on', 'accent-hover': 'recolor', 'accent-soft': 'recolor', 'accent-soft-foreground': 'recolor' } },
 };
 
 export function heroui(): Library {

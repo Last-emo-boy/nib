@@ -7,7 +7,8 @@ import type { Op } from '@nib/core';
 import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } from '@nib/render';
 import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
 import { DRAFTS_DIR, drafts, newDraft, nodePreview, recents, thumbnail } from './library.ts';
-import { aliasFor, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
+import { aliasFor, brandLibrary, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
+import { brandFromPage, brandFromPalette, paletteFromPixels, paletteFromSvg, type Brand } from './brand.ts';
 import { templateDocument, templateFile, templates } from './templates.ts';
 import { tokensFromCss, tokensFromJson, tokensToCss, tokensToJson, tokensToTailwind } from '@nib/export';
 import type { BrowserService } from './browser/service.ts';
@@ -272,6 +273,41 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           return send(res, 409, { error: (e as Error).message });
         }
       }
+      case 'POST /api/brand/read': {
+        // A brand read from a website ({url}) or a logo ({image: base64, name}).
+        const body = await readJson(req);
+        try {
+          if (typeof body.url === 'string' && body.url.trim()) {
+            if (!opts.browser) return send(res, 503, { error: 'No browser is available in this nib.' });
+            const url = /^[a-z]+:\/\//i.test(body.url.trim()) ? body.url.trim() : `https://${body.url.trim()}`;
+            const { sample, font } = await opts.browser.readBrand(url);
+            return send(res, 200, { ...brandFromPage(sample), ...(font ? { font } : {}) } as unknown as Json);
+          }
+          if (typeof body.image === 'string') {
+            const bytes = Buffer.from(body.image, 'base64');
+            const svg = /\.svg$/i.test(String(body.name ?? '')) || bytes.subarray(0, 1024).toString('utf8').includes('<svg');
+            return send(res, 200, brandFromPalette(svg ? paletteFromSvg(bytes.toString('utf8')) : imagePalette(opts.renderer, bytes)) as unknown as Json);
+          }
+          return send(res, 400, { error: 'url or image is required' });
+        } catch (e) {
+          return send(res, 422, { error: (e as Error).message });
+        }
+      }
+      case 'POST /api/library/brand': {
+        // A themed copy of a bundled library, made next to the document and imported.
+        const body = await readJson(req);
+        const brand = body.brand as unknown as Brand | undefined;
+        if (typeof body.path !== 'string' || typeof body.base !== 'string' || typeof brand?.primary !== 'string') return send(res, 400, { error: 'path, base and brand.primary are required' });
+        const open = await host.open(body.path);
+        try {
+          const rel = await brandLibrary(body.base, brand, typeof body.name === 'string' ? body.name : 'brand', open.path);
+          const alias = aliasFor(rel, Object.keys(open.session.doc.data.imports ?? {}));
+          await host.addImport(open.path, alias, rel, { kind: 'user' });
+          return send(res, 200, { alias, path: rel });
+        } catch (e) {
+          return send(res, 422, { error: (e as Error).message });
+        }
+      }
       case 'GET /api/library/nearby': {
         // Libraries a document could use: .lib.pen files beside it and in its libraries/ folder, and recent ones.
         const doc = resolvePath(q.get('doc') ?? '');
@@ -498,6 +534,21 @@ function send(res: ServerResponse, status: number, body: Json): void {
 function sendBytes(res: ServerResponse, bytes: Uint8Array, type: string, cache = 'max-age=86400'): void {
   res.writeHead(200, { 'content-type': type, 'cache-control': cache });
   res.end(bytes);
+}
+
+/** The colors of an image (PNG, JPEG, WebP), most used first. */
+function imagePalette(renderer: Renderer, bytes: Uint8Array): string[] {
+  const { ck } = renderer;
+  const img = ck.MakeImageFromEncoded(bytes);
+  if (!img) throw new Error('could not read the image (use PNG, JPEG, WebP or SVG)');
+  try {
+    const width = img.width(), height = img.height();
+    const rgba = img.readPixels(0, 0, { width, height, colorType: ck.ColorType.RGBA_8888, alphaType: ck.AlphaType.Unpremul, colorSpace: ck.ColorSpace.SRGB });
+    if (!rgba) throw new Error('could not read the image\'s pixels');
+    return paletteFromPixels(rgba as Uint8Array, width, height);
+  } finally {
+    img.delete();
+  }
 }
 
 async function readJson(req: IncomingMessage): Promise<Json> {

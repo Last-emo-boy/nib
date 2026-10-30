@@ -9,6 +9,20 @@
     "basedOn": "shadcn/ui (new-york, neutral theme)",
     "license": "MIT",
     "homepage": "https://ui.shadcn.com",
+    "brand": {
+      "anchor": "primary",
+      "radius": "radius",
+      "font": "font-sans",
+      "vars": {
+        "primary-foreground": "on",
+        "ring": "brand/60",
+        "primary-soft": "brand/20",
+        "sidebar-primary": "brand",
+        "sidebar-primary-foreground": "on",
+        "sidebar-ring": "brand/60",
+        "chart-1": "brand"
+      }
+    },
     "components": 55,
     "themes": {
       "Mode": [
@@ -27,6 +41,17 @@
     "basedOn": "HeroUI v3 (default theme)",
     "license": "Apache-2.0",
     "homepage": "https://heroui.com",
+    "brand": {
+      "anchor": "accent",
+      "radius": "radius",
+      "font": "font-sans",
+      "vars": {
+        "accent-foreground": "on",
+        "accent-hover": "recolor",
+        "accent-soft": "recolor",
+        "accent-soft-foreground": "recolor"
+      }
+    },
     "components": 54,
     "themes": {
       "Mode": [
@@ -45,6 +70,16 @@
     "basedOn": "Ant Design v5 (default and dark algorithms)",
     "license": "MIT",
     "homepage": "https://ant.design",
+    "brand": {
+      "anchor": "primary",
+      "radius": "radius",
+      "font": "font-sans",
+      "vars": {
+        "primary-hover": "recolor",
+        "primary-bg": "recolor",
+        "primary-border": "recolor"
+      }
+    },
     "components": 49,
     "themes": {
       "Mode": [
@@ -63,6 +98,25 @@
     "basedOn": "Radix Themes (indigo accent, slate gray)",
     "license": "MIT",
     "homepage": "https://www.radix-ui.com/themes",
+    "brand": {
+      "anchor": "accent-9",
+      "radius": "radius-3",
+      "font": "font-sans",
+      "vars": {
+        "accent-1": "recolor",
+        "accent-2": "recolor",
+        "accent-3": "recolor",
+        "accent-4": "recolor",
+        "accent-5": "recolor",
+        "accent-6": "recolor",
+        "accent-7": "recolor",
+        "accent-8": "recolor",
+        "accent-10": "recolor",
+        "accent-11": "recolor",
+        "accent-12": "recolor",
+        "accent-contrast": "on"
+      }
+    },
     "components": 40,
     "themes": {
       "Mode": [
@@ -81,6 +135,35 @@
     "basedOn": "Material Design 3 (baseline scheme)",
     "license": "Apache-2.0",
     "homepage": "https://m3.material.io",
+    "brand": {
+      "anchor": "primary",
+      "radius": "shape-m",
+      "font": "font-sans",
+      "vars": {
+        "on-primary": "on",
+        "primary-container": "recolor",
+        "on-primary-container": "recolor",
+        "secondary": "recolor",
+        "secondary-container": "recolor",
+        "on-secondary-container": "recolor",
+        "tertiary": "recolor",
+        "tertiary-container": "recolor",
+        "on-tertiary-container": "recolor",
+        "surface": "recolor",
+        "on-surface": "recolor",
+        "on-surface-variant": "recolor",
+        "surface-container-lowest": "recolor",
+        "surface-container-low": "recolor",
+        "surface-container": "recolor",
+        "surface-container-high": "recolor",
+        "surface-container-highest": "recolor",
+        "outline": "recolor",
+        "outline-variant": "recolor",
+        "inverse-surface": "recolor",
+        "inverse-on-surface": "recolor",
+        "inverse-primary": "recolor"
+      }
+    },
     "components": 37,
     "themes": {
       "Mode": [

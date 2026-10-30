@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { commit } from '../app/actions.ts';
 import { authHeaders, token } from '../app/connection.ts';
 import { desktop, openDocument } from '../app/desktop.ts';
@@ -101,6 +101,86 @@ function Nearby({ path, imported, onAdd }: { path: string; imported: string[]; o
   );
 }
 
+interface BrandReading { primary: string; font?: string; radius?: number; swatches: string[]; title?: string }
+
+/** A design system from a brand: read a website or a logo, adjust, and make a themed copy of a bundled library. */
+function BrandMaker({ path }: { path: string }) {
+  const t = useT();
+  const catalog = useLibraries().filter((l) => l.brand);
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState('');
+  const [busy, setBusy] = useState<'read' | 'make' | undefined>();
+  const [brand, setBrand] = useState<BrandReading | undefined>();
+  const [base, setBase] = useState('shadcn');
+  const [name, setName] = useState('');
+  const file = useRef<HTMLInputElement>(null);
+  const read = async (body: Record<string, unknown>, fallbackName: string) => {
+    setBusy('read');
+    try {
+      const b = await post<BrandReading>('/api/brand/read', body);
+      setBrand(b);
+      setName((b.title?.split(/[|·–—:-]/)[0].trim() || fallbackName).slice(0, 40));
+    } catch (e) { toast((e as Error).message); } finally { setBusy(undefined); }
+  };
+  const readLogo = async (f: File) => {
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    await read({ image: btoa(bin), name: f.name }, f.name.replace(/\.[^.]+$/, ''));
+  };
+  const make = async () => {
+    if (!brand) return;
+    setBusy('make');
+    try {
+      const { font, radius, primary } = brand;
+      await post('/api/library/brand', { path, base, name: name || 'Brand', brand: { primary, ...(font ? { font } : {}), ...(radius !== undefined ? { radius } : {}) } });
+      toast(t.brandCreated(name || 'Brand'));
+      setBrand(undefined);
+      setOpen(false);
+    } catch (e) { toast((e as Error).message); } finally { setBusy(undefined); }
+  };
+  if (!open) return <button className="lib-import" onClick={() => setOpen(true)}><Icon name="palette" size={14} />{t.brandTitle}</button>;
+  const domain = () => { try { return new URL(/^[a-z]+:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, '').split('.')[0]; } catch { return 'brand'; } };
+  return (
+    <div className="brand-maker" onKeyDown={(e) => e.stopPropagation()}>
+      <div className="lib-card-head"><span className="lib-name">{t.brandTitle}</span><button className="lib-action" onClick={() => setOpen(false)}><Icon name="x" size={13} /></button></div>
+      <p className="lib-summary">{t.brandHint}</p>
+      <div className="brand-row">
+        <input value={url} placeholder={t.brandUrl} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && url.trim() && void read({ url }, domain())} />
+        <button className="lib-use" disabled={!url.trim() || !!busy} onClick={() => void read({ url }, domain())}>{busy === 'read' ? t.brandReading : t.brandRead}</button>
+        <button className="lib-use secondary" disabled={!!busy} onClick={() => file.current?.click()}>{t.brandLogo}</button>
+        <input ref={file} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void readLogo(f); }} />
+      </div>
+      {brand && (
+        <>
+          <label className="brand-field"><span>{t.brandColor}</span>
+            <div className="brand-swatches">
+              {[...new Set([brand.primary, ...brand.swatches])].slice(0, 8).map((c) => (
+                <button key={c} className={`brand-swatch${c === brand.primary ? ' on' : ''}`} style={{ background: c }} title={c} onClick={() => setBrand({ ...brand, primary: c })} />
+              ))}
+              <input type="color" value={brand.primary.slice(0, 7).toLowerCase()} onChange={(e) => setBrand({ ...brand, primary: e.target.value.toUpperCase() })} />
+            </div>
+          </label>
+          <label className="brand-field"><span>{t.brandFont}</span><input value={brand.font ?? ''} placeholder={t.brandFontKeep} onChange={(e) => setBrand({ ...brand, font: e.target.value || undefined })} /></label>
+          <label className="brand-field"><span>{t.brandRadius}</span><input type="number" min={0} max={32} value={brand.radius ?? ''} placeholder={t.brandFontKeep} onChange={(e) => setBrand({ ...brand, radius: e.target.value === '' ? undefined : Number(e.target.value) })} /></label>
+          <label className="brand-field"><span>{t.brandBase}</span>
+            <select value={base} onChange={(e) => setBase(e.target.value)}>{catalog.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>
+          </label>
+          <label className="brand-field"><span>{t.brandName}</span><input value={name} onChange={(e) => setName(e.target.value)} /></label>
+          <button className="lib-use brand-make" style={{ background: brand.primary, color: brandText(brand.primary), borderRadius: Math.min(12, brand.radius ?? 7) }} disabled={!!busy} onClick={() => void make()}>{t.brandCreate}</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** White or near-black, whichever reads on `hex`. */
+function brandText(hex: string): string {
+  const lin = (x: number) => (x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4);
+  const [r, g, b] = [1, 3, 5].map((i) => lin(parseInt(hex.slice(i, i + 2), 16) / 255));
+  return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05) >= 3 ? '#fff' : '#0a0a0a';
+}
+
 /** The libraries this file imports, the design systems nib ships, and importing any .pen file as one. */
 export function Libraries() {
   const t = useT();
@@ -160,6 +240,7 @@ export function Libraries() {
           </div>
         );
       })}
+      <BrandMaker path={conn.path} />
       <Nearby path={conn.path} imported={imports.map(([, rel]) => rel)} onAdd={(file) => void run('file', () => post('/api/library/import', { path: conn.path, file }))} />
       <button className="lib-import" disabled={busy === 'file'} onClick={() => void importFile()}><Icon name="folder" size={14} />{t.importLibrary}</button>
       {!conn.path.endsWith('.lib.pen') && (

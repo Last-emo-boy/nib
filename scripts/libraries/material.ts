@@ -51,6 +51,8 @@ export const meta = {
   basedOn: 'Material Design 3 (baseline scheme)',
   license: 'Apache-2.0',
   homepage: 'https://m3.material.io',
+  /** Which variables follow a brand's color, radius and font (see the daemon's brand.ts). */
+  brand: { anchor: 'primary', radius: 'shape-m', font: 'font-sans', vars: { 'on-primary': 'on', ...Object.fromEntries(['primary-container', 'on-primary-container', 'secondary', 'secondary-container', 'on-secondary-container', 'tertiary', 'tertiary-container', 'on-tertiary-container', 'surface', 'on-surface', 'on-surface-variant', 'surface-container-lowest', 'surface-container-low', 'surface-container', 'surface-container-high', 'surface-container-highest', 'outline', 'outline-variant', 'inverse-surface', 'inverse-on-surface', 'inverse-primary'].map((v) => [v, 'recolor'])) } },
 };
 
 export function material(): Library {

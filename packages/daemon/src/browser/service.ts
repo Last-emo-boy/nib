@@ -4,6 +4,7 @@ import { dirname, join, resolve as resolvePath } from 'node:path';
 import { validateNode, type Node } from '@nib/format';
 import { browserSnapshotUrl, type FontLoader } from '@nib/render';
 import type { DocumentHost } from '../host.ts';
+import { PAGE_SCRIPT, type PageSample } from '../brand.ts';
 import { Cdp } from './cdp.ts';
 import { launchChrome, type Chrome } from './chrome.ts';
 import { domToPen } from './dom-import.ts';
@@ -54,6 +55,9 @@ const MAX_IMPORT = 4000;
 const SHOT_WIDTH = 1568;
 
 const fail = (text: string): BrowserResult => ({ text, images: [], isError: true });
+
+/** Generic and system font names, and the families nib draws them with. */
+const GENERIC_FONTS: Record<string, string> = { 'system-ui': 'Inter', '-apple-system': 'Inter', blinkmacsystemfont: 'Inter', 'sans-serif': 'Inter', 'ui-sans-serif': 'Inter', 'segoe ui': 'Inter', roboto: 'Roboto', serif: 'Noto Serif', 'ui-serif': 'Noto Serif', monospace: 'JetBrains Mono', 'ui-monospace': 'JetBrains Mono', sfmono: 'JetBrains Mono', 'sfmono-regular': 'JetBrains Mono', menlo: 'JetBrains Mono', monaco: 'JetBrains Mono', consolas: 'JetBrains Mono' };
 
 /**
  * The `browser` tool: pages in a headless Chrome with nib's own profile, one per browser node (or one
@@ -118,6 +122,35 @@ export class BrowserService {
     return undefined;
   }
 
+  /**
+   * What a website shows of its brand: colors of its buttons, links and declared brand variables, and its
+   * text font when nib can load it (absent for system fonts). Uses a page of its own.
+   */
+  async readBrand(url: string): Promise<{ sample: PageSample; font?: string }> {
+    const page = await this.page('', undefined, 'brand');
+    await this.navigate(page, url);
+    // A page that is still replacing its document (a client-side redirect) is read again a moment later.
+    let sample: PageSample | null = null;
+    for (let i = 0; i < 3 && !sample; i++) {
+      if (i) await new Promise((res) => setTimeout(res, 1500));
+      sample = await this.evaluate<PageSample | null>(page, PAGE_SCRIPT).catch(() => null);
+    }
+    if (!sample) throw new Error(`could not read ${url}`);
+    let font: string | undefined;
+    for (const raw of sample.body.font.split(',')) {
+      const name = raw.trim().replace(/^["']|["']$/g, '');
+      if (!name) continue;
+      // A system font (system-ui, Segoe UI): the brand has no font of its own to carry over.
+      const generic = GENERIC_FONTS[name.toLowerCase()];
+      if (generic && generic !== name) break;
+      const plain = name.replace(/\s+(VF|Variable|Var)$/i, '');
+      // Some sites name their font in lower case ("inter"); families are written capitalized.
+      if (await this.fontAvailable(name)) { font = name === name.toLowerCase() ? name.replace(/\b\w/g, (c) => c.toUpperCase()) : name; break; }
+      if (plain !== name && (await this.fontAvailable(plain))) { font = plain; break; }
+    }
+    return { sample, ...(font ? { font } : {}) };
+  }
+
   close(): void {
     this.chrome?.process.kill();
     this.chrome = undefined;
@@ -137,10 +170,10 @@ export class BrowserService {
   }
 
   /** The page for a browser node (sized like it), or the shared page. */
-  private async page(filePath: string, nodeId: string | undefined): Promise<Page> {
+  private async page(filePath: string, nodeId: string | undefined, shared = 'shared'): Promise<Page> {
     const cdp = await this.cdp();
     let viewport = DEVICES.desktop;
-    let key = 'shared';
+    let key = shared;
     if (nodeId) {
       const node = await this.browserNode(filePath, nodeId);
       key = `${resolvePath(filePath)}#${nodeId}`;
@@ -324,23 +357,23 @@ export class BrowserService {
    * Imported text names its page's whole font stack; use the first family nib can load (web fonts are
    * often named "X VF" or "X Variable"; generic names map to families nib has).
    */
+  private fontAvailable(family: string): Promise<boolean> {
+    let p = this.fontCache.get(family);
+    if (!p) {
+      p = this.fonts ? this.fonts.load({ family, weight: 400, italic: false }).then((b) => !!b, () => false) : Promise.resolve(false);
+      this.fontCache.set(family, p);
+    }
+    return p;
+  }
+
   private async resolveFonts(node: Record<string, unknown>): Promise<void> {
-    const generic: Record<string, string> = { 'system-ui': 'Inter', '-apple-system': 'Inter', blinkmacsystemfont: 'Inter', 'sans-serif': 'Inter', 'ui-sans-serif': 'Inter', 'segoe ui': 'Inter', roboto: 'Roboto', serif: 'Noto Serif', 'ui-serif': 'Noto Serif', monospace: 'JetBrains Mono', 'ui-monospace': 'JetBrains Mono', sfmono: 'JetBrains Mono', 'sfmono-regular': 'JetBrains Mono', menlo: 'JetBrains Mono', monaco: 'JetBrains Mono', consolas: 'JetBrains Mono' };
-    const available = (family: string) => {
-      let p = this.fontCache.get(family);
-      if (!p) {
-        p = this.fonts ? this.fonts.load({ family, weight: 400, italic: false }).then((b) => !!b, () => false) : Promise.resolve(false);
-        this.fontCache.set(family, p);
-      }
-      return p;
-    };
     const pick = async (stack: string): Promise<string | undefined> => {
       for (const raw of stack.split(',')) {
         const name = raw.trim().replace(/^["']|["']$/g, '');
         if (!name) continue;
-        const mapped = generic[name.toLowerCase()];
+        const mapped = GENERIC_FONTS[name.toLowerCase()];
         if (mapped) return mapped;
-        for (const candidate of [name, name.replace(/\s+(VF|Variable|Var)$/i, '')]) if (await available(candidate)) return candidate;
+        for (const candidate of [name, name.replace(/\s+(VF|Variable|Var)$/i, '')]) if (await this.fontAvailable(candidate)) return candidate;
       }
       return undefined;
     };

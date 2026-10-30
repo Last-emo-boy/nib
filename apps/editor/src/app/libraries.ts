@@ -13,6 +13,8 @@ export interface LibraryInfo {
   homepage: string;
   components: number;
   themes: Record<string, string[]>;
+  /** Present when the library can be made in a brand's colors. */
+  brand?: { anchor: string };
 }
 
 let catalog: Promise<LibraryInfo[]> | undefined;

@@ -39,6 +39,8 @@ export const meta = {
   basedOn: 'Radix Themes (indigo accent, slate gray)',
   license: 'MIT',
   homepage: 'https://www.radix-ui.com/themes',
+  /** Which variables follow a brand's color, radius and font (see the daemon's brand.ts). */
+  brand: { anchor: 'accent-9', radius: 'radius-3', font: 'font-sans', vars: { ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12].map((n) => [`accent-${n}`, 'recolor'])), 'accent-contrast': 'on' } },
 };
 
 export function radix(): Library {

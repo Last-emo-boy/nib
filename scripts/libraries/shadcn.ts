@@ -70,6 +70,8 @@ export const meta = {
   basedOn: 'shadcn/ui (new-york, neutral theme)',
   license: 'MIT',
   homepage: 'https://ui.shadcn.com',
+  /** Which variables follow a brand's color, radius and font (see the daemon's brand.ts). */
+  brand: { anchor: 'primary', radius: 'radius', font: 'font-sans', vars: { 'primary-foreground': 'on', ring: 'brand/60', 'primary-soft': 'brand/20', 'sidebar-primary': 'brand', 'sidebar-primary-foreground': 'on', 'sidebar-ring': 'brand/60', 'chart-1': 'brand' } },
 };
 
 export function shadcn(): Library {

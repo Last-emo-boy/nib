@@ -66,6 +66,72 @@ From pen.dev's site and docs (docs.pencil.dev, updated 2026-10-13), the user's s
 7. **Code on canvas:** shaders and script nodes (M6).
 8. **Ecosystem:** pen.dev CLI, VS Code/Cursor/OpenVSX extension, Chrome extension (copy a page, paste as layers), web version, Figma import, Windows and Linux builds, auto-update, `spawn_agents`, WebMCP.
 
+## Roadmap after the gap list (2026-10-30)
+
+Everything pen.dev has that nib lacks, the pain points seen while using nib's agent, and features pen.dev does not have. The user asked for all of it. Phases run in order; each item is done when it works in the app and has a test or a recorded check. Items that publish anything outside this computer (store listings, hosted web version, update feed, notarization) are built and verified locally, and published only when the user says so.
+
+**A. Agent: cheaper, fewer failures, safer** (measured on 2026-10-30: Codex spent 106k input tokens on a one-sentence question; DeepSeek spent 528k on one page; 4 of 9 `execute` calls failed on the login-card task)
+- A1. Context up front: the first message carries the document's state and its libraries' components; the guide shrinks to one short page plus topic files read on demand. Target: half the tokens on the same task.
+- A2. Caching and trimming: a stable prompt prefix for provider caches, older screenshots and long tool outputs dropped from the transcript.
+- A3. Codex gets only nib's tools, not the person's other MCP servers and instructions.
+- A4. Fewer failed snippets: library components name their editable parts (slots: text, icon, visibility); `Get` on an instance lists the paths it can override; errors suggest the nearest valid path or variable; a high-level `Use(component, {slot: value})` helper.
+- A5. Sign-in check before a run (Claude, Codex), with a button that opens Terminal to sign in; a first-run setup card.
+- A6. A checkpoint per agent turn: "Undo this turn" and a before/after preview in the chat.
+- A7. The camera can follow the agent's cursor; the chat panel can be narrowed or moved.
+- A8. Cost: tokens and cost per session and per month, a budget that stops a run, a cheap model for exploring and a strong one for finishing.
+- A9. Project rules: notes in the document (context nodes) that every agent run receives.
+
+**B. Design to code, tokens, libraries**
+- B1. Code export that uses the library's real components: shadcn/ui (`@/components/ui/*`) and HeroUI (`@heroui/react`) React code with the overrides as props, plus the theme. Each library maps its components to code.
+- B2. Design tokens out and in: W3C design tokens JSON, CSS variables, Tailwind theme; import a project's CSS variables or Tailwind theme as variables.
+- B3. Turn this file into a library; more bundled design systems built on open-source ones (Material 3, Ant Design, Radix Themes).
+- B4. A design system from a brand: from a website (colors, fonts, radii read in the browser) or a logo (palette), as a themed copy of a bundled library.
+- B5. Component states: hover, pressed, focus, disabled variants in the libraries.
+
+**C. Editing (pen.dev parity, M5)**
+- C1. Pen tool and point editing; paste or import SVG as editable paths.
+- C2. Snapping and smart guides, pixel grid, distance measurements (Alt).
+- C3. Gradient handles on the canvas; real mesh-gradient rendering.
+- C4. Masks, image crop mode, image import by drop or paste.
+- C5. Scale tool, flip, rotated selection outlines, z-order commands.
+- C6. Editing inside instances on the canvas (overrides become `descendants`).
+- C7. Custom fonts: installed fonts list and font files kept with the project.
+- C8. Settings: nudge distance, zoom speed, light interface, fewer animations.
+
+**D. Slides, present, share, prototype**
+- D1. Slides panel (ordered frames), Present mode, PDF of the slides.
+- D2. Prototype links between frames, clickable in Present mode, simple transitions.
+- D3. Share by link: a static, self-hostable viewer of the design, served read-only on the local network by the daemon.
+
+**E. Agent features**
+- E1. Variants: several agents at once on copies of a frame, side by side; keep one.
+- E2. Attachments: reference images and files in the chat.
+- E3. Recreate a screenshot or page, comparing pixels against the original until close.
+- E4. Design review: a reviewer agent checks screenshots against a rubric (contrast, alignment, spacing, overflow, touch targets); "Fix these" hands the list to the designer.
+- E5. Stress test: long German text, CJK, right-to-left, dark mode, narrow widths; report what breaks.
+- E6. Sketch to UI: a freehand pencil tool; the agent builds the sketch with the document's library.
+- E7. Responsive versions: tablet and phone frames from a desktop frame, checked.
+- E8. Implementation check: a running app (localhost) in the browser compared with its design frame, differences listed for a coding agent.
+- E9. `spawn_agents` and macros (save an agent turn as a reusable command).
+
+**F. Images, code on canvas, data**
+- F1. `Generate`: images (person's image API key), SVG (any chat model), stock photos (Openverse, no key).
+- F2. Vectorize an image; remove an image's background.
+- F3. AI Pen: agents draw icons and illustrations as paths.
+- F4. Script nodes and shader fills and effects (M6).
+- F5. Data: repeat rows from JSON or CSV, fake data.
+- F6. Text in several languages: a strings table and a language switch on the canvas.
+
+**G. Ecosystem**
+- G1. `nib` CLI: render, export, validate, diff, run the agent, open.
+- G2. Git: visual diff between commits in the editor and CLI, a three-way merge driver for `.pen`, a GitHub Action posting before/after images on pull requests.
+- G3. VS Code and Cursor extension (the editor in a webview).
+- G4. Chrome extension: copy a page or element, paste it into nib as layers.
+- G5. Figma import (`.fig` files).
+- G6. Windows and Linux builds, auto-update, WebMCP.
+- G7. Web version of the editor without the desktop app.
+- G8. Plugins: local scripts on the execute API, run as commands.
+
 ## UX: better than pen.dev
 
 pen.dev's layout (from the user's screenshots): dark UI of floating rounded panels over the canvas; a left panel whose tabs (Agent, Layers, Slides, Components, Libraries) share one slot, so chat hides the layer tree; a vertical tool strip beside it; top-right pill with Agents, Goodies, Share, Settings, Present, Browser; right panel for properties or the web-import browser; zoom control at the bottom. The dashboard is prompt-first: category chips, Import from Figma / browser / screenshot, recents grid with thumbnails.

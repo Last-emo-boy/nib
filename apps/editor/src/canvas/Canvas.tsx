@@ -30,9 +30,9 @@ const DRAG_THRESHOLD = 3;
 function visibleArea() {
   const { width, height } = canvas.size;
   const left = store.get().leftOpen ? 338 : 66;
-  const { agentOpen, activityOpen } = store.get();
-  // The properties panel, and the agent's chat or the activity feed beside it.
-  const right = (width > 900 ? 288 : 10) + (agentOpen ? 394 : activityOpen ? 340 : 0);
+  const { agentOpen, activityOpen, browserOpen } = store.get();
+  // The properties panel, and the agent's chat, the browser or the activity feed beside it.
+  const right = (width > 900 ? 288 : 10) + (agentOpen || browserOpen ? 394 : activityOpen ? 340 : 0);
   return { x: left, y: 60, width: Math.max(100, width - left - right), height: Math.max(100, height - 120) };
 }
 

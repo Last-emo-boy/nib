@@ -4,7 +4,7 @@ import { copyAsPng, copySelection, deleteSelection, duplicateSelection, frameSel
 import { Connection, authHeaders, fileFromUrl } from '../app/connection.ts';
 import { desktop, openDashboard } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
-import { store, toast, useEditor, type Tool } from '../app/store.ts';
+import { store, toast, toggleSide, useEditor, type Tool } from '../app/store.ts';
 import { boundsOf, CanvasView, fitView, isTyping } from '../canvas/Canvas.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
@@ -16,6 +16,7 @@ import { Properties } from './Properties.tsx';
 import { agentLabel } from '../canvas/presence.ts';
 import { receive as receiveAgent } from '../app/agent.ts';
 import { AgentPanel } from './Agent.tsx';
+import { BrowserPanel } from './Browser.tsx';
 
 export function App() {
   const [file, setFile] = useState(fileFromUrl());
@@ -47,6 +48,7 @@ export function App() {
       <Zoom />
       <ActivityFeed />
       <AgentPanel />
+      <BrowserPanel />
       <Status />
       <Palette />
       <Toast />
@@ -104,6 +106,7 @@ function TopRight() {
   const history = useEditor((s) => s.history);
   const activity = useEditor((s) => s.activityOpen);
   const agentOpen = useEditor((s) => s.agentOpen);
+  const browserOpen = useEditor((s) => s.browserOpen);
   const changes = useEditor((s) => s.changes);
   const lang = useEditor((s) => s.lang);
   const agentBusy = changes.length > 0 && changes[changes.length - 1].source.kind === 'agent' && Date.now() - changes[changes.length - 1].at < 4000;
@@ -112,10 +115,11 @@ function TopRight() {
       <button title={`${t.undo}${history.undo.length ? `: ${history.undo[history.undo.length - 1]}` : ''}`} disabled={!history.undo.length} onClick={() => store.get().conn?.undo()}><Icon name="undo" /></button>
       <button title={`${t.redo}${history.redo.length ? `: ${history.redo[history.redo.length - 1]}` : ''}`} disabled={!history.redo.length} onClick={() => store.get().conn?.redo()}><Icon name="redo" /></button>
       <span className="sep" />
-      <button className={`text-button${agentOpen ? ' on' : ''}`} title={`${t.agent} (⌘J)`} onClick={() => store.set({ agentOpen: !agentOpen, activityOpen: false })}>
+      <button className={`text-button${agentOpen ? ' on' : ''}`} title={`${t.agent} (⌘J)`} onClick={() => toggleSide('agentOpen')}>
         <Icon name="sparkles" size={15} />{t.agent}
       </button>
-      <button className={`text-button${activity ? ' on' : ''}`} onClick={() => store.set({ activityOpen: !activity, agentOpen: false })}>
+      <button className={`text-button${browserOpen ? ' on' : ''}`} title={t.browser} onClick={() => toggleSide('browserOpen')}><Icon name="globe" size={15} /></button>
+      <button className={`text-button${activity ? ' on' : ''}`} onClick={() => toggleSide('activityOpen')}>
         <span className={`dot${agentBusy ? ' busy' : ''}`} />{t.activity}
       </button>
       <button className="text-button" title={t.language} onClick={() => { const next = lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', next); store.set({ lang: next }); }}><Icon name="languages" size={15} /></button>
@@ -257,8 +261,8 @@ export function runCommand(name: string): void {
     case 'zoom-fit': store.set({ view: fitView(boundsOf()) }); break;
     case 'zoom-selection': if (s.selection.length) store.set({ view: fitView(boundsOf(s.selection), 4) }); break;
     case 'toggle-panel': store.set({ leftOpen: !s.leftOpen }); break;
-    case 'toggle-activity': store.set({ activityOpen: !s.activityOpen, agentOpen: false }); break;
-    case 'toggle-agent': store.set({ agentOpen: !s.agentOpen, activityOpen: false }); break;
+    case 'toggle-activity': toggleSide('activityOpen'); break;
+    case 'toggle-agent': toggleSide('agentOpen'); break;
     case 'save-as': void saveAs(); break;
     case 'export': store.set({ leftOpen: s.leftOpen }); document.querySelector<HTMLButtonElement>('.wide-button')?.scrollIntoView({ block: 'center' }); break;
     case 'frame-selection': frameSelection(); break;

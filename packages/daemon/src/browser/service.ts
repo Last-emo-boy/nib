@@ -8,7 +8,7 @@ import { Cdp } from './cdp.ts';
 import { launchChrome, type Chrome } from './chrome.ts';
 import { domToPen } from './dom-import.ts';
 
-export type BrowserAction = 'load-page' | 'import-to-canvas' | 'screenshot-to-canvas' | 'return-element' | 'return-screenshot' | 'cdp';
+export type BrowserAction = 'load-page' | 'import-to-canvas' | 'screenshot-to-canvas' | 'return-element' | 'return-screenshot' | 'cdp' | 'element-at';
 
 export interface BrowserArgs {
   action: BrowserAction;
@@ -18,6 +18,12 @@ export interface BrowserArgs {
   url?: string;
   method?: string;
   params?: Record<string, unknown>;
+  /** For element-at (the editor's element picker): a point on the full page, in CSS pixels. */
+  point?: { x: number; y: number };
+  /** For element-at: go this many elements up from the one at the point. */
+  up?: number;
+  /** For return-screenshot: the widest the image may be. */
+  width?: number;
 }
 
 export interface BrowserResult {
@@ -82,6 +88,7 @@ export class BrowserService {
         case 'import-to-canvas': return await this.importToCanvas(filePath, args, agent);
         case 'screenshot-to-canvas': return await this.screenshotToCanvas(filePath, args, agent);
         case 'cdp': return await this.cdpCall(filePath, args);
+        case 'element-at': return await this.elementAt(filePath, args);
         default: return fail(`unknown action ${JSON.stringify(args.action)}; use load-page, import-to-canvas, screenshot-to-canvas, return-element, return-screenshot or cdp`);
       }
     } catch (e) {
@@ -241,8 +248,16 @@ export class BrowserService {
 
   private async screenshot(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
     const page = await this.loadedPage(filePath, args.nodeId);
-    const shot = await this.capture(page, args, SHOT_WIDTH);
+    const shot = await this.capture(page, args, Math.min(SHOT_WIDTH, args.width ?? SHOT_WIDTH));
     return { text: `Screenshot of ${args.target === 'query' ? args.querySelector : 'the full page'} on ${page.url} (${Math.round(shot.width)}×${Math.round(shot.height)}).`, images: [{ data: shot.data, mimeType: 'image/png' }] };
+  }
+
+  /** The element at a point of the page, as a selector and its box: JSON in `text`. */
+  private async elementAt(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
+    if (!args.point || !Number.isFinite(args.point.x) || !Number.isFinite(args.point.y)) return fail('element-at needs a point {x, y}');
+    const page = await this.loadedPage(filePath, args.nodeId);
+    const r = await this.evaluate<unknown>(page, `(${elementAtPoint.toString()})(${args.point.x}, ${args.point.y}, ${Math.max(0, Math.floor(args.up ?? 0))})`);
+    return r ? { text: JSON.stringify(r), images: [] } : fail('there is no element at that point');
   }
 
   private async element(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
@@ -397,4 +412,25 @@ function describeElement(el: Element | null): string {
   visit(el, 0);
   if (count > 250) lines.push('… (cut at 250 elements; narrow the target with a querySelector)');
   return lines.join('\n');
+}
+
+/**
+ * Runs in the page: the element at (x, y) on the full page (or `up` elements above it), with a selector
+ * that finds it again and its box on the page.
+ */
+function elementAtPoint(x: number, y: number, up: number) {
+  window.scrollTo(0, Math.max(0, y - innerHeight / 2));
+  let el = document.elementFromPoint(x - scrollX, y - scrollY);
+  for (let i = 0; i < up && el && el.parentElement && el.parentElement !== document.documentElement; i++) el = el.parentElement;
+  if (!el) return null;
+  const unique = (sel: string) => document.querySelectorAll(sel).length === 1;
+  const parts: string[] = [];
+  for (let c: Element | null = el; c && c !== document.documentElement; c = c.parentElement) {
+    if (c.id && unique(`#${CSS.escape(c.id)}`)) { parts.unshift(`#${CSS.escape(c.id)}`); break; }
+    const tag = c.tagName.toLowerCase();
+    const same = c.parentElement ? [...c.parentElement.children].filter((s) => s.tagName === c!.tagName) : [];
+    parts.unshift(same.length > 1 ? `${tag}:nth-of-type(${same.indexOf(c) + 1})` : tag);
+  }
+  const r = el.getBoundingClientRect();
+  return { selector: parts.join(' > '), tag: el.tagName.toLowerCase(), rect: { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height } };
 }

@@ -29,6 +29,8 @@ export interface EditorState {
   activityOpen: boolean;
   /** The chat with nib's agent. */
   agentOpen: boolean;
+  /** The web page panel, for importing from sites. */
+  browserOpen: boolean;
   /** The node whose text is being edited on the canvas. */
   editingText?: string;
   lang: Lang;
@@ -70,12 +72,19 @@ export const store = createStore<EditorState>({
   changes: [],
   activityOpen: false,
   agentOpen: localStorage.getItem('nib-agent-open') === '1',
+  browserOpen: false,
   lang: savedLang,
   paletteOpen: false,
 });
 
 export function useEditor<T>(select: (s: EditorState) => T): T {
   return useSyncExternalStore(store.subscribe, () => select(store.get()));
+}
+
+/** The panels beside the properties share one place: opening one closes the others. */
+export function toggleSide(panel: 'agentOpen' | 'activityOpen' | 'browserOpen'): void {
+  const open = !store.get()[panel];
+  store.set({ agentOpen: false, activityOpen: false, browserOpen: false, [panel]: open });
 }
 
 export function toast(text: string): void {

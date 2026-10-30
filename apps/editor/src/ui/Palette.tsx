@@ -3,7 +3,7 @@ import { childrenOf } from '@nib/core';
 import type { Node } from '@nib/format';
 import { copyAsHtml, copyAsPng, copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, paste, saveAs } from '../app/actions.ts';
 import { useT } from '../app/i18n.ts';
-import { store, useEditor, type Tool } from '../app/store.ts';
+import { store, useEditor, type Tool, toggleSide } from '../app/store.ts';
 import { boundsOf, fitView } from '../canvas/Canvas.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
@@ -45,8 +45,9 @@ export function Palette() {
       { key: 'fit', label: t.fitAll, icon: 'maximize', hint: '⇧1', run: () => store.set({ view: fitView(boundsOf()) }) },
       { key: 'fit-selection', label: t.fitSelection, icon: 'maximize', hint: '⇧2', run: () => { const b = boundsOf(store.get().selection); if (b) store.set({ view: fitView(b, 4) }); } },
       { key: 'panel', label: t.togglePanel, icon: 'panelLeft', hint: '⌘\\', run: () => store.set({ leftOpen: !store.get().leftOpen }) },
-      { key: 'activity', label: t.toggleActivity, icon: 'activity', run: () => store.set({ activityOpen: !store.get().activityOpen }) },
-      { key: 'agent', label: t.toggleAgent, icon: 'sparkles', run: () => store.set({ agentOpen: !store.get().agentOpen, activityOpen: false }) },
+      { key: 'activity', label: t.toggleActivity, icon: 'activity', run: () => toggleSide('activityOpen') },
+      { key: 'agent', label: t.toggleAgent, icon: 'sparkles', run: () => toggleSide('agentOpen') },
+      { key: 'browser', label: t.toggleBrowser, icon: 'globe', run: () => toggleSide('browserOpen') },
       { key: 'problems', label: t.problems, icon: 'scan', run: () => store.set({ leftOpen: true, leftTab: 'problems' }) },
       { key: 'lang', label: t.switchLanguage, icon: 'languages', run: () => { const lang = store.get().lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', lang); store.set({ lang }); } },
     ];

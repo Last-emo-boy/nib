@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { childrenOf } from '@nib/core';
 import type { Node } from '@nib/format';
-import { copyAsHtml, copyAsPng, copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, paste, saveAs } from '../app/actions.ts';
+import { copyAsHtml, copyAsPng, copyAsReact, copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, paste, saveAs } from '../app/actions.ts';
 import { useT } from '../app/i18n.ts';
 import { store, useEditor, type Tool, toggleSide } from '../app/store.ts';
 import { boundsOf, fitView } from '../canvas/Canvas.tsx';
@@ -33,6 +33,7 @@ export function Palette() {
       { key: 'copy-png', label: t.copyPng, icon: 'image', hint: '⇧⌘C', run: () => void copyAsPng() },
       { key: 'copy-html', label: t.copyHtml, icon: 'copy', run: () => void copyAsHtml() },
       { key: 'copy-tailwind', label: t.copyTailwind, icon: 'copy', run: () => void copyAsHtml(true) },
+      { key: 'copy-react', label: t.copyReact, icon: 'copy', run: () => void copyAsReact() },
       { key: 'save-as', label: t.saveAs, icon: 'file', hint: '⇧⌘S', run: () => void saveAs() },
       { key: 'undo', label: t.undo, icon: 'undo', hint: '⌘Z', run: () => store.get().conn?.undo() },
       { key: 'redo', label: t.redo, icon: 'redo', hint: '⇧⌘Z', run: () => store.get().conn?.redo() },

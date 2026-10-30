@@ -1,4 +1,5 @@
 // Helpers for writing nib's design-system libraries as .pen documents.
+import type { CodeMap, ComponentCode } from '@nib/export';
 import type { Node, PenDocument, Variable } from '@nib/format';
 
 export type N = Record<string, unknown>;
@@ -63,6 +64,8 @@ export const ref = (component: string, props: N = {}, descendants?: Record<strin
 /** A library being written: its components (by id), the boards that show them, its variables and themes. */
 export class Library {
   readonly components = new Map<string, N>();
+  /** How components are written in code (see @nib/export's CodeMap). */
+  readonly code: Record<string, ComponentCode> = {};
   readonly boards: N[] = [];
   readonly variables: Record<string, Variable> = {};
   private used = new Set<string>();
@@ -81,6 +84,18 @@ export class Library {
     const c = { ...node, id, name, reusable: true };
     this.components.set(id, c);
     return id;
+  }
+
+  /** How component `id` is written in code; `imports` maps the template's names to modules. */
+  codeFor(id: string, template: string, imports: Record<string, string>): void {
+    if (!this.components.has(id)) throw new Error(`code for unknown component ${id}`);
+    this.code[id] = { template, imports };
+  }
+
+  /** The library's code map, its tokens being the color variables. */
+  codeMap(meta: Omit<CodeMap, 'components' | 'tokens'>): CodeMap {
+    const tokens = Object.entries(this.variables).filter(([, v]) => v.type === 'color').map(([k]) => k);
+    return { ...meta, tokens, components: this.code };
   }
 
   /** A top-level board: a titled frame showing components (by id) and examples. */

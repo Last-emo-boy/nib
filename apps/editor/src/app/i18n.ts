@@ -3,7 +3,7 @@ import { useEditor, type Lang } from './store.ts';
 const en = {
   layers: 'Layers', components: 'Components', variables: 'Variables', activity: 'Activity',
   move: 'Move', hand: 'Hand', frame: 'Frame', rectangle: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', iconTool: 'Icon', text: 'Text', note: 'Note',
-  align: 'Align', theme: 'Theme', copyPng: 'Copy as PNG', copyHtml: 'Copy as HTML', copyTailwind: 'Copy as HTML (Tailwind)', saveAs: 'Save a copy as…',
+  align: 'Align', theme: 'Theme', copyPng: 'Copy as PNG', copyHtml: 'Copy as HTML', copyTailwind: 'Copy as HTML (Tailwind)', copyReact: 'Copy as React (library components)', saveAs: 'Save a copy as…',
   undo: 'Undo', redo: 'Redo', export: 'Export', zoomToFit: 'Zoom to fit',
   noSelection: 'Select a layer to see its properties.', mixed: 'Mixed',
   position: 'Position', size: 'Size', layout: 'Layout', appearance: 'Appearance', fill: 'Fill', stroke: 'Stroke', effects: 'Effects',
@@ -69,7 +69,7 @@ const en = {
 const zh: typeof en = {
   layers: '图层', components: '组件', variables: '变量', activity: '动态',
   move: '移动', hand: '抓手', frame: '画框', rectangle: '矩形', ellipse: '椭圆', polygon: '多边形', iconTool: '图标', text: '文本', note: '便签',
-  align: '对齐', theme: '主题', copyPng: '复制为 PNG', copyHtml: '复制为 HTML', copyTailwind: '复制为 HTML（Tailwind）', saveAs: '另存副本…',
+  align: '对齐', theme: '主题', copyPng: '复制为 PNG', copyHtml: '复制为 HTML', copyTailwind: '复制为 HTML（Tailwind）', copyReact: '复制为 React（组件库组件）', saveAs: '另存副本…',
   undo: '撤销', redo: '重做', export: '导出', zoomToFit: '缩放到全部',
   noSelection: '选择一个图层以查看属性。', mixed: '多个值',
   position: '位置', size: '尺寸', layout: '布局', appearance: '外观', fill: '填充', stroke: '描边', effects: '效果',

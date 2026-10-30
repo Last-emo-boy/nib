@@ -185,7 +185,7 @@ export function heroui(): Library {
 
   // Cards ----------------------------------------------------------------------------------------
   lib.component('card', 'Card', col({ width: 340, padding: 16, gap: 12, cornerRadius: '$radius-3xl', fill: '$surface', effect: surfaceShadow },
-    row({ width: 'fill_container', height: 140, cornerRadius: '$radius-2xl', fill: '$accent-soft', alignItems: 'center', justifyContent: 'center' },
+    row({ id: 'card-media', width: 'fill_container', height: 140, cornerRadius: '$radius-2xl', fill: '$accent-soft', alignItems: 'center', justifyContent: 'center' },
       icon('sparkles', { width: 32, height: 32, fill: '$accent-soft-foreground' })),
     col({ id: 'card-header', width: 'fill_container' },
       medium('Become an Acme creator', { id: 'card-title', lineHeight: 1.71 }),
@@ -319,5 +319,52 @@ export function heroui(): Library {
           row({ width: 'fill_container', gap: 8, justifyContent: 'end' },
             ref('button-ghost', { id: 'overview-reset' }, { 'button-ghost-label': { content: 'Reset' } }),
             ref('button', { id: 'overview-save' }, { 'button-label': { content: 'Save changes' } }))))));
+  code(lib);
   return lib;
+}
+
+export const codeMeta = {
+  library: 'HeroUI',
+  setup: 'npm install @heroui/react @heroui/styles, and import "@heroui/styles" in your global CSS',
+  inherited: ['font-sans'],
+};
+
+/** HeroUI v3 components as their code: https://heroui.com/docs/react/components. */
+function code(lib: Library) {
+  const hero = (...names: string[]) => Object.fromEntries(names.map((n) => [n, '@heroui/react']));
+  for (const [id, props] of [['button', ''], ['button-secondary', ' variant="secondary"'], ['button-tertiary', ' variant="tertiary"'], ['button-outline', ' variant="outline"'],
+    ['button-ghost', ' variant="ghost"'], ['button-danger', ' variant="danger"'], ['button-danger-soft', ' variant="danger-soft"'], ['button-sm', ' size="sm"'], ['button-lg', ' size="lg"']]) {
+    lib.codeFor(id, `<Button${props}{class}>{text:${id}-label}</Button>`, hero('Button'));
+  }
+  lib.codeFor('button-icon', '<Button isIconOnly variant="tertiary" aria-label="{attr:button-icon-glyph}"{class}>{icon:button-icon-glyph}</Button>', hero('Button'));
+  lib.codeFor('button-with-icon', '<Button{class}>{icon:button-with-icon-glyph}{text:button-with-icon-label}</Button>', hero('Button'));
+  for (const [id, props] of [['chip', ''], ['chip-accent', ' color="accent" variant="soft"'], ['chip-success', ' color="success" variant="soft"'], ['chip-warning', ' color="warning" variant="soft"'],
+    ['chip-danger', ' color="danger" variant="soft"'], ['chip-solid', ' color="accent" variant="primary"']]) {
+    lib.codeFor(id, `<Chip${props}{class}>{text:${id}-label}</Chip>`, hero('Chip'));
+  }
+  lib.codeFor('label', '<Label{class}>{text:label-text}</Label>', hero('Label'));
+  lib.codeFor('description', '<Description{class}>{text:description-text}</Description>', hero('Description'));
+  lib.codeFor('input', '<Input placeholder="{attr:input-text}"{class} />', hero('Input'));
+  lib.codeFor('input-filled', '<Input defaultValue="{attr:input-filled-text}"{class} />', hero('Input'));
+  lib.codeFor('textarea', '<TextArea placeholder="{attr:textarea-text}"{class} />', hero('TextArea'));
+  lib.codeFor('search-field', '<SearchField aria-label="Search"{class}>\n  <SearchField.Group>\n    <SearchField.SearchIcon />\n    <SearchField.Input placeholder="{attr:search-field-text}" />\n    <SearchField.ClearButton />\n  </SearchField.Group>\n</SearchField>', hero('SearchField'));
+  lib.codeFor('text-field', '<TextField name="{slug:text-field-label/label-text}"{class}>\n  <Label>{text:text-field-label/label-text}</Label>\n  <Input placeholder="{attr:text-field-input/input-text}" />\n  {if:text-field-description/description-text}<Description>{text:text-field-description/description-text}</Description>{/if}\n</TextField>', hero('Description', 'Input', 'Label', 'TextField'));
+  for (const [id, on] of [['checkbox', ' defaultSelected'], ['checkbox-off', '']]) {
+    lib.codeFor(id, `<Checkbox name="{slug:${id}-label}"${on}{class}>\n  <Checkbox.Content>\n    <Checkbox.Control>\n      <Checkbox.Indicator />\n    </Checkbox.Control>\n    {text:${id}-label}\n  </Checkbox.Content>\n</Checkbox>`, hero('Checkbox'));
+  }
+  for (const [id, on] of [['switch', ' defaultSelected'], ['switch-off', '']]) {
+    lib.codeFor(id, `<Switch${on}{class}>\n  <Switch.Content>\n    <Switch.Control>\n      <Switch.Thumb />\n    </Switch.Control>\n    {text:${id}-label}\n  </Switch.Content>\n</Switch>`, hero('Switch'));
+  }
+  lib.codeFor('avatar', '<Avatar{class}>\n  <Avatar.Fallback>{text:avatar-initials}</Avatar.Fallback>\n</Avatar>', hero('Avatar'));
+  lib.codeFor('avatar-accent', '<Avatar color="accent"{class}>\n  <Avatar.Fallback>{text:avatar-accent-initials}</Avatar.Fallback>\n</Avatar>', hero('Avatar'));
+  lib.codeFor('avatar-group', '<div{class:flex -space-x-2.5}>{children:.}</div>', {});
+  lib.codeFor('kbd', '<Kbd{class}>\n  <Kbd.Abbr title="Command">⌘</Kbd.Abbr>\n  <Kbd.Content>{text:kbd-key}</Kbd.Content>\n</Kbd>', hero('Kbd'));
+  lib.codeFor('separator', '<Separator{class} />', hero('Separator'));
+  for (const [id, status] of [['alert', 'accent'], ['alert-success', 'success'], ['alert-danger', 'danger']]) {
+    lib.codeFor(id, `<Alert status="${status}"{class}>\n  <Alert.Indicator />\n  <Alert.Content>\n    <Alert.Title>{text:${id}-title}</Alert.Title>\n    <Alert.Description>{text:${id}-description}</Alert.Description>\n  </Alert.Content>\n</Alert>`, hero('Alert'));
+  }
+  lib.codeFor('card', '<Card{class}>\n  {node:card-media}\n  <Card.Header>\n    <Card.Title>{text:card-title}</Card.Title>\n    <Card.Description>{text:card-description}</Card.Description>\n  </Card.Header>\n  <Card.Footer{layout:card-footer}>{children:card-footer}</Card.Footer>\n</Card>', hero('Card'));
+  lib.codeFor('tabs', '<Tabs{class}>\n  <Tabs.ListContainer>\n    <Tabs.List aria-label="Tabs">\n      <Tabs.Tab id="{slug:tabs-1-label}">{text:tabs-1-label}<Tabs.Indicator /></Tabs.Tab>\n      <Tabs.Tab id="{slug:tabs-2-label}">{text:tabs-2-label}<Tabs.Indicator /></Tabs.Tab>\n      <Tabs.Tab id="{slug:tabs-3-label}">{text:tabs-3-label}<Tabs.Indicator /></Tabs.Tab>\n    </Tabs.List>\n  </Tabs.ListContainer>\n</Tabs>', hero('Tabs'));
+  lib.codeFor('progress', '<ProgressBar aria-label="{attr:progress-label}" value={40}{class}>\n  <Label>{text:progress-label}</Label>\n  <ProgressBar.Output />\n  <ProgressBar.Track>\n    <ProgressBar.Fill />\n  </ProgressBar.Track>\n</ProgressBar>', hero('Label', 'ProgressBar'));
+  lib.codeFor('slider', '<Slider defaultValue={60}{class}>\n  <Label>{text:slider-label}</Label>\n  <Slider.Output />\n  <Slider.Track>\n    <Slider.Fill />\n    <Slider.Thumb />\n  </Slider.Track>\n</Slider>', hero('Label', 'Slider'));
 }

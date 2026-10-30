@@ -1128,8 +1128,8 @@
                       "icon": "bold",
                       "width": 16,
                       "height": 16,
-                      "fill": "$accent-foreground",
-                      "id": "toggle-1"
+                      "id": "toggle-icon",
+                      "fill": "$accent-foreground"
                     }
                   ],
                   "id": "toggle",
@@ -1154,8 +1154,8 @@
                       "icon": "italic",
                       "width": 16,
                       "height": 16,
-                      "fill": "$foreground",
-                      "id": "toggle-off-1"
+                      "id": "toggle-off-icon",
+                      "fill": "$foreground"
                     }
                   ],
                   "id": "toggle-off",
@@ -2970,7 +2970,7 @@
                       "width": 14,
                       "height": 14,
                       "fill": "$muted-foreground",
-                      "id": "breadcrumb-2"
+                      "id": "breadcrumb-3"
                     },
                     {
                       "type": "text",
@@ -2979,7 +2979,7 @@
                       "fontSize": 14,
                       "fill": "$muted-foreground",
                       "lineHeight": 1.43,
-                      "id": "breadcrumb-3"
+                      "id": "breadcrumb-2"
                     },
                     {
                       "type": "icon",

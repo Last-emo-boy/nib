@@ -201,8 +201,8 @@ export class DocumentHost {
     const open = this.require(path);
     const dir = await mkdtemp(join(tmpdir(), 'nib-export-'));
     try {
-      const single = format === 'pdf' || format.startsWith('html');
-      const ext = format === 'pdf' ? 'pdf' : 'html';
+      const single = format === 'pdf' || format.startsWith('html') || format === 'react-tailwind';
+      const ext = format === 'pdf' ? 'pdf' : format === 'react-tailwind' ? 'tsx' : 'html';
       const target = single ? join(dir, `${basename(open.path, '.pen')}.${ext}`) : dir;
       const options = { ...(scale ? { scale } : {}), ...(fragment ? { includeHtmlScaffold: false } : {}) };
       const r = await this.enqueue(open, () => open.session.execute({ input: `Export(${JSON.stringify(ids)}, ${JSON.stringify(format)}, ${JSON.stringify(target)}, ${JSON.stringify(options)})` }));

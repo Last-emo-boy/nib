@@ -1,8 +1,9 @@
 import { dirname, isAbsolute, relative, resolve as resolvePath } from 'node:path';
-import type { SceneNode } from '@nib/core';
+import { INSTANCE, UNRESOLVED, type InstanceInfo, type SceneNode } from '@nib/core';
 import type { Box, LayoutResult } from '@nib/layout';
 import { cornerRadii, fillList, fontWeight, isFontIconLibrary, isItalic, shapePath, type ImageLoader, type Renderer } from '@nib/render';
 import type { CapturedScene, ExportOptions } from '@nib/exec';
+import type { CodeMap, ComponentCode } from './code.ts';
 
 type Decl = [string, string];
 type Dir = 'horizontal' | 'vertical' | 'none';
@@ -55,8 +56,52 @@ export async function exportHtml(scenes: CapturedScene[], outputPath: string, op
   return `<!DOCTYPE html>\n<html lang="en">\n<head>\n${head.join('\n')}\n</head>\n<body>\n${body}\n</body>\n</html>\n`;
 }
 
-class HtmlWriter {
+/**
+ * A React module: one function component per exported node, JSX with Tailwind classes. Instances of
+ * library components that come with a code map are written as those components (shadcn/ui, HeroUI), and
+ * the library's colors as its CSS variables.
+ */
+export async function exportReact(scenes: CapturedScene[], outputPath: string, options: ExportOptions, ctx: HtmlContext, maps: Map<string, CodeMap>): Promise<string> {
+  const writer = new HtmlWriter(ctx, dirname(outputPath), true, options.includeLayerNames ?? false, options.includeLayerIds ?? false, { maps });
+  const names = new Set<string>();
+  const parts: string[] = [];
+  for (const s of scenes) {
+    const prepared = await ctx.renderer.prepare(s.root, ctx.images);
+    try {
+      const base = componentName(typeof s.target.name === 'string' ? s.target.name : s.target.type);
+      let name = base;
+      for (let i = 2; names.has(name); i++) name = `${base}${i}`;
+      names.add(name);
+      parts.push(`export function ${name}() {\n  return (\n${writer.root(s.target, prepared.layout, 2)}\n  );\n}`);
+    } finally {
+      prepared.dispose();
+    }
+  }
+  const imports = [...writer.imports].sort(([a], [b]) => (a.startsWith('@/') === b.startsWith('@/') ? a.localeCompare(b) : a.startsWith('@/') ? 1 : -1))
+    .map(([module, set]) => `import { ${[...set].sort().join(', ')} } from "${module}";`);
+  const used = [...maps.values()].filter((m) => [...writer.imports.keys()].some((k) => Object.values(m.components).some((c) => Object.values(c.imports).includes(k))));
+  const header = [`// Exported from nib.`, ...used.map((m) => `// ${m.library}: ${m.setup ?? 'install the library'}.`), ...(writer.imports.has('lucide-react') ? ['// Icons: npm install lucide-react.'] : [])];
+  return `${header.join('\n')}\n${imports.length ? `\n${imports.join('\n')}\n` : ''}\n${parts.join('\n\n')}\n`;
+}
+
+/** A node name as a component name: "Sign in / Card" -> SignInCard. */
+function componentName(s: string): string {
+  const words = s.normalize('NFKD').replace(/[^A-Za-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+  const name = words.map((w) => w[0].toUpperCase() + w.slice(1)).join('');
+  return /^[A-Z]/.test(name) ? name : `Screen${name}`;
+}
+
+/** React output: JSX with Tailwind classes; instances of mapped library components become those components. */
+export interface ReactMode {
+  /** Code maps by import alias. */
+  maps: Map<string, CodeMap>;
+}
+
+export class HtmlWriter {
   private ctx: HtmlContext;
+  private react: ReactMode | undefined;
+  /** Modules the React output imports from, and the names it uses from each. */
+  readonly imports = new Map<string, Set<string>>();
   private outDir: string;
   private tailwind: boolean;
   private names: boolean;
@@ -68,17 +113,18 @@ class HtmlWriter {
   private gradients = 0;
   private layout!: LayoutResult;
 
-  constructor(ctx: HtmlContext, outDir: string, tailwind: boolean, names: boolean, ids: boolean) {
+  constructor(ctx: HtmlContext, outDir: string, tailwind: boolean, names: boolean, ids: boolean, react?: ReactMode) {
     this.ctx = ctx;
+    this.react = react;
     this.outDir = outDir;
     this.tailwind = tailwind;
     this.names = names;
     this.ids = ids;
   }
 
-  root(node: SceneNode, layout: LayoutResult): string {
+  root(node: SceneNode, layout: LayoutResult, depth = 0): string {
     this.layout = layout;
-    return this.node(node, undefined, 0);
+    return this.node(node, undefined, depth);
   }
 
   baseCss(several: boolean): string {
@@ -111,6 +157,10 @@ class HtmlWriter {
 
   private node(n: SceneNode, parent: SceneNode | undefined, depth: number): string {
     if (SKIPPED.has(n.type)) return '';
+    if (this.react) {
+      const component = this.component(n, parent, depth);
+      if (component !== undefined) return component;
+    }
     const decls = [...this.placement(n, parent), ...this.common(n)];
     const indent = '  '.repeat(depth);
     const attrs: string[] = [];
@@ -121,12 +171,13 @@ class HtmlWriter {
       decls.push(...this.text(n));
       const tag = typeof n.href === 'string' ? 'a' : 'div';
       if (tag === 'a') attrs.push(`href="${esc(n.href)}"`);
-      return `${indent}<${tag}${this.attr(n, decls, attrs)}>${esc(n.content === undefined || n.content === null ? '' : String(n.content))}</${tag}>`;
+      const content = n.content === undefined || n.content === null ? '' : String(n.content);
+      return `${indent}<${tag}${this.attr(n, decls, attrs)}>${this.react ? jsxText(content) : esc(content)}</${tag}>`;
     }
-    if (n.type === 'icon') return `${indent}${this.icon(n, decls, attrs)}`;
+    if (n.type === 'icon') return `${indent}${this.react ? this.reactIcon(n, decls, attrs) : this.icon(n, decls, attrs)}`;
     if (n.type === 'ellipse' || n.type === 'polygon' || n.type === 'path') {
       const simple = n.type === 'ellipse' && !num(n.innerRadius) && Math.abs(num(n.sweepAngle, 360)) >= 360;
-      if (!simple) return `${indent}${this.svgShape(n, decls, attrs)}`;
+      if (!simple) return `${indent}${this.react ? jsxSvg(this.svgShape(n, decls, attrs)) : this.svgShape(n, decls, attrs)}`;
       decls.push(['border-radius', '50%']);
     }
     decls.push(...this.paint(n));
@@ -299,9 +350,13 @@ class HtmlWriter {
     const family = typeof n.fontFamily === 'string' ? n.fontFamily : 'Inter';
     const weight = fontWeight(n.fontWeight);
     const italic = isItalic(n.fontStyle);
-    const styles = this.fonts.get(family) ?? this.fonts.set(family, new Set()).get(family)!;
-    styles.add(`${italic ? 1 : 0},${weight}`);
-    out.push(['font-family', `'${family.replace(/'/g, "\\'")}', sans-serif`], ['font-size', px(num(n.fontSize, 14))]);
+    // In React output a library's own font comes from the app's styles.
+    if (!this.inherited(n, 'fontFamily')) {
+      const styles = this.fonts.get(family) ?? this.fonts.set(family, new Set()).get(family)!;
+      styles.add(`${italic ? 1 : 0},${weight}`);
+      out.push(['font-family', `'${family.replace(/'/g, "\\'")}', sans-serif`]);
+    }
+    out.push(['font-size', px(num(n.fontSize, 14))]);
     if (weight !== 400) out.push(['font-weight', String(weight)]);
     if (italic) out.push(['font-style', 'italic']);
     out.push(['line-height', typeof n.lineHeight === 'number' ? String(n.lineHeight) : 'normal']);
@@ -370,7 +425,17 @@ class HtmlWriter {
 
   /** Attributes for one element: its styles as a class (css) or utility classes (tailwind), plus data attributes. */
   private attr(n: SceneNode, decls: Decl[], attrs: string[]): string {
-    const merged = dedupe(decls);
+    let merged = dedupe(decls);
+    if (this.react) {
+      // Classes the browser default already gives: relative only matters with absolute children.
+      const anchors = (n.children ?? []).some((c) => dirOf(n) === 'none' || c.layoutPosition === 'absolute');
+      merged = merged.filter(([k, v]) => !(k === 'position' && v === 'relative' && !anchors) && !(k === 'line-height' && v === 'normal'));
+      // Colors from a library's variables are written as its CSS variables (bg-primary, var(--border)).
+      const tokens = this.tokens(n);
+      if (tokens.size) merged = merged.map(([k, v]) => [k, v.replace(/#[0-9a-f]{3,8}\b/gi, (hex) => tokens.get(hex.toLowerCase()) ?? hex)]);
+      const cls = merged.map(([k, v]) => utility(k, v)).join(' ');
+      return `${cls ? ` className="${esc(cls)}"` : ''}${attrs.length ? ` ${attrs.join(' ')}` : ''}`;
+    }
     let cls: string;
     if (this.tailwind) cls = merged.map(([k, v]) => utility(k, v)).join(' ');
     else {
@@ -378,6 +443,119 @@ class HtmlWriter {
       this.rules.push(`.${cls} { ${merged.map(([k, v]) => `${k}: ${v};`).join(' ')} }`);
     }
     return `${cls ? ` class="${esc(cls)}"` : ''}${attrs.length ? ` ${attrs.join(' ')}` : ''}`;
+  }
+
+  // React output ---------------------------------------------------------------------------------
+
+  /** Colors of this node that come from a library token: resolved hex -> var(--token). */
+  private tokens(n: SceneNode): Map<string, string> {
+    const out = new Map<string, string>();
+    const raw = (n as unknown as Record<symbol, unknown>)[UNRESOLVED] as Record<string, unknown> | undefined;
+    if (!raw || !this.react) return out;
+    for (const key of ['fill', 'stroke'] as const) {
+      const token = this.tokenName(raw[key]);
+      const color = solid(n[key]);
+      if (token && color) out.set(color.toLowerCase(), `var(--${token})`);
+    }
+    return out;
+  }
+
+  /** `$alias:name` of a library with a code map that lists `name` as a token, as `name`. */
+  private tokenName(v: unknown): string | undefined {
+    const ref = typeof v === 'string' ? v : Array.isArray(v) && v.length === 1 ? (typeof v[0] === 'string' ? v[0] : (v[0] as { color?: unknown })?.color) : (v as { color?: unknown } | undefined)?.color;
+    const m = typeof ref === 'string' ? /^\$([^:]+):(.+)$/.exec(ref) : null;
+    return m && this.react?.maps.get(m[1])?.tokens.includes(m[2]) ? m[2] : undefined;
+  }
+
+  /** Whether a property's value is one of a library's variables that the app's own styles set (its font). */
+  private inherited(n: SceneNode, key: string): boolean {
+    const raw = (n as unknown as Record<symbol, unknown>)[UNRESOLVED] as Record<string, unknown> | undefined;
+    const m = typeof raw?.[key] === 'string' ? /^\$([^:]+):(.+)$/.exec(raw[key] as string) : null;
+    return !!m && !!this.react?.maps.get(m[1])?.inherited?.includes(m[2]);
+  }
+
+  /** A lucide icon as its lucide-react component; other icon sets as inline SVG. */
+  private reactIcon(n: SceneNode, decls: Decl[], attrs: string[]): string {
+    const library = String(n.library ?? 'lucide');
+    if (library !== 'lucide' && library !== 'feather') return jsxSvg(this.icon(n, decls, attrs));
+    const name = pascal(String(n.icon ?? 'circle'));
+    this.use('lucide-react', name);
+    decls.push(['color', solid(n.fill) ?? '#000000'], ...this.filters(n, true));
+    const b = this.box(n);
+    decls.push(['width', px(b.width)], ['height', px(b.height)]);
+    return `<${name}${this.attr(n, decls, attrs)} />`;
+  }
+
+  private use(module: string, name: string): void {
+    (this.imports.get(module) ?? this.imports.set(module, new Set()).get(module)!).add(name);
+  }
+
+  /** An instance of a library component that has code: the component's JSX. */
+  private component(n: SceneNode, parent: SceneNode | undefined, depth: number): string | undefined {
+    const info = (n as unknown as Record<symbol, unknown>)[INSTANCE] as InstanceInfo | undefined;
+    const colon = info?.ref.indexOf(':') ?? -1;
+    if (!info || colon <= 0) return undefined;
+    const spec = this.react?.maps.get(info.ref.slice(0, colon))?.components[info.ref.slice(colon + 1)];
+    if (!spec) return undefined;
+    for (const [name, module] of Object.entries(spec.imports)) this.use(module, name);
+    return this.template(spec, n, parent, info, depth);
+  }
+
+  private template(spec: ComponentCode, n: SceneNode, parent: SceneNode | undefined, info: InstanceInfo, depth: number): string {
+    const part = (key: string): SceneNode | undefined => (key === '.' ? n : findPart(n, `${n.id}/${key}`));
+    const text = (key: string) => { const p = part(key); return p && p.content !== undefined && p.content !== null ? String(p.content) : ''; };
+    const shown = (key: string) => { const p = part(key); return !!p && (p.type !== 'text' || text(key).trim() !== ''); };
+    const own = this.instanceClasses(n, parent, info);
+    const indent = '  '.repeat(depth);
+    let out = spec.template.replace(/\{if:([^}]+)\}([\s\S]*?)\{\/if\}/g, (_, key: string, inner: string) => (shown(key) ? inner : ''));
+    out = out.split('\n').map((line) => {
+      const level = depth + Math.floor((line.length - line.trimStart().length) / 2);
+      return line.replace(/\{(class|layout|text|attr|slug|icon|children|node)(?::([^}]*))?\}/g, (_, kind: string, key = '') => {
+        switch (kind) {
+          case 'layout': {
+            // How a part lays out its content, when its children were replaced: flex direction, gap, alignment.
+            const p = part(key);
+            const decls = p ? this.container(p).filter(([k]) => k !== 'padding' && k !== 'overflow') : [];
+            const cls = decls.map(([k, v]) => utility(k, v)).join(' ');
+            return cls ? ` className="${esc(cls)}"` : '';
+          }
+          case 'class': { const cls = [key, own].filter(Boolean).join(' '); return cls ? ` className="${esc(cls)}"` : ''; }
+          case 'text': return jsxText(text(key));
+          case 'attr': return esc(text(key) || String(part(key)?.icon ?? ''));
+          case 'slug': return slug(text(key));
+          case 'icon': {
+            const p = part(key);
+            if (!p || p.type !== 'icon') return '';
+            const name = pascal(String(p.icon ?? 'circle'));
+            this.use('lucide-react', name);
+            return `<${name} />`;
+          }
+          case 'node': { const p = part(key); return p ? this.node(p, n, level).trimStart() : ''; }
+          default: {
+            const p = part(key);
+            const kids = (p?.children ?? []).map((c) => this.node(c, p, level + 1)).filter(Boolean);
+            return kids.length ? `\n${kids.join('\n')}\n${'  '.repeat(level)}` : '';
+          }
+        }
+      });
+    }).map((line) => indent + line).filter((line) => line.trim()).join('\n');
+    return out;
+  }
+
+  /** Classes an instance sets itself: where it sits in a free parent, and sizes it gives (fill or fixed). */
+  private instanceClasses(n: SceneNode, parent: SceneNode | undefined, info: InstanceInfo): string {
+    const out: string[] = [];
+    const b = this.box(n);
+    const pdir = parent ? dirOf(parent) : 'none';
+    if (parent && (pdir === 'none' || n.layoutPosition === 'absolute')) out.push('absolute', `left-[${px(b.x)}]`, `top-[${px(b.y)}]`);
+    for (const axis of ['width', 'height'] as const) {
+      if (!info.own.includes(axis)) continue;
+      const s = sizing(n, axis);
+      const main = (pdir === 'horizontal' && axis === 'width') || (pdir === 'vertical' && axis === 'height');
+      if (s.kind === 'fill') out.push(main ? 'flex-1' : axis === 'width' ? 'w-full' : 'h-full');
+      else if (s.kind === 'fixed') out.push(`${axis === 'width' ? 'w' : 'h'}-[${px(s.value)}]`);
+    }
+    return out.join(' ');
   }
 
   private className(n: SceneNode): string {
@@ -496,8 +674,8 @@ function utility(k: string, v: string): string {
     case 'gap': return arb('gap');
     case 'padding': return arb('p');
     case 'border-radius': return arb('rounded');
-    case 'background-color': return arb('bg');
-    case 'color': return `text-[color:${tw(v)}]`;
+    case 'background-color': return /^var\(--[\w-]+\)$/.test(v) ? `bg-${v.slice(6, -1)}` : arb('bg');
+    case 'color': return /^var\(--[\w-]+\)$/.test(v) ? `text-${v.slice(6, -1)}` : `text-[color:${tw(v)}]`;
     case 'font-size': return `text-[length:${tw(v)}]`;
     case 'font-weight': return arb('font');
     case 'font-family': return `font-[family-name:${tw(v)}]`;
@@ -511,3 +689,26 @@ function utility(k: string, v: string): string {
 
 /** A CSS value inside a Tailwind arbitrary value: underscores stand for spaces. */
 const tw = (v: string) => v.replace(/_/g, '\\_').replace(/\s+/g, '_');
+
+/** JSX text: entities for markup characters, an expression for braces, line breaks and edge spaces. */
+function jsxText(s: string): string {
+  if (/[{}\n]|^\s|\s$/.test(s)) return `{${JSON.stringify(s)}}`;
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** SVG markup as JSX: attributes in camelCase. */
+const jsxSvg = (svg: string) => svg.replace(/ (stroke-width|stroke-linecap|stroke-linejoin|fill-rule|stop-color|stop-opacity)=/g, (_, a: string) => ` ${a.replace(/-(\w)/g, (__, c: string) => c.toUpperCase())}=`).replace(/ class=/g, ' className=');
+
+/** A lucide icon name as its component name: "arrow-right" -> ArrowRight. */
+const pascal = (s: string) => s.split(/[-_\s]+/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join('') || 'Circle';
+
+const slug = (s: string) => s.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'field';
+
+function findPart(n: SceneNode, id: string): SceneNode | undefined {
+  if (n.id === id) return n;
+  for (const c of n.children ?? []) {
+    const hit = findPart(c, id);
+    if (hit) return hit;
+  }
+  return undefined;
+}

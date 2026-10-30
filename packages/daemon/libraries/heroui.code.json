@@ -1,0 +1,296 @@
+{
+  "library": "HeroUI",
+  "setup": "npm install @heroui/react @heroui/styles, and import \"@heroui/styles\" in your global CSS",
+  "inherited": [
+    "font-sans"
+  ],
+  "tokens": [
+    "background",
+    "foreground",
+    "surface",
+    "surface-secondary",
+    "surface-tertiary",
+    "overlay",
+    "muted",
+    "default",
+    "default-foreground",
+    "accent",
+    "accent-foreground",
+    "success",
+    "success-foreground",
+    "warning",
+    "warning-foreground",
+    "danger",
+    "danger-foreground",
+    "field-background",
+    "field-foreground",
+    "segment",
+    "segment-foreground",
+    "border",
+    "separator",
+    "default-hover",
+    "accent-hover",
+    "danger-hover",
+    "default-soft",
+    "accent-soft",
+    "accent-soft-foreground",
+    "success-soft",
+    "success-soft-foreground",
+    "warning-soft",
+    "warning-soft-foreground",
+    "danger-soft",
+    "danger-soft-foreground",
+    "separator-tertiary",
+    "shadow-1",
+    "shadow-2",
+    "shadow-overlay-1",
+    "shadow-overlay-2",
+    "shadow-overlay-3",
+    "overlay-edge"
+  ],
+  "components": {
+    "button": {
+      "template": "<Button{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-secondary": {
+      "template": "<Button variant=\"secondary\"{class}>{text:button-secondary-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-tertiary": {
+      "template": "<Button variant=\"tertiary\"{class}>{text:button-tertiary-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-outline": {
+      "template": "<Button variant=\"outline\"{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-ghost": {
+      "template": "<Button variant=\"ghost\"{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-danger": {
+      "template": "<Button variant=\"danger\"{class}>{text:button-danger-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-danger-soft": {
+      "template": "<Button variant=\"danger-soft\"{class}>{text:button-danger-soft-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-sm": {
+      "template": "<Button size=\"sm\"{class}>{text:button-sm-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-lg": {
+      "template": "<Button size=\"lg\"{class}>{text:button-lg-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-icon": {
+      "template": "<Button isIconOnly variant=\"tertiary\" aria-label=\"{attr:button-icon-glyph}\"{class}>{icon:button-icon-glyph}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-with-icon": {
+      "template": "<Button{class}>{icon:button-with-icon-glyph}{text:button-with-icon-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "chip": {
+      "template": "<Chip{class}>{text:chip-label}</Chip>",
+      "imports": {
+        "Chip": "@heroui/react"
+      }
+    },
+    "chip-accent": {
+      "template": "<Chip color=\"accent\" variant=\"soft\"{class}>{text:chip-accent-label}</Chip>",
+      "imports": {
+        "Chip": "@heroui/react"
+      }
+    },
+    "chip-success": {
+      "template": "<Chip color=\"success\" variant=\"soft\"{class}>{text:chip-success-label}</Chip>",
+      "imports": {
+        "Chip": "@heroui/react"
+      }
+    },
+    "chip-warning": {
+      "template": "<Chip color=\"warning\" variant=\"soft\"{class}>{text:chip-warning-label}</Chip>",
+      "imports": {
+        "Chip": "@heroui/react"
+      }
+    },
+    "chip-danger": {
+      "template": "<Chip color=\"danger\" variant=\"soft\"{class}>{text:chip-danger-label}</Chip>",
+      "imports": {
+        "Chip": "@heroui/react"
+      }
+    },
+    "chip-solid": {
+      "template": "<Chip color=\"accent\" variant=\"primary\"{class}>{text:chip-solid-label}</Chip>",
+      "imports": {
+        "Chip": "@heroui/react"
+      }
+    },
+    "label": {
+      "template": "<Label{class}>{text:label-text}</Label>",
+      "imports": {
+        "Label": "@heroui/react"
+      }
+    },
+    "description": {
+      "template": "<Description{class}>{text:description-text}</Description>",
+      "imports": {
+        "Description": "@heroui/react"
+      }
+    },
+    "input": {
+      "template": "<Input placeholder=\"{attr:input-text}\"{class} />",
+      "imports": {
+        "Input": "@heroui/react"
+      }
+    },
+    "input-filled": {
+      "template": "<Input defaultValue=\"{attr:input-filled-text}\"{class} />",
+      "imports": {
+        "Input": "@heroui/react"
+      }
+    },
+    "textarea": {
+      "template": "<TextArea placeholder=\"{attr:textarea-text}\"{class} />",
+      "imports": {
+        "TextArea": "@heroui/react"
+      }
+    },
+    "search-field": {
+      "template": "<SearchField aria-label=\"Search\"{class}>\n  <SearchField.Group>\n    <SearchField.SearchIcon />\n    <SearchField.Input placeholder=\"{attr:search-field-text}\" />\n    <SearchField.ClearButton />\n  </SearchField.Group>\n</SearchField>",
+      "imports": {
+        "SearchField": "@heroui/react"
+      }
+    },
+    "text-field": {
+      "template": "<TextField name=\"{slug:text-field-label/label-text}\"{class}>\n  <Label>{text:text-field-label/label-text}</Label>\n  <Input placeholder=\"{attr:text-field-input/input-text}\" />\n  {if:text-field-description/description-text}<Description>{text:text-field-description/description-text}</Description>{/if}\n</TextField>",
+      "imports": {
+        "Description": "@heroui/react",
+        "Input": "@heroui/react",
+        "Label": "@heroui/react",
+        "TextField": "@heroui/react"
+      }
+    },
+    "checkbox": {
+      "template": "<Checkbox name=\"{slug:checkbox-label}\" defaultSelected{class}>\n  <Checkbox.Content>\n    <Checkbox.Control>\n      <Checkbox.Indicator />\n    </Checkbox.Control>\n    {text:checkbox-label}\n  </Checkbox.Content>\n</Checkbox>",
+      "imports": {
+        "Checkbox": "@heroui/react"
+      }
+    },
+    "checkbox-off": {
+      "template": "<Checkbox name=\"{slug:checkbox-off-label}\"{class}>\n  <Checkbox.Content>\n    <Checkbox.Control>\n      <Checkbox.Indicator />\n    </Checkbox.Control>\n    {text:checkbox-off-label}\n  </Checkbox.Content>\n</Checkbox>",
+      "imports": {
+        "Checkbox": "@heroui/react"
+      }
+    },
+    "switch": {
+      "template": "<Switch defaultSelected{class}>\n  <Switch.Content>\n    <Switch.Control>\n      <Switch.Thumb />\n    </Switch.Control>\n    {text:switch-label}\n  </Switch.Content>\n</Switch>",
+      "imports": {
+        "Switch": "@heroui/react"
+      }
+    },
+    "switch-off": {
+      "template": "<Switch{class}>\n  <Switch.Content>\n    <Switch.Control>\n      <Switch.Thumb />\n    </Switch.Control>\n    {text:switch-off-label}\n  </Switch.Content>\n</Switch>",
+      "imports": {
+        "Switch": "@heroui/react"
+      }
+    },
+    "avatar": {
+      "template": "<Avatar{class}>\n  <Avatar.Fallback>{text:avatar-initials}</Avatar.Fallback>\n</Avatar>",
+      "imports": {
+        "Avatar": "@heroui/react"
+      }
+    },
+    "avatar-accent": {
+      "template": "<Avatar color=\"accent\"{class}>\n  <Avatar.Fallback>{text:avatar-accent-initials}</Avatar.Fallback>\n</Avatar>",
+      "imports": {
+        "Avatar": "@heroui/react"
+      }
+    },
+    "avatar-group": {
+      "template": "<div{class:flex -space-x-2.5}>{children:.}</div>",
+      "imports": {}
+    },
+    "kbd": {
+      "template": "<Kbd{class}>\n  <Kbd.Abbr title=\"Command\">⌘</Kbd.Abbr>\n  <Kbd.Content>{text:kbd-key}</Kbd.Content>\n</Kbd>",
+      "imports": {
+        "Kbd": "@heroui/react"
+      }
+    },
+    "separator": {
+      "template": "<Separator{class} />",
+      "imports": {
+        "Separator": "@heroui/react"
+      }
+    },
+    "alert": {
+      "template": "<Alert status=\"accent\"{class}>\n  <Alert.Indicator />\n  <Alert.Content>\n    <Alert.Title>{text:alert-title}</Alert.Title>\n    <Alert.Description>{text:alert-description}</Alert.Description>\n  </Alert.Content>\n</Alert>",
+      "imports": {
+        "Alert": "@heroui/react"
+      }
+    },
+    "alert-success": {
+      "template": "<Alert status=\"success\"{class}>\n  <Alert.Indicator />\n  <Alert.Content>\n    <Alert.Title>{text:alert-success-title}</Alert.Title>\n    <Alert.Description>{text:alert-success-description}</Alert.Description>\n  </Alert.Content>\n</Alert>",
+      "imports": {
+        "Alert": "@heroui/react"
+      }
+    },
+    "alert-danger": {
+      "template": "<Alert status=\"danger\"{class}>\n  <Alert.Indicator />\n  <Alert.Content>\n    <Alert.Title>{text:alert-danger-title}</Alert.Title>\n    <Alert.Description>{text:alert-danger-description}</Alert.Description>\n  </Alert.Content>\n</Alert>",
+      "imports": {
+        "Alert": "@heroui/react"
+      }
+    },
+    "card": {
+      "template": "<Card{class}>\n  {node:card-media}\n  <Card.Header>\n    <Card.Title>{text:card-title}</Card.Title>\n    <Card.Description>{text:card-description}</Card.Description>\n  </Card.Header>\n  <Card.Footer{layout:card-footer}>{children:card-footer}</Card.Footer>\n</Card>",
+      "imports": {
+        "Card": "@heroui/react"
+      }
+    },
+    "tabs": {
+      "template": "<Tabs{class}>\n  <Tabs.ListContainer>\n    <Tabs.List aria-label=\"Tabs\">\n      <Tabs.Tab id=\"{slug:tabs-1-label}\">{text:tabs-1-label}<Tabs.Indicator /></Tabs.Tab>\n      <Tabs.Tab id=\"{slug:tabs-2-label}\">{text:tabs-2-label}<Tabs.Indicator /></Tabs.Tab>\n      <Tabs.Tab id=\"{slug:tabs-3-label}\">{text:tabs-3-label}<Tabs.Indicator /></Tabs.Tab>\n    </Tabs.List>\n  </Tabs.ListContainer>\n</Tabs>",
+      "imports": {
+        "Tabs": "@heroui/react"
+      }
+    },
+    "progress": {
+      "template": "<ProgressBar aria-label=\"{attr:progress-label}\" value={40}{class}>\n  <Label>{text:progress-label}</Label>\n  <ProgressBar.Output />\n  <ProgressBar.Track>\n    <ProgressBar.Fill />\n  </ProgressBar.Track>\n</ProgressBar>",
+      "imports": {
+        "Label": "@heroui/react",
+        "ProgressBar": "@heroui/react"
+      }
+    },
+    "slider": {
+      "template": "<Slider defaultValue={60}{class}>\n  <Label>{text:slider-label}</Label>\n  <Slider.Output />\n  <Slider.Track>\n    <Slider.Fill />\n    <Slider.Thumb />\n  </Slider.Track>\n</Slider>",
+      "imports": {
+        "Label": "@heroui/react",
+        "Slider": "@heroui/react"
+      }
+    }
+  }
+}

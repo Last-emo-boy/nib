@@ -267,6 +267,21 @@ export async function copyAsHtml(tailwind = false): Promise<void> {
   }
 }
 
+/** Put the selection on the clipboard as a React component (library instances as their components). */
+export async function copyAsReact(): Promise<void> {
+  const { selection, conn } = store.get();
+  if (!selection.length || !conn) return;
+  try {
+    const r = await fetch('/api/export', { method: 'POST', headers: { ...authHeaders(), 'content-type': 'application/json' }, body: JSON.stringify({ filePath: conn.path, ids: selection, format: 'react-tailwind' }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    await navigator.clipboard.writeText(new TextDecoder().decode(Uint8Array.from(atob(j.files[0].data), (c) => c.charCodeAt(0))));
+    toast('Copied as React');
+  } catch (e) {
+    toast(`Copy as React: ${(e as Error).message}`);
+  }
+}
+
 /** Save the document under a new path and switch to it. */
 export async function saveAs(): Promise<void> {
   const conn = store.get().conn;

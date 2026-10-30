@@ -2920,6 +2920,7 @@
                     {
                       "type": "frame",
                       "layout": "horizontal",
+                      "id": "card-media",
                       "width": "fill_container",
                       "height": 140,
                       "cornerRadius": "$radius-2xl",
@@ -2934,10 +2935,9 @@
                           "width": 32,
                           "height": 32,
                           "fill": "$accent-soft-foreground",
-                          "id": "card-2"
+                          "id": "card-1"
                         }
-                      ],
-                      "id": "card-1"
+                      ]
                     },
                     {
                       "type": "frame",

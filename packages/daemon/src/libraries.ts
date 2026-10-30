@@ -42,6 +42,9 @@ export async function installLibrary(id: string, docPath: string): Promise<strin
     await mkdir(dirname(dest), { recursive: true });
     await copyFile(src, dest);
   }
+  // How its components are written in code, for React export (also added to copies made before there was one).
+  const code = join(dirname(dest), `${id}.code.json`);
+  if (!(await stat(code).catch(() => undefined))) await copyFile(join(LIBRARY_DIR, `${id}.code.json`), code).catch(() => {});
   return `./${relative(dirname(docPath), dest)}`;
 }
 

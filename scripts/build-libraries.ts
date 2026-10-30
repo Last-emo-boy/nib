@@ -10,7 +10,7 @@ import type { Library } from './libraries/kit.ts';
 import * as heroui from './libraries/heroui.ts';
 import * as shadcn from './libraries/shadcn.ts';
 
-const LIBRARIES = [{ meta: shadcn.meta, build: shadcn.shadcn }, { meta: heroui.meta, build: heroui.heroui }];
+const LIBRARIES = [{ meta: shadcn.meta, build: shadcn.shadcn, code: shadcn.codeMeta }, { meta: heroui.meta, build: heroui.heroui, code: heroui.codeMeta }];
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, '..', 'packages', 'daemon', 'libraries');
 const GAP = 160;
@@ -55,7 +55,7 @@ async function arrange(doc: PenDoc, columns: number): Promise<void> {
 }
 
 const catalog = [];
-for (const { meta, build } of LIBRARIES) {
+for (const { meta, build, code } of LIBRARIES) {
   const lib: Library = build();
   const data = lib.document();
   const doc = new PenDoc(parsePen(serializePen(data)));
@@ -77,6 +77,7 @@ for (const { meta, build } of LIBRARIES) {
 
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, `${meta.id}.lib.pen`), serializePen(doc.data));
+  writeFileSync(join(OUT, `${meta.id}.code.json`), `${JSON.stringify(lib.codeMap(code), null, 2)}\n`);
   // The license of the design system each library follows travels with it.
   copyFileSync(join(HERE, 'libraries', 'licenses', `${meta.id}-LICENSE.txt`), join(OUT, `${meta.id}-LICENSE.txt`));
   catalog.push({ ...meta, components: lib.components.size, themes: lib.themes });

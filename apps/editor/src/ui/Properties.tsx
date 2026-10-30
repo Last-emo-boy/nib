@@ -389,7 +389,7 @@ function ExportSection({ t, ids }: { t: Strings; ids: string[] }) {
     <Section title={t.exportAs}>
       <div className="row">
         <select value={format} onChange={(e) => setFormat(e.target.value)}>
-          {['png', 'jpeg', 'webp', 'pdf', 'html-css', 'html-tailwind'].map((f) => <option key={f} value={f}>{f.toUpperCase().replace('HTML-', 'HTML ')}</option>)}
+          {['png', 'jpeg', 'webp', 'pdf', 'html-css', 'html-tailwind', 'react-tailwind'].map((f) => <option key={f} value={f}>{f === 'react-tailwind' ? 'React + Tailwind' : f.toUpperCase().replace('HTML-', 'HTML ')}</option>)}
         </select>
         {['png', 'jpeg', 'webp', 'pdf'].includes(format) && (
           <select value={scale} onChange={(e) => setScale(Number(e.target.value))}>

@@ -131,8 +131,8 @@ export function shadcn(): Library {
     rect({ x: 0, y: 5, width: 240, height: 6, cornerRadius: 3, fill: '$muted' }),
     rect({ id: 'slider-range', x: 0, y: 5, width: 120, height: 6, cornerRadius: 3, fill: '$primary' }),
     ellipse({ id: 'slider-thumb', x: 112, y: 0, width: 16, height: 16, fill: '$background', stroke: '$primary', strokeWidth: 1, effect: shadow.sm })));
-  lib.component('toggle', 'Toggle / On', row({ height: 36, padding: [0, 8], gap: 8, alignItems: 'center', cornerRadius: '$radius-md', fill: '$accent' }, icon('bold', { fill: '$accent-foreground' })));
-  lib.component('toggle-off', 'Toggle / Off', row({ height: 36, padding: [0, 8], gap: 8, alignItems: 'center', cornerRadius: '$radius-md' }, icon('italic', { fill: '$foreground' })));
+  lib.component('toggle', 'Toggle / On', row({ height: 36, padding: [0, 8], gap: 8, alignItems: 'center', cornerRadius: '$radius-md', fill: '$accent' }, icon('bold', { id: 'toggle-icon', fill: '$accent-foreground' })));
+  lib.component('toggle-off', 'Toggle / Off', row({ height: 36, padding: [0, 8], gap: 8, alignItems: 'center', cornerRadius: '$radius-md' }, icon('italic', { id: 'toggle-off-icon', fill: '$foreground' })));
   lib.component('toggle-group', 'Toggle Group', row({ cornerRadius: '$radius-md', stroke: '$input', strokeWidth: 1, effect: shadow.xs, clip: true },
     row({ height: 36, padding: [0, 10], alignItems: 'center', fill: '$accent' }, icon('align-left', { fill: '$accent-foreground' })),
     row({ height: 36, padding: [0, 10], alignItems: 'center', stroke: '$input', strokeWidth: { left: 1 } }, icon('align-center', { fill: '$foreground' })),
@@ -183,9 +183,8 @@ export function shadcn(): Library {
     ...(active ? { fill: '$background', effect: shadow.sm } : {}) }, t(label, { ...(id ? { id: `${id}-label` } : {}), fontWeight: '500', fill: active ? '$foreground' : '$muted-foreground' }));
   lib.component('tabs', 'Tabs', row({ height: 36, padding: 3, cornerRadius: '$radius-lg', fill: '$muted', width: 320, alignItems: 'center' },
     trigger('Account', true, 'tabs-1'), trigger('Password', false, 'tabs-2'), trigger('Billing', false, 'tabs-3')));
-  const crumb = (s: string) => muted(s);
   const chevron = () => icon('chevron-right', { width: 14, height: 14, fill: '$muted-foreground' });
-  lib.component('breadcrumb', 'Breadcrumb', row({ gap: 10, alignItems: 'center' }, crumb('Home'), chevron(), crumb('Components'), chevron(), t('Breadcrumb', { id: 'breadcrumb-page' })));
+  lib.component('breadcrumb', 'Breadcrumb', row({ gap: 10, alignItems: 'center' }, muted('Home', { id: 'breadcrumb-1' }), chevron(), muted('Components', { id: 'breadcrumb-2' }), chevron(), t('Breadcrumb', { id: 'breadcrumb-page' })));
   const page = (n: string, active = false): N => row({ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', cornerRadius: '$radius-md', ...(active ? { stroke: '$border', strokeWidth: 1, fill: '$background', effect: shadow.xs } : {}) }, t(n, { fontWeight: '500' }));
   lib.component('pagination', 'Pagination', row({ gap: 4, alignItems: 'center' },
     row({ height: 36, padding: [0, 10], gap: 4, alignItems: 'center', cornerRadius: '$radius-md' }, icon('chevron-left', { fill: '$foreground' }), t('Previous', { fontWeight: '500' })),
@@ -338,5 +337,59 @@ export function shadcn(): Library {
       row({ width: 'fill_container', gap: 16, height: 'fill_container' },
         ref('chart-card', { id: 'overview-chart', width: 'fill_container' }),
         ref('table', { id: 'overview-table', width: 'fill_container' }))));
+  code(lib);
   return lib;
+}
+
+export const codeMeta = {
+  library: 'shadcn/ui',
+  setup: 'npx shadcn@latest init, then npx shadcn@latest add the components this file imports',
+  inherited: ['font-sans', 'font-mono'],
+};
+
+/** shadcn/ui components as their code: https://ui.shadcn.com/docs/components. */
+function code(lib: Library) {
+  const ui = (...names: string[]) => (file: string) => Object.fromEntries(names.map((n) => [n, `@/components/ui/${file}`]));
+  const button = ui('Button')('button');
+  for (const [id, props] of [['button', ''], ['button-secondary', ' variant="secondary"'], ['button-outline', ' variant="outline"'], ['button-ghost', ' variant="ghost"'],
+    ['button-destructive', ' variant="destructive"'], ['button-link', ' variant="link"'], ['button-sm', ' size="sm"'], ['button-lg', ' size="lg"']]) {
+    lib.codeFor(id, `<Button${props}{class}>{text:${id}-label}</Button>`, button);
+  }
+  lib.codeFor('button-icon', '<Button variant="outline" size="icon"{class}>{icon:button-icon-glyph}</Button>', button);
+  lib.codeFor('button-with-icon', '<Button{class}>{icon:button-with-icon-glyph} {text:button-with-icon-label}</Button>', button);
+  lib.codeFor('label', '<Label{class}>{text:label-text}</Label>', ui('Label')('label'));
+  lib.codeFor('input', '<Input placeholder="{attr:input-text}"{class} />', ui('Input')('input'));
+  lib.codeFor('input-filled', '<Input defaultValue="{attr:input-filled-text}"{class} />', ui('Input')('input'));
+  lib.codeFor('input-icon', '<div{class:relative}>\n  <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />\n  <Input className="pl-9" placeholder="{attr:input-icon-text}" />\n</div>', { ...ui('Input')('input'), Search: 'lucide-react' });
+  lib.codeFor('textarea', '<Textarea placeholder="{attr:textarea-text}"{class} />', ui('Textarea')('textarea'));
+  lib.codeFor('select', '<Select>\n  <SelectTrigger{class}>\n    <SelectValue placeholder="{attr:select-text}" />\n  </SelectTrigger>\n  <SelectContent />\n</Select>', ui('Select', 'SelectContent', 'SelectTrigger', 'SelectValue')('select'));
+  lib.codeFor('field', '<div{class:grid gap-2}>\n  <Label htmlFor="{slug:field-label/label-text}">{text:field-label/label-text}</Label>\n  <Input id="{slug:field-label/label-text}" placeholder="{attr:field-input/input-text}" />\n  {if:field-description}<p className="text-muted-foreground text-sm">{text:field-description}</p>{/if}\n</div>', { ...ui('Label')('label'), ...ui('Input')('input') });
+  for (const [id, on] of [['checkbox', ' defaultChecked'], ['checkbox-off', '']]) {
+    lib.codeFor(id, `<div{class:flex items-center gap-2}>\n  <Checkbox id="{slug:${id}-label}"${on} />\n  <Label htmlFor="{slug:${id}-label}">{text:${id}-label}</Label>\n</div>`, { ...ui('Checkbox')('checkbox'), ...ui('Label')('label') });
+  }
+  for (const id of ['radio', 'radio-off']) {
+    lib.codeFor(id, `<RadioGroup${id === 'radio' ? ' defaultValue="{slug:radio-label}"' : ''}{class}>\n  <div className="flex items-center gap-2">\n    <RadioGroupItem value="{slug:${id}-label}" id="{slug:${id}-label}" />\n    <Label htmlFor="{slug:${id}-label}">{text:${id}-label}</Label>\n  </div>\n</RadioGroup>`, { ...ui('RadioGroup', 'RadioGroupItem')('radio-group'), ...ui('Label')('label') });
+  }
+  for (const [id, on] of [['switch', ' defaultChecked'], ['switch-off', '']]) {
+    lib.codeFor(id, `<div{class:flex items-center gap-2}>\n  <Switch id="{slug:${id}-label}"${on} />\n  {if:${id}-label}<Label htmlFor="{slug:${id}-label}">{text:${id}-label}</Label>{/if}\n</div>`, { ...ui('Switch')('switch'), ...ui('Label')('label') });
+  }
+  lib.codeFor('slider', '<Slider defaultValue={[50]} max={100} step={1}{class} />', ui('Slider')('slider'));
+  lib.codeFor('toggle', '<Toggle aria-label="Toggle" defaultPressed{class}>{icon:toggle-icon}</Toggle>', ui('Toggle')('toggle'));
+  lib.codeFor('toggle-off', '<Toggle aria-label="Toggle"{class}>{icon:toggle-off-icon}</Toggle>', ui('Toggle')('toggle'));
+  const badge = ui('Badge')('badge');
+  for (const [id, props] of [['badge', ''], ['badge-secondary', ' variant="secondary"'], ['badge-outline', ' variant="outline"'], ['badge-destructive', ' variant="destructive"']]) {
+    lib.codeFor(id, `<Badge${props}{class}>{text:${id}-label}</Badge>`, badge);
+  }
+  lib.codeFor('avatar', '<Avatar{class}>\n  <AvatarFallback>{text:avatar-initials}</AvatarFallback>\n</Avatar>', ui('Avatar', 'AvatarFallback')('avatar'));
+  lib.codeFor('avatar-group', '<div{class:flex -space-x-2}>{children:.}</div>', {});
+  lib.codeFor('separator', '<Separator{class} />', ui('Separator')('separator'));
+  lib.codeFor('progress', '<Progress value={60}{class} />', ui('Progress')('progress'));
+  lib.codeFor('kbd', '<Kbd{class}>{text:kbd-text}</Kbd>', ui('Kbd')('kbd'));
+  for (const [id, props] of [['alert', ''], ['alert-destructive', ' variant="destructive"']]) {
+    lib.codeFor(id, `<Alert${props}{class}>\n  {icon:${id}-icon}\n  <AlertTitle>{text:${id}-title}</AlertTitle>\n  <AlertDescription>{text:${id}-description}</AlertDescription>\n</Alert>`, ui('Alert', 'AlertDescription', 'AlertTitle')('alert'));
+  }
+  lib.codeFor('card', '<Card{class}>\n  <CardHeader>\n    <CardTitle>{text:card-title}</CardTitle>\n    <CardDescription>{text:card-description}</CardDescription>\n  </CardHeader>\n  <CardContent{layout:card-content}>{children:card-content}</CardContent>\n  <CardFooter{layout:card-footer}>{children:card-footer}</CardFooter>\n</Card>', ui('Card', 'CardContent', 'CardDescription', 'CardFooter', 'CardHeader', 'CardTitle')('card'));
+  lib.codeFor('tabs', '<Tabs defaultValue="{slug:tabs-1-label}"{class}>\n  <TabsList>\n    <TabsTrigger value="{slug:tabs-1-label}">{text:tabs-1-label}</TabsTrigger>\n    <TabsTrigger value="{slug:tabs-2-label}">{text:tabs-2-label}</TabsTrigger>\n    <TabsTrigger value="{slug:tabs-3-label}">{text:tabs-3-label}</TabsTrigger>\n  </TabsList>\n</Tabs>', ui('Tabs', 'TabsList', 'TabsTrigger')('tabs'));
+  lib.codeFor('breadcrumb', '<Breadcrumb{class}>\n  <BreadcrumbList>\n    <BreadcrumbItem><BreadcrumbLink href="#">{text:breadcrumb-1}</BreadcrumbLink></BreadcrumbItem>\n    <BreadcrumbSeparator />\n    <BreadcrumbItem><BreadcrumbLink href="#">{text:breadcrumb-2}</BreadcrumbLink></BreadcrumbItem>\n    <BreadcrumbSeparator />\n    <BreadcrumbItem><BreadcrumbPage>{text:breadcrumb-page}</BreadcrumbPage></BreadcrumbItem>\n  </BreadcrumbList>\n</Breadcrumb>', ui('Breadcrumb', 'BreadcrumbItem', 'BreadcrumbLink', 'BreadcrumbList', 'BreadcrumbPage', 'BreadcrumbSeparator')('breadcrumb'));
+  lib.codeFor('calendar', '<Calendar mode="single"{class:rounded-lg border} />', ui('Calendar')('calendar'));
 }

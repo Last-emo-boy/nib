@@ -7,6 +7,14 @@ type Overrides = ReadonlyMap<string, Props>;
 
 /** Instance properties that are not overrides of the component root. */
 const INSTANCE_KEYS = new Set(['id', 'type', 'ref', 'descendants']);
+
+/**
+ * On the root of an expanded instance: the component it shows (`ref`, as this document resolves it). A
+ * symbol, so it rides along copies made with spread but never reaches saved files or JSON replies.
+ */
+export const INSTANCE = Symbol('nib.instance');
+/** `own`: properties the instance sets on itself (size, position), not taken from its component. */
+export interface InstanceInfo { ref: string; own: string[] }
 const MAX_NESTING = 64;
 
 export interface ExpandIssue {
@@ -117,6 +125,7 @@ class Expander {
     if (!root) return undefined;
     for (const [k, v] of Object.entries(ref)) if (!INSTANCE_KEYS.has(k)) root[k] = v;
     root.id = id;
+    (root as Record<symbol, unknown>)[INSTANCE] = { ref: ref.ref, own: Object.keys(ref).filter((k) => !INSTANCE_KEYS.has(k)) } satisfies InstanceInfo;
     if (!ref.reusable) delete root.reusable;
     if (comp.type !== 'ref') for (const key of scope.unused()) {
       this.issues?.push({ instance: id, message: `override "${key}" matches no descendant of "${ref.ref}"` });

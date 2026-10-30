@@ -1,0 +1,322 @@
+{
+  "library": "shadcn/ui",
+  "setup": "npx shadcn@latest init, then npx shadcn@latest add the components this file imports",
+  "inherited": [
+    "font-sans",
+    "font-mono"
+  ],
+  "tokens": [
+    "background",
+    "foreground",
+    "card",
+    "card-foreground",
+    "popover",
+    "popover-foreground",
+    "primary",
+    "primary-foreground",
+    "secondary",
+    "secondary-foreground",
+    "muted",
+    "muted-foreground",
+    "accent",
+    "accent-foreground",
+    "destructive",
+    "destructive-foreground",
+    "border",
+    "input",
+    "ring",
+    "chart-1",
+    "chart-2",
+    "chart-3",
+    "chart-4",
+    "chart-5",
+    "sidebar",
+    "sidebar-foreground",
+    "sidebar-primary",
+    "sidebar-primary-foreground",
+    "sidebar-accent",
+    "sidebar-accent-foreground",
+    "sidebar-border",
+    "sidebar-ring",
+    "input-background",
+    "switch-thumb",
+    "primary-soft",
+    "muted-hover"
+  ],
+  "components": {
+    "button": {
+      "template": "<Button{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-secondary": {
+      "template": "<Button variant=\"secondary\"{class}>{text:button-secondary-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-outline": {
+      "template": "<Button variant=\"outline\"{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-ghost": {
+      "template": "<Button variant=\"ghost\"{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-destructive": {
+      "template": "<Button variant=\"destructive\"{class}>{text:button-destructive-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-link": {
+      "template": "<Button variant=\"link\"{class}>{text:button-link-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-sm": {
+      "template": "<Button size=\"sm\"{class}>{text:button-sm-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-lg": {
+      "template": "<Button size=\"lg\"{class}>{text:button-lg-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-icon": {
+      "template": "<Button variant=\"outline\" size=\"icon\"{class}>{icon:button-icon-glyph}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-with-icon": {
+      "template": "<Button{class}>{icon:button-with-icon-glyph} {text:button-with-icon-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "label": {
+      "template": "<Label{class}>{text:label-text}</Label>",
+      "imports": {
+        "Label": "@/components/ui/label"
+      }
+    },
+    "input": {
+      "template": "<Input placeholder=\"{attr:input-text}\"{class} />",
+      "imports": {
+        "Input": "@/components/ui/input"
+      }
+    },
+    "input-filled": {
+      "template": "<Input defaultValue=\"{attr:input-filled-text}\"{class} />",
+      "imports": {
+        "Input": "@/components/ui/input"
+      }
+    },
+    "input-icon": {
+      "template": "<div{class:relative}>\n  <Search className=\"text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2\" />\n  <Input className=\"pl-9\" placeholder=\"{attr:input-icon-text}\" />\n</div>",
+      "imports": {
+        "Input": "@/components/ui/input",
+        "Search": "lucide-react"
+      }
+    },
+    "textarea": {
+      "template": "<Textarea placeholder=\"{attr:textarea-text}\"{class} />",
+      "imports": {
+        "Textarea": "@/components/ui/textarea"
+      }
+    },
+    "select": {
+      "template": "<Select>\n  <SelectTrigger{class}>\n    <SelectValue placeholder=\"{attr:select-text}\" />\n  </SelectTrigger>\n  <SelectContent />\n</Select>",
+      "imports": {
+        "Select": "@/components/ui/select",
+        "SelectContent": "@/components/ui/select",
+        "SelectTrigger": "@/components/ui/select",
+        "SelectValue": "@/components/ui/select"
+      }
+    },
+    "field": {
+      "template": "<div{class:grid gap-2}>\n  <Label htmlFor=\"{slug:field-label/label-text}\">{text:field-label/label-text}</Label>\n  <Input id=\"{slug:field-label/label-text}\" placeholder=\"{attr:field-input/input-text}\" />\n  {if:field-description}<p className=\"text-muted-foreground text-sm\">{text:field-description}</p>{/if}\n</div>",
+      "imports": {
+        "Label": "@/components/ui/label",
+        "Input": "@/components/ui/input"
+      }
+    },
+    "checkbox": {
+      "template": "<div{class:flex items-center gap-2}>\n  <Checkbox id=\"{slug:checkbox-label}\" defaultChecked />\n  <Label htmlFor=\"{slug:checkbox-label}\">{text:checkbox-label}</Label>\n</div>",
+      "imports": {
+        "Checkbox": "@/components/ui/checkbox",
+        "Label": "@/components/ui/label"
+      }
+    },
+    "checkbox-off": {
+      "template": "<div{class:flex items-center gap-2}>\n  <Checkbox id=\"{slug:checkbox-off-label}\" />\n  <Label htmlFor=\"{slug:checkbox-off-label}\">{text:checkbox-off-label}</Label>\n</div>",
+      "imports": {
+        "Checkbox": "@/components/ui/checkbox",
+        "Label": "@/components/ui/label"
+      }
+    },
+    "radio": {
+      "template": "<RadioGroup defaultValue=\"{slug:radio-label}\"{class}>\n  <div className=\"flex items-center gap-2\">\n    <RadioGroupItem value=\"{slug:radio-label}\" id=\"{slug:radio-label}\" />\n    <Label htmlFor=\"{slug:radio-label}\">{text:radio-label}</Label>\n  </div>\n</RadioGroup>",
+      "imports": {
+        "RadioGroup": "@/components/ui/radio-group",
+        "RadioGroupItem": "@/components/ui/radio-group",
+        "Label": "@/components/ui/label"
+      }
+    },
+    "radio-off": {
+      "template": "<RadioGroup{class}>\n  <div className=\"flex items-center gap-2\">\n    <RadioGroupItem value=\"{slug:radio-off-label}\" id=\"{slug:radio-off-label}\" />\n    <Label htmlFor=\"{slug:radio-off-label}\">{text:radio-off-label}</Label>\n  </div>\n</RadioGroup>",
+      "imports": {
+        "RadioGroup": "@/components/ui/radio-group",
+        "RadioGroupItem": "@/components/ui/radio-group",
+        "Label": "@/components/ui/label"
+      }
+    },
+    "switch": {
+      "template": "<div{class:flex items-center gap-2}>\n  <Switch id=\"{slug:switch-label}\" defaultChecked />\n  {if:switch-label}<Label htmlFor=\"{slug:switch-label}\">{text:switch-label}</Label>{/if}\n</div>",
+      "imports": {
+        "Switch": "@/components/ui/switch",
+        "Label": "@/components/ui/label"
+      }
+    },
+    "switch-off": {
+      "template": "<div{class:flex items-center gap-2}>\n  <Switch id=\"{slug:switch-off-label}\" />\n  {if:switch-off-label}<Label htmlFor=\"{slug:switch-off-label}\">{text:switch-off-label}</Label>{/if}\n</div>",
+      "imports": {
+        "Switch": "@/components/ui/switch",
+        "Label": "@/components/ui/label"
+      }
+    },
+    "slider": {
+      "template": "<Slider defaultValue={[50]} max={100} step={1}{class} />",
+      "imports": {
+        "Slider": "@/components/ui/slider"
+      }
+    },
+    "toggle": {
+      "template": "<Toggle aria-label=\"Toggle\" defaultPressed{class}>{icon:toggle-icon}</Toggle>",
+      "imports": {
+        "Toggle": "@/components/ui/toggle"
+      }
+    },
+    "toggle-off": {
+      "template": "<Toggle aria-label=\"Toggle\"{class}>{icon:toggle-off-icon}</Toggle>",
+      "imports": {
+        "Toggle": "@/components/ui/toggle"
+      }
+    },
+    "badge": {
+      "template": "<Badge{class}>{text:badge-label}</Badge>",
+      "imports": {
+        "Badge": "@/components/ui/badge"
+      }
+    },
+    "badge-secondary": {
+      "template": "<Badge variant=\"secondary\"{class}>{text:badge-secondary-label}</Badge>",
+      "imports": {
+        "Badge": "@/components/ui/badge"
+      }
+    },
+    "badge-outline": {
+      "template": "<Badge variant=\"outline\"{class}>{text:badge-outline-label}</Badge>",
+      "imports": {
+        "Badge": "@/components/ui/badge"
+      }
+    },
+    "badge-destructive": {
+      "template": "<Badge variant=\"destructive\"{class}>{text:badge-destructive-label}</Badge>",
+      "imports": {
+        "Badge": "@/components/ui/badge"
+      }
+    },
+    "avatar": {
+      "template": "<Avatar{class}>\n  <AvatarFallback>{text:avatar-initials}</AvatarFallback>\n</Avatar>",
+      "imports": {
+        "Avatar": "@/components/ui/avatar",
+        "AvatarFallback": "@/components/ui/avatar"
+      }
+    },
+    "avatar-group": {
+      "template": "<div{class:flex -space-x-2}>{children:.}</div>",
+      "imports": {}
+    },
+    "separator": {
+      "template": "<Separator{class} />",
+      "imports": {
+        "Separator": "@/components/ui/separator"
+      }
+    },
+    "progress": {
+      "template": "<Progress value={60}{class} />",
+      "imports": {
+        "Progress": "@/components/ui/progress"
+      }
+    },
+    "kbd": {
+      "template": "<Kbd{class}>{text:kbd-text}</Kbd>",
+      "imports": {
+        "Kbd": "@/components/ui/kbd"
+      }
+    },
+    "alert": {
+      "template": "<Alert{class}>\n  {icon:alert-icon}\n  <AlertTitle>{text:alert-title}</AlertTitle>\n  <AlertDescription>{text:alert-description}</AlertDescription>\n</Alert>",
+      "imports": {
+        "Alert": "@/components/ui/alert",
+        "AlertDescription": "@/components/ui/alert",
+        "AlertTitle": "@/components/ui/alert"
+      }
+    },
+    "alert-destructive": {
+      "template": "<Alert variant=\"destructive\"{class}>\n  {icon:alert-destructive-icon}\n  <AlertTitle>{text:alert-destructive-title}</AlertTitle>\n  <AlertDescription>{text:alert-destructive-description}</AlertDescription>\n</Alert>",
+      "imports": {
+        "Alert": "@/components/ui/alert",
+        "AlertDescription": "@/components/ui/alert",
+        "AlertTitle": "@/components/ui/alert"
+      }
+    },
+    "card": {
+      "template": "<Card{class}>\n  <CardHeader>\n    <CardTitle>{text:card-title}</CardTitle>\n    <CardDescription>{text:card-description}</CardDescription>\n  </CardHeader>\n  <CardContent{layout:card-content}>{children:card-content}</CardContent>\n  <CardFooter{layout:card-footer}>{children:card-footer}</CardFooter>\n</Card>",
+      "imports": {
+        "Card": "@/components/ui/card",
+        "CardContent": "@/components/ui/card",
+        "CardDescription": "@/components/ui/card",
+        "CardFooter": "@/components/ui/card",
+        "CardHeader": "@/components/ui/card",
+        "CardTitle": "@/components/ui/card"
+      }
+    },
+    "tabs": {
+      "template": "<Tabs defaultValue=\"{slug:tabs-1-label}\"{class}>\n  <TabsList>\n    <TabsTrigger value=\"{slug:tabs-1-label}\">{text:tabs-1-label}</TabsTrigger>\n    <TabsTrigger value=\"{slug:tabs-2-label}\">{text:tabs-2-label}</TabsTrigger>\n    <TabsTrigger value=\"{slug:tabs-3-label}\">{text:tabs-3-label}</TabsTrigger>\n  </TabsList>\n</Tabs>",
+      "imports": {
+        "Tabs": "@/components/ui/tabs",
+        "TabsList": "@/components/ui/tabs",
+        "TabsTrigger": "@/components/ui/tabs"
+      }
+    },
+    "breadcrumb": {
+      "template": "<Breadcrumb{class}>\n  <BreadcrumbList>\n    <BreadcrumbItem><BreadcrumbLink href=\"#\">{text:breadcrumb-1}</BreadcrumbLink></BreadcrumbItem>\n    <BreadcrumbSeparator />\n    <BreadcrumbItem><BreadcrumbLink href=\"#\">{text:breadcrumb-2}</BreadcrumbLink></BreadcrumbItem>\n    <BreadcrumbSeparator />\n    <BreadcrumbItem><BreadcrumbPage>{text:breadcrumb-page}</BreadcrumbPage></BreadcrumbItem>\n  </BreadcrumbList>\n</Breadcrumb>",
+      "imports": {
+        "Breadcrumb": "@/components/ui/breadcrumb",
+        "BreadcrumbItem": "@/components/ui/breadcrumb",
+        "BreadcrumbLink": "@/components/ui/breadcrumb",
+        "BreadcrumbList": "@/components/ui/breadcrumb",
+        "BreadcrumbPage": "@/components/ui/breadcrumb",
+        "BreadcrumbSeparator": "@/components/ui/breadcrumb"
+      }
+    },
+    "calendar": {
+      "template": "<Calendar mode=\"single\"{class:rounded-lg border} />",
+      "imports": {
+        "Calendar": "@/components/ui/calendar"
+      }
+    }
+  }
+}

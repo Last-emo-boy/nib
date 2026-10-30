@@ -27,7 +27,7 @@ export interface TreeEntry {
   c?: TreeEntry[];
 }
 
-export const EXPORT_FORMATS = ['png', 'jpeg', 'webp', 'pdf', 'html-tailwind', 'html-css'] as const;
+export const EXPORT_FORMATS = ['png', 'jpeg', 'webp', 'pdf', 'html-tailwind', 'html-css', 'react-tailwind'] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
 
 export interface ExportOptions {

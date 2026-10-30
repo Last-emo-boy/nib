@@ -1,6 +1,9 @@
 import type { Node, NodeType } from '@nib/format';
 import type { PenDoc } from './doc.ts';
-import { expandTree, type ExpandIssue } from './instances.ts';
+import { expandTree, INSTANCE, type ExpandIssue } from './instances.ts';
+
+/** On a scene node: the node before variables were resolved (its `$name` references), for code export. */
+export const UNRESOLVED = Symbol('nib.unresolved');
 import { defaultTheme, resolveDeep, withTheme, type ThemeContext } from './variables.ts';
 
 /**
@@ -44,6 +47,9 @@ function resolveNode(doc: PenDoc, node: Node, outer: ThemeContext): SceneNode | 
   const ctx = withTheme(outer, node.theme);
   const out = { ...resolveDeep(doc, node, ctx) } as SceneNode;
   if (out.enabled === false) return undefined;
+  const marks = out as unknown as Record<symbol, unknown>;
+  marks[UNRESOLVED] = node;
+  if (INSTANCE in node) marks[INSTANCE] = (node as unknown as Record<symbol, unknown>)[INSTANCE];
   const children = (node as { children?: Node[] }).children;
   if (children) {
     out.children = [];

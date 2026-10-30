@@ -155,7 +155,7 @@ Renders the nodes as they are at this point of the snippet; the images are attac
 
 ### `Export(ids, format, outputPath, options?)`
 
-Writes files after the snippet succeeds. Formats: `"png"`, `"jpeg"`, `"webp"` (one file per node, named `<id>.<ext>`, into the folder `outputPath`), `"pdf"` (one page per node, into the file `outputPath`), `"html-css"` and `"html-tailwind"` (one file). Relative paths start at the .pen file's folder. Options: `scale` (images and pdf, default 2), `quality` (jpeg/webp, 1 to 100), `includeHtmlScaffold` (default true), `includeLayerNames` (data attributes, default true), `includeLayerIds` (default false).
+Writes files after the snippet succeeds. Formats: `"png"`, `"jpeg"`, `"webp"` (one file per node, named `<id>.<ext>`, into the folder `outputPath`), `"pdf"` (one page per node, into the file `outputPath`), `"html-css"` and `"html-tailwind"` (one file), `"react-tailwind"` (one `.tsx` file: a React component per node, instances of shadcn/ui or HeroUI components written as those components). Relative paths start at the .pen file's folder. Options: `scale` (images and pdf, default 2), `quality` (jpeg/webp, 1 to 100), `includeHtmlScaffold` (default true), `includeLayerNames` (data attributes, default true), `includeLayerIds` (default false).
 
 ## The reply
 

@@ -1,0 +1,1 @@
+Style guides from [ZSeven-W/openpencil](https://github.com/ZSeven-W/openpencil) at commit 68d0123586bbbdc6ec8338d0b7d96e4e756e14bf (`crates/op-ai-skills/skills/style-guides`), used under the MIT License in `LICENSE`.

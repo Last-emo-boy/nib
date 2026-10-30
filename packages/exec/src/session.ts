@@ -5,7 +5,7 @@ import { buildScene, childrenOf, DocEditor, type Op, type PenDoc, type SceneNode
 import { FontsNotLoaded, type FontFace, type ImageLoader, type Renderer } from '@nib/render';
 import { PenApi, type ApiOutput, type CapturedScene, type ExportFormat, type ExportOptions } from './api.ts';
 import { BoundsCache, type LayoutFn } from './bounds.ts';
-import { assetIssues, layoutIssues } from './checks.ts';
+import { assetIssues, layoutIssues, variableIssues } from './checks.ts';
 import { ExecError } from './errors.ts';
 import { Sandbox, type SnippetError } from './sandbox.ts';
 
@@ -52,7 +52,7 @@ const MIME: Record<string, string> = { png: 'image/png', jpeg: 'image/jpeg', web
  * full or not at all, and a failed snippet can be fixed with `edits` under its `editId`.
  */
 export class ExecSession {
-  readonly doc: PenDoc;
+  private current: PenDoc;
   private opts: SessionOptions;
   private sandbox: Sandbox;
   private editor: DocEditor;
@@ -60,13 +60,18 @@ export class ExecSession {
   private failed = new Map<string, string>();
 
   private constructor(doc: PenDoc, sandbox: Sandbox, opts: SessionOptions) {
-    this.doc = doc;
+    this.current = doc;
     this.opts = opts;
     this.sandbox = sandbox;
     this.editor = new DocEditor(doc);
-    const layoutFn: LayoutFn = (scene) => opts.renderer.layoutSync(scene);
-    this.bounds = new BoundsCache(doc, layoutFn);
+    this.bounds = new BoundsCache(doc, this.layoutFn);
   }
+
+  get doc(): PenDoc {
+    return this.current;
+  }
+
+  private layoutFn: LayoutFn = (scene) => this.opts.renderer.layoutSync(scene);
 
   static async open(doc: PenDoc, opts: SessionOptions): Promise<ExecSession> {
     const session = new ExecSession(doc, await Sandbox.create(), opts);
@@ -77,6 +82,24 @@ export class ExecSession {
   /** Call when the document changed outside this session (an editor, a reload). */
   invalidate(): void {
     this.bounds.invalidate();
+  }
+
+  /** Work on `doc` from now on (the file was reloaded); global variables and pending editIds stay. */
+  async reset(doc: PenDoc): Promise<void> {
+    this.current = doc;
+    this.editor = new DocEditor(doc);
+    this.bounds = new BoundsCache(doc, this.layoutFn);
+    await this.loadScenes(doc.data.children);
+  }
+
+  /** Layout box of a document node, relative to its parent; undefined when hidden or its fonts are not loaded. */
+  box(id: string): { x: number; y: number; width: number; height: number } | undefined {
+    try {
+      return this.bounds.box(id);
+    } catch (e) {
+      if (e instanceof FontsNotLoaded) return undefined;
+      throw e;
+    }
   }
 
   dispose(): void {
@@ -164,7 +187,7 @@ export class ExecSession {
     const tops = new Set<Node>();
     for (const id of touched) { const top = this.doc.topLevel(id); if (top) tops.add(top); }
     const scenes = await this.loadScenes([...tops]);
-    const issues = [...out.warnings];
+    const issues = [...out.warnings, ...variableIssues(this.doc, touched)];
     try {
       issues.push(...layoutIssues(this.doc, this.bounds, touched));
     } catch (e) {

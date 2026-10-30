@@ -1,0 +1,18 @@
+{
+  "name": "@nib/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "nib-mcp": "./src/main.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@nib/core": "workspace:*",
+    "@nib/exec": "workspace:*",
+    "@nib/format": "workspace:*",
+    "@nib/render": "workspace:*"
+  }
+}

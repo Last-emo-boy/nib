@@ -56,6 +56,21 @@ importers:
         specifier: workspace:*
         version: link:../format
 
+  packages/mcp:
+    dependencies:
+      '@nib/core':
+        specifier: workspace:*
+        version: link:../core
+      '@nib/exec':
+        specifier: workspace:*
+        version: link:../exec
+      '@nib/format':
+        specifier: workspace:*
+        version: link:../format
+      '@nib/render':
+        specifier: workspace:*
+        version: link:../render
+
   packages/render:
     dependencies:
       '@nib/core':

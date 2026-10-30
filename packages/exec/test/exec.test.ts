@@ -228,3 +228,14 @@ describe('applyEdits', () => {
     expect(applyEdits('a $b', [{ find: '$b', replace: '$&$1' }])).toBe('a $&$1');
   });
 });
+
+describe('checks', () => {
+  it('reports references to variables that do not exist, but not text that starts with $', async () => {
+    const doc = new PenDoc({ version: '2.20', variables: { bg: { type: 'color', value: '#ffffff' } }, children: [] } as unknown as PenDocument);
+    const s = await ExecSession.open(doc, { renderer, images: noImages, baseDir: tmpdir() });
+    const r = await s.execute({ input: 'Insert(document, {type: "frame", name: "Card", width: 10, height: 10, fill: "$bg", stroke: "$border", children: [{type: "text", content: "$48.2K", fill: "$bg"}]})' });
+    expect(r.text).toMatch(/"\$border" \(stroke of "Card" \(\w+\)\) is not a variable/);
+    expect(r.text).not.toContain('"$bg"');
+    expect(r.text).not.toContain('48.2K');
+  });
+});

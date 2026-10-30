@@ -89,3 +89,23 @@ export function assetIssues(renderer: Renderer, scenes: SceneNode[], ids: Set<st
   scenes.forEach(visit);
   return [...out];
 }
+
+/** Keys whose strings are text or identifiers, never variable references. */
+const LITERAL_KEYS = new Set(['id', 'type', 'name', 'content', 'context', 'metadata', 'href', 'url', 'icon', 'library', 'ref', 'children', 'descendants', 'geometry']);
+
+/** `"$name"` references in the changed nodes that name no variable (they are drawn as if unset). */
+export function variableIssues(doc: PenDoc, ids: Iterable<string>): string[] {
+  const out = new Set<string>();
+  for (const id of ids) {
+    const node = doc.get(id);
+    if (!node) continue;
+    const visit = (v: unknown, key: string) => {
+      if (typeof v === 'string') {
+        if (v.length > 1 && v.startsWith('$') && !doc.variable(v.slice(1))) out.add(`"${v}" (${key} of ${label(node)}) is not a variable, so it has no effect. Define it with SetVariables or use a value.`);
+      } else if (Array.isArray(v)) v.forEach((x) => visit(x, key));
+      else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) if (!LITERAL_KEYS.has(k)) visit(x, key);
+    };
+    for (const [k, v] of Object.entries(node)) if (!LITERAL_KEYS.has(k)) visit(v, k);
+  }
+  return [...out];
+}

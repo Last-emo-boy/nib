@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { applyOp, childrenOf, DocEditor, PenDoc, type Op } from '@nib/core';
 import { parsePen, serializePen, type Node, type PenDocument } from '@nib/format';
+import { importTree, loadPen, syncImports, type ImportTree } from './imports.ts';
 import { noteOpened } from './library.ts';
 import { ExecSession, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat, type Problem } from '@nib/exec';
 import type { ImageLoader, Renderer } from '@nib/render';
@@ -16,7 +17,7 @@ export type Source = { kind: 'user'; client?: string } | { kind: 'agent'; name: 
 
 export type DocEvent =
   | { t: 'ops'; path: string; version: number; ops: Op[]; source: Source; label: string }
-  | { t: 'reload'; path: string; version: number; data: PenDocument }
+  | { t: 'reload'; path: string; version: number; data: PenDocument; imports: ImportTree }
   | { t: 'history'; path: string; undo: string[]; redo: string[] }
   /** An image the document uses changed without its url changing (a browser node's page snapshot). */
   | { t: 'asset'; path: string; url: string };
@@ -84,7 +85,7 @@ export class DocumentHost {
     } else {
       const { text, mtimeMs, created } = await readOrCreate(path);
       if (created) notes.push(`Created a new empty document at ${path}.`);
-      const doc = await this.load(path, text, notes);
+      const doc = await loadPen(path, text, notes);
       const images = this.opts.images(path);
       const session = await ExecSession.open(doc, {
         renderer: this.opts.renderer,
@@ -197,9 +198,16 @@ export class DocumentHost {
     return () => open.listeners.delete(listener);
   }
 
-  snapshot(path: string): { version: number; data: PenDocument; undo: string[]; redo: string[] } {
+  snapshot(path: string): { version: number; data: PenDocument; imports: ImportTree; undo: string[]; redo: string[] } {
     const open = this.require(path);
-    return { version: open.version, data: open.session.doc.data, ...labels(open) };
+    return { version: open.version, data: open.session.doc.data, imports: importTree(open.session.doc), ...labels(open) };
+  }
+
+  /** Import the document at `rel` (relative to this one) as `alias`, as one undoable change. */
+  async addImport(path: string, alias: string, rel: string, source: Source): Promise<void> {
+    const open = this.require(path);
+    const imports = { ...(open.session.doc.data.imports ?? {}), [alias]: rel };
+    await this.edit(path, [{ op: 'document', props: { imports } }], source, `Import ${alias}`);
   }
 
   /** Markdown summary of the open documents for `get_app_state`. */
@@ -256,6 +264,7 @@ export class DocumentHost {
       await this.save(open);
       this.emit(open, { t: 'ops', path: open.path, version: open.version, ops, source: entry.source, label: `${dir === 'undo' ? 'Undo' : 'Redo'} ${entry.label}` });
       this.emit(open, { t: 'history', path: open.path, ...labels(open) });
+      await this.importsChanged(open);
       return true;
     });
   }
@@ -270,6 +279,15 @@ export class DocumentHost {
     await this.save(open);
     this.emit(open, { t: 'ops', path: open.path, version: open.version, ops: entry.ops, source: entry.source, label: entry.label });
     this.emit(open, { t: 'history', path: open.path, ...labels(open) });
+    await this.importsChanged(open);
+  }
+
+  /** After a change to `imports`: load what it imports now, and send editors the document with them. */
+  private async importsChanged(open: OpenDocument): Promise<void> {
+    const doc = open.session.doc;
+    if (!(await syncImports(doc, open.path, open.pending))) return;
+    open.session.invalidate();
+    this.emit(open, { t: 'reload', path: open.path, version: open.version, data: doc.data, imports: importTree(doc) });
   }
 
   /** Listeners serialize each event when they get it, before anything changes the document again. */
@@ -292,7 +310,7 @@ export class DocumentHost {
     if (text === open.text) return;
     let doc: PenDoc;
     try {
-      doc = await this.load(open.path, text, notes);
+      doc = await loadPen(open.path, text, notes);
     } catch (e) {
       notes.push(`${basename(open.path)} changed on disk but could not be read (${(e as Error).message}); keeping the open version.`);
       return;
@@ -303,7 +321,7 @@ export class DocumentHost {
     open.redo = [];
     open.version++;
     notes.push(`${basename(open.path)} changed on disk and was reloaded; ids you saved may no longer exist.`);
-    this.emit(open, { t: 'reload', path: open.path, version: open.version, data: doc.data });
+    this.emit(open, { t: 'reload', path: open.path, version: open.version, data: doc.data, imports: importTree(doc) });
     this.emit(open, { t: 'history', path: open.path, ...labels(open) });
   }
 
@@ -321,21 +339,6 @@ export class DocumentHost {
     } catch {
       // Not watchable (e.g. a network volume): changes are still picked up before each execute.
     }
-  }
-
-  private async load(path: string, text: string, notes: string[], seen = new Set<string>()): Promise<PenDoc> {
-    seen.add(path);
-    const doc = new PenDoc(parsePen(text));
-    for (const [alias, rel] of Object.entries(doc.data.imports ?? {})) {
-      const file = resolvePath(dirname(path), rel);
-      if (seen.has(file)) { notes.push(`import "${alias}" (${rel}) imports this document again; skipped.`); continue; }
-      try {
-        doc.imports.set(alias, await this.load(file, await readFile(file, 'utf8'), notes, seen));
-      } catch (e) {
-        notes.push(`import "${alias}" (${rel}) could not be read: ${(e as Error).message}`);
-      }
-    }
-    return doc;
   }
 
   /** Write atomically: a temporary file in the same folder, renamed over the original. */

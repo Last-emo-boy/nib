@@ -2,9 +2,10 @@ import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
-import { buildScene, PenDoc, type SceneNode } from '@nib/core';
-import { parsePen, serializePen, type PenDocument } from '@nib/format';
+import { buildScene, type SceneNode } from '@nib/core';
+import { serializePen, type PenDocument } from '@nib/format';
 import type { ImageLoader, Renderer } from '@nib/render';
+import { loadPen } from './imports.ts';
 import { INFO_FILE } from './info.ts';
 import { NEW_DOCUMENT_VERSION } from './host.ts';
 
@@ -84,11 +85,11 @@ export async function thumbnail(renderer: Renderer, images: (file: string) => Im
   const path = resolvePath(file);
   const st = await stat(path).catch(() => undefined);
   if (!st) return undefined;
-  const key = createHash('sha1').update(`${path}|${st.mtimeMs}|${size}`).digest('hex');
+  const key = createHash('sha1').update(`${path}|${st.mtimeMs}|${size}|${await importsStamp(path)}`).digest('hex');
   const cached = join(THUMBS_DIR, `${key}.png`);
   const hit = await readFile(cached).catch(() => undefined);
   if (hit) return new Uint8Array(hit);
-  const doc = new PenDoc(parsePen(await readFile(path, 'utf8')));
+  const doc = await loadPen(path, await readFile(path, 'utf8'), []);
   const loader = images(path);
   const parts: { scene: SceneNode; x: number; y: number; w: number; h: number }[] = [];
   for (const n of doc.data.children) {
@@ -110,4 +111,53 @@ export async function thumbnail(renderer: Renderer, images: (file: string) => Im
   await mkdir(THUMBS_DIR, { recursive: true });
   await writeFile(cached, png);
   return png;
+}
+
+/** Modification times of the files a document imports, so its thumbnail changes when a library does. */
+async function importsStamp(path: string): Promise<string> {
+  const text = await readFile(path, 'utf8').catch(() => '');
+  const imports = (/"imports"\s*:\s*(\{[^}]*\})/.exec(text)?.[1]) ?? '{}';
+  let rels: string[] = [];
+  try { rels = Object.values(JSON.parse(imports) as Record<string, string>); } catch { /* not plain JSON: no stamp */ }
+  const times = await Promise.all(rels.map((r) => stat(resolvePath(dirname(path), r)).then((s) => s.mtimeMs, () => 0)));
+  return times.join(',');
+}
+
+/**
+ * PNG of one node (a component, or `alias:id` from an imported library) of a document, at most `size` px on
+ * its longer side, laid out inside its top-level node like on the canvas.
+ */
+export async function nodePreview(renderer: Renderer, images: (file: string) => ImageLoader, file: string, id: string, size = 160): Promise<Uint8Array | undefined> {
+  const path = resolvePath(file);
+  const st = await stat(path).catch(() => undefined);
+  if (!st) return undefined;
+  const cached = join(THUMBS_DIR, `${createHash('sha1').update(`node|${path}|${st.mtimeMs}|${await importsStamp(path)}|${id}|${size}`).digest('hex')}.png`);
+  const hit = await readFile(cached).catch(() => undefined);
+  if (hit) return new Uint8Array(hit);
+  const png = await renderNodePreview(renderer, images, path, id, size);
+  if (png) { await mkdir(THUMBS_DIR, { recursive: true }); await writeFile(cached, png); }
+  return png;
+}
+
+async function renderNodePreview(renderer: Renderer, images: (file: string) => ImageLoader, path: string, id: string, size: number): Promise<Uint8Array | undefined> {
+  const doc = await loadPen(path, await readFile(path, 'utf8'), []);
+  // A library node is drawn in its own document, so its own references resolve there.
+  let owner = doc, ownerPath = path, local = id;
+  for (let colon = local.indexOf(':'); colon > 0; colon = local.indexOf(':')) {
+    const alias = local.slice(0, colon);
+    const rel = owner.data.imports?.[alias];
+    const next = owner.imports.get(alias);
+    if (!next || !rel) return undefined;
+    ownerPath = resolvePath(dirname(ownerPath), rel);
+    owner = next;
+    local = local.slice(colon + 1);
+  }
+  const top = owner.topLevel(local);
+  if (!top) return undefined;
+  const root = buildScene(owner, top);
+  if (!root) return undefined;
+  const find = (n: SceneNode): SceneNode | undefined => (n.id === local ? n : n.children?.map(find).find(Boolean));
+  const target = find(root);
+  if (!target) return undefined;
+  return renderer.renderNode(root, target, images(ownerPath), { maxSide: size, scale: 2 });
 }

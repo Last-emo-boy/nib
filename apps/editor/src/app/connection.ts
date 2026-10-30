@@ -124,7 +124,7 @@ export class Connection {
       case 'doc':
       case 'reload':
         if (m.client) this.client = m.client;
-        this.doc = new PenDoc(m.data as PenDocument);
+        this.doc = withImports(new PenDoc(m.data as PenDocument), m.imports);
         this.version = m.version;
         this.emit({ t: 'doc', doc: this.doc, version: m.version });
         if (m.undo) this.emit({ t: 'history', undo: m.undo, redo: m.redo });
@@ -155,4 +155,12 @@ export class Connection {
         break;
     }
   }
+}
+
+type ImportTree = Record<string, { data: PenDocument; imports: ImportTree }>;
+
+/** The documents `doc` imports (libraries), as the daemon sends them, so their components and variables resolve. */
+function withImports(doc: PenDoc, tree: ImportTree | undefined): PenDoc {
+  for (const [alias, sub] of Object.entries(tree ?? {})) doc.imports.set(alias, withImports(new PenDoc(sub.data), sub.imports));
+  return doc;
 }

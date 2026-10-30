@@ -112,3 +112,35 @@ describe.skipIf(corpusFiles.length === 0)('corpus', () => {
     expect(issues).toEqual([]);
   });
 });
+
+describe('imported libraries', () => {
+  it('expands a library component with its own nested components, variables and theme axes', () => {
+    const lib = doc({
+      themes: { Mode: ['Light', 'Dark'] },
+      variables: {
+        primary: { type: 'color', value: [{ value: '#111111', theme: { Mode: 'Light' } }, { value: '#EEEEEE', theme: { Mode: 'Dark' } }] },
+        'button-fill': { type: 'color', value: '$primary' },
+      },
+      children: [
+        { ...icon, fill: '$primary' },
+        { ...button, fill: '$button-fill', children: [{ type: 'ref', id: 'btnIcon', ref: 'ico' }, { type: 'text', id: 'label', content: '$9.99', fill: '$primary' }] },
+      ] as never,
+    });
+    const app = doc({
+      imports: { ui: './ui.lib.pen' },
+      children: [
+        { type: 'frame', id: 'light', children: [{ type: 'ref', id: 'b1', ref: 'ui:btn' }] },
+        { type: 'frame', id: 'dark', theme: { Mode: 'Dark' }, children: [{ type: 'ref', id: 'b2', ref: 'ui:btn' }] },
+      ] as never,
+    });
+    app.imports.set('ui', lib);
+    const light = buildScene(app, app.get('light')!)!.children![0];
+    expect(light.fill).toBe('#111111');
+    expect(light.children![0].id).toBe('b1/btnIcon');
+    expect(light.children![0].fill).toBe('#111111');
+    // Text that only looks like a variable stays as it is.
+    expect(light.children![1].content).toBe('$9.99');
+    const dark = buildScene(app, app.get('dark')!)!.children![0];
+    expect(dark.fill).toBe('#EEEEEE');
+  });
+});

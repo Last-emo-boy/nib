@@ -30,9 +30,11 @@ export function resolveVariable(src: VariableSource, name: string, ctx: ThemeCon
     const v = src.variable(current);
     if (!v) return undefined;
     const value = pickThemed(v.value, ctx);
-    if (typeof value === 'string' && value.startsWith('$') && src.variable(value.slice(1))) {
-      current = value.slice(1);
-      continue;
+    if (typeof value === 'string' && value.startsWith('$')) {
+      // An imported variable's alias names a variable of the same document.
+      const colon = current.lastIndexOf(':');
+      const next = colon > 0 ? `${current.slice(0, colon + 1)}${value.slice(1)}` : value.slice(1);
+      if (src.variable(next)) { current = next; continue; }
     }
     return value;
   }

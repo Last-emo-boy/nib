@@ -1,9 +1,9 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { applyOp, PenDoc, type Op } from '@nib/core';
+import { applyOp, buildScene, PenDoc, type Op, type SceneNode } from '@nib/core';
 import { parsePen, serializePen, type PenDocument } from '@nib/format';
 import { createNodeRenderer, PackageIconSource } from '@nib/render/node';
 import { DocumentHost, startDaemon, type Daemon } from '../src/index.ts';
@@ -154,5 +154,39 @@ describe('library', () => {
     expect((await thumb.arrayBuffer()).byteLength).toBeGreaterThan(1000);
     const lib = await (await get('/api/library')).json();
     expect(lib.drafts.some((d: { path: string }) => d.path === r.path)).toBe(true);
+  });
+  it('starts designs from design systems and uses their components and variables', async () => {
+    const get = (p: string) => fetch(`http://127.0.0.1:${daemon.port}${p}`, { headers: { authorization: `Bearer ${daemon.token}` } });
+    const { libraries } = await (await get('/api/libraries')).json();
+    expect(libraries.map((l: { id: string }) => l.id)).toEqual(expect.arrayContaining(['shadcn', 'heroui']));
+    expect(libraries[0]).toMatchObject({ components: expect.any(Number), license: expect.any(String), themes: { Mode: ['Light', 'Dark'] } });
+    const thumb = await get('/api/thumbnail?library=heroui&size=240');
+    expect(thumb.headers.get('content-type')).toBe('image/png');
+
+    // A new design imports the library from a copy next to it.
+    const { path } = await (await api('/api/new', { library: 'shadcn' })).json();
+    expect(parsePen(await readFile(path, 'utf8')).imports).toEqual({ shadcn: './libraries/shadcn.lib.pen' });
+    expect((await stat(join(dirname(path), 'libraries', 'shadcn.lib.pen'))).isFile()).toBe(true);
+
+    // An agent's instance of a library component expands from the imported document, in either mode.
+    const ed = await editor(path);
+    const r = await (await api('/api/execute', { filePath: path, input: 'Insert("screen", {type: "ref", ref: "shadcn:button", descendants: {"button-label": {content: "Go"}}})', agent: 'codex' })).json();
+    expect(r.ok).toBe(true);
+    await ed.next((m) => m.t === 'ops');
+    const find = (n: SceneNode, id: string): SceneNode | undefined => (n.id === id ? n : n.children?.map((c) => find(c, id)).find(Boolean));
+    const opened = await host.open(path);
+    const light = buildScene(opened.session.doc, opened.session.doc.data.children[0], { theme: { Mode: 'Light' } })!;
+    const dark = buildScene(opened.session.doc, opened.session.doc.data.children[0], { theme: { Mode: 'Dark' } })!;
+    const go = (opened.session.doc.data.children[0] as { children: { id: string }[] }).children[0].id;
+    expect(find(light, `${go}/button-label`)).toMatchObject({ content: 'Go', fill: expect.stringMatching(/^#F/i) });
+    expect(find(dark, `${go}/button-label`)?.fill).toMatch(/^#[0-3]/);
+    expect(light.fill).not.toEqual(dark.fill);
+    ed.close();
+
+    // Using a second library in the same design adds an import beside the first.
+    expect(await (await api('/api/library/use', { path, id: 'heroui' })).json()).toEqual({ alias: 'heroui', path: './libraries/heroui.lib.pen' });
+    expect(parsePen(await readFile(path, 'utf8')).imports).toEqual({ shadcn: './libraries/shadcn.lib.pen', heroui: './libraries/heroui.lib.pen' });
+    const preview = await get(`/api/node-preview?doc=${encodeURIComponent(path)}&id=heroui:button&size=120`);
+    expect(preview.headers.get('content-type')).toBe('image/png');
   });
 });

@@ -33,6 +33,7 @@ class Expander {
   private stack: string[] = [];
   private doc: PenDoc;
   private issues: ExpandIssue[] | undefined;
+  private importedCache = new Map<string, Node | undefined>();
 
   constructor(doc: PenDoc, issues: ExpandIssue[] | undefined) {
     this.doc = doc;
@@ -75,8 +76,24 @@ class Expander {
     return out;
   }
 
+  /**
+   * The component `ref` points to. One from an imported document (`alias:id`) comes with its own
+   * references (nested components, variables it defines) prefixed by the alias, so they resolve there.
+   */
+  private component(ref: string): Node | undefined {
+    const colon = ref.lastIndexOf(':');
+    if (colon <= 0) return this.doc.get(ref);
+    if (!this.importedCache.has(ref)) {
+      const prefix = ref.slice(0, colon);
+      const lib = importedDoc(this.doc, prefix);
+      const comp = this.doc.get(ref);
+      this.importedCache.set(ref, comp && lib ? (qualify(comp, prefix, lib) as Node) : comp);
+    }
+    return this.importedCache.get(ref);
+  }
+
   private instance(ref: RefNode, id: string, outer: Overrides | undefined): Node | undefined {
-    const comp = this.doc.get(ref.ref);
+    const comp = this.component(ref.ref);
     if (!comp) {
       this.issues?.push({ instance: id, message: `component "${ref.ref}" not found` });
       return undefined;
@@ -168,4 +185,27 @@ function merge(own: RefNode['descendants'], outer: Overrides | undefined): Map<s
     map.set(k, base && !('type' in v) ? { ...base, ...v } : v);
   }
   return map;
+}
+
+/** The document imported under `prefix` (`alias` or `alias:inner` for a library's own imports). */
+function importedDoc(doc: PenDoc, prefix: string): PenDoc | undefined {
+  let d: PenDoc | undefined = doc;
+  for (const alias of prefix.split(':')) d = d?.imports.get(alias);
+  return d;
+}
+
+/** Copy of a node from the document imported as `prefix`, its component and variable references prefixed. */
+function qualify(value: unknown, prefix: string, lib: PenDoc, key?: string): unknown {
+  if (typeof value === 'string') {
+    if (key === 'ref') return `${prefix}:${value}`;
+    if (value.length > 1 && value.startsWith('$') && lib.variable(value.slice(1))) return `$${prefix}:${value.slice(1)}`;
+    return value;
+  }
+  if (Array.isArray(value)) return value.map((v) => (key === 'slot' && typeof v === 'string' ? `${prefix}:${v}` : qualify(v, prefix, lib)));
+  if (value && typeof value === 'object') {
+    const out: Props = {};
+    for (const [k, v] of Object.entries(value)) out[k] = k === 'id' ? v : qualify(v, prefix, lib, k);
+    return out;
+  }
+  return value;
 }

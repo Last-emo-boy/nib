@@ -13,10 +13,13 @@ export interface FallbackFamilies {
   fullwidth: string[];
   hangul: string[];
   emoji: string[];
+  /** Arrows, math, technical symbols and shapes (⌘ ⇧ ⌥ → ≠ ▲ ✓), which UI fonts often lack. */
+  symbols?: string[];
 }
 
-export const NOTO_FALLBACKS: FallbackFamilies = {
+export const NOTO_FALLBACKS: Required<FallbackFamilies> = {
   han: ['Noto Sans SC'], fullwidth: ['Noto Sans SC'], hangul: ['Noto Sans KR'], emoji: ['Noto Color Emoji'],
+  symbols: ['Noto Sans Symbols 2', 'Noto Sans Math'],
 };
 
 const SCRIPTS: [RegExp, keyof FallbackFamilies][] = [
@@ -24,6 +27,7 @@ const SCRIPTS: [RegExp, keyof FallbackFamilies][] = [
   [/[\uff00-\uffef]/, 'fullwidth'],
   [/[\uac00-\ud7af\u1100-\u11ff]/, 'hangul'],
   [/\p{Extended_Pictographic}/u, 'emoji'],
+  [/[\u2190-\u23ff\u2400-\u243f\u2500-\u27bf\u27f0-\u27ff\u2900-\u297f\u2b00-\u2bff]/, 'symbols'],
 ];
 
 /** Text content as a string (numbers from number variables included). */
@@ -34,7 +38,7 @@ export function familyOf(node: SceneNode): string {
 }
 
 export function fallbackFamilies(text: string, fb: FallbackFamilies): string[] {
-  return SCRIPTS.filter(([re]) => re.test(text)).flatMap(([, script]) => fb[script]);
+  return SCRIPTS.filter(([re]) => re.test(text)).flatMap(([, script]) => fb[script] ?? []);
 }
 
 /** Font faces a text-like node needs, fallbacks included. */
@@ -178,7 +182,7 @@ export class TextEngine implements TextMeasurer {
     for (const [re, script] of SCRIPTS) {
       const chars = [...text].filter((c) => re.test(c)).join('');
       if (!chars || this.fonts.covers(family, weight, italic, chars)) continue;
-      const fallback = this.fallbacks[script].find((f) => this.fonts.covers(f, weight, italic, chars) || this.fonts.has(f));
+      const fallback = this.fallbacks[script]?.find((f) => this.fonts.covers(f, weight, italic, chars) || this.fonts.has(f));
       const m = fallback && this.fonts.metrics(fallback, weight, italic, size);
       if (m) unite(m);
     }

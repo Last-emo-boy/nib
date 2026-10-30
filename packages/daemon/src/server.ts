@@ -1,12 +1,13 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { extname, join, normalize, relative, resolve as resolvePath } from 'node:path';
+import { dirname, extname, join, normalize, relative, resolve as resolvePath } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { Op } from '@nib/core';
 import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } from '@nib/render';
 import type { DocEvent, DocumentHost, Source } from './host.ts';
-import { drafts, newDraft, recents, thumbnail } from './library.ts';
+import { DRAFTS_DIR, drafts, newDraft, nodePreview, recents, thumbnail } from './library.ts';
+import { aliasFor, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
 import { templateDocument, templateFile, templates } from './templates.ts';
 import type { BrowserService } from './browser/service.ts';
 
@@ -148,9 +149,50 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         return send(res, 200, { recents: await recents(), drafts: await drafts(), open: host.list().map((d) => d.path) });
       case 'GET /api/templates':
         return send(res, 200, { templates: await templates() });
+      case 'GET /api/libraries':
+        return send(res, 200, { libraries: await libraries() });
+      case 'GET /api/node-preview': {
+        const file = q.get('doc') ?? '';
+        if (!file.endsWith('.pen')) return send(res, 400, { error: 'doc must be a .pen file' });
+        const png = await nodePreview(opts.renderer, opts.images, file, q.get('id') ?? '', Math.min(800, Number(q.get('size') ?? 160)));
+        return png ? sendBytes(res, png, 'image/png', 'no-cache') : send(res, 404, { error: 'nothing to show' });
+      }
+      case 'POST /api/library/use': {
+        // A library nib ships: copied next to the document and imported under its id.
+        const body = await readJson(req);
+        if (typeof body.path !== 'string' || typeof body.id !== 'string') return send(res, 400, { error: 'path and id are required' });
+        const open = await host.open(body.path);
+        const rel = await installLibrary(body.id, open.path);
+        const imports = open.session.doc.data.imports ?? {};
+        const alias = imports[body.id] === rel ? body.id : aliasFor(body.id, Object.keys(imports));
+        if (imports[alias] !== rel) await host.addImport(open.path, alias, rel, { kind: 'user' });
+        return send(res, 200, { alias, path: rel });
+      }
+      case 'POST /api/library/import': {
+        // Any .lib.pen (or .pen) file, imported by its path relative to the document.
+        const body = await readJson(req);
+        if (typeof body.path !== 'string' || typeof body.file !== 'string' || !body.file.endsWith('.pen')) return send(res, 400, { error: 'path and a .pen file are required' });
+        const open = await host.open(body.path);
+        const file = resolvePath(body.file);
+        if (file === open.path) return send(res, 400, { error: 'a document cannot import itself' });
+        const rel = relative(dirname(open.path), file);
+        const imports = open.session.doc.data.imports ?? {};
+        const existing = Object.entries(imports).find(([, r]) => resolvePath(dirname(open.path), r) === file)?.[0];
+        const alias = existing ?? aliasFor(file, Object.keys(imports));
+        if (!existing) await host.addImport(open.path, alias, rel.startsWith('.') ? rel : `./${rel}`, { kind: 'user' });
+        return send(res, 200, { alias, path: rel });
+      }
       case 'GET /api/thumbnail': {
         const file = q.get('path') ?? '';
         const template = q.get('template');
+        const lib = q.get('library');
+        if (lib) {
+          const libFile = await libraryFile(lib);
+          // A library shows the screen it starts designs from, or else all of it.
+          const size = Number(q.get('size') ?? 480);
+          const png = libFile ? (await nodePreview(opts.renderer, opts.images, libFile, 'overview', size)) ?? (await thumbnail(opts.renderer, opts.images, libFile, size)) : undefined;
+          return png ? sendBytes(res, png, 'image/png') : send(res, 404, { error: 'no such library' });
+        }
         if (template) {
           const png = await templateThumbnail(template, Number(q.get('size') ?? 480));
           return png ? sendBytes(res, png, 'image/png') : send(res, 404, { error: 'no such template' });
@@ -161,9 +203,17 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
       }
       case 'POST /api/new': {
         const body = await readJson(req);
-        const doc = typeof body.template === 'string' ? await templateDocument(body.template) : undefined;
+        let doc = typeof body.template === 'string' ? await templateDocument(body.template) : undefined;
         if (body.template && !doc) return send(res, 404, { error: 'no such template' });
-        const path = await newDraft(doc, typeof body.name === 'string' ? body.name : undefined);
+        let name = typeof body.name === 'string' ? body.name : undefined;
+        if (typeof body.library === 'string') {
+          // Drafts share one folder, so they share its libraries/ copy.
+          const lib = (await libraries()).find((l) => l.id === body.library);
+          if (!lib) return send(res, 404, { error: 'no such library' });
+          doc = await documentFromLibrary(lib.id, await installLibrary(lib.id, join(DRAFTS_DIR, 'draft.pen')));
+          name ??= lib.name;
+        }
+        const path = await newDraft(doc, name);
         return send(res, 200, { path });
       }
       case 'GET /api/docs':

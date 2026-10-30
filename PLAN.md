@@ -53,6 +53,19 @@ Each milestone ends with a usable state and its own verification gate.
 - **M7 AI.** built-in agent chat with BYO providers (Anthropic, OpenAI, Gemini, OpenRouter, DeepSeek, OpenAI-compatible endpoints; Claude Code and Codex through their own CLIs), sessions, skills, permission prompts, parallel agents (split work, side by side, iterations), `spawn_agents`, `Generate`, nib's own style archetypes.
 - **M8 Ecosystem.** CLI (export, agent mode, interactive), VS Code/Cursor extension, slides panel with present mode and PDF, share links (static snapshot, self-hostable), Figma import (`.fig` files and clipboard).
 
+## Gap to pen.dev (2026-10-30)
+
+From pen.dev's site and docs (docs.pencil.dev, updated 2026-10-13), the user's screenshots of its dashboard and editor, and the file names in its app bundle (its agent runs on `@anthropic-ai/claude-agent-sdk`, `@openai/codex-sdk`, `@cursor/sdk` and Pi, which is how it uses a person's own Claude or ChatGPT subscription). In the order nib should close them:
+
+1. **Design systems.** pen.dev's dashboard templates are design systems (shadcn, HeroUI, Halo, Lunaris, Nitro): libraries of components and themed variables that a new file starts from, with a Libraries tab (default libraries, import a `.lib.pen`, "Turn this file into a library") and library components in the Components tab. nib has the engine (`imports`, `alias:id`) but showed openpencil scene templates. nib ships its own libraries built on open-source systems (shadcn/ui, MIT; HeroUI, Apache-2.0); Halo, Lunaris and Nitro are pen.dev's own and are not copied.
+2. **Built-in browser panel.** Enter a URL, import the full page or one picked element, import a screenshot, recent URLs. nib has the `browser` tool for agents but no panel.
+3. **Built-in agent.** Agent tab with sessions ("New Agent"), model picker, variants (⊞ 1x), context files, prompt suggestions; selection goes into the chat context. Same composer on the dashboard, with Import from Figma, Import from browser and Recreate a screenshot.
+4. **Slides and Present mode**, **Share by link.**
+5. **Editing:** pen tool and path editing (with pasted SVG), snapping, pixel grid, measurements, on-canvas gradient handles and real mesh gradients (nib draws mesh fills as one average color), masking, image crop, scale tool, rotated selection outlines, editing inside instances, custom fonts; settings for nudge, zoom, light mode, animations.
+6. **Image tools:** vectorize, remove background, `Generate` (images and SVG), AI Pen (agents drawing icons and illustrations).
+7. **Code on canvas:** shaders and script nodes (M6).
+8. **Ecosystem:** pen.dev CLI, VS Code/Cursor/OpenVSX extension, Chrome extension (copy a page, paste as layers), web version, Figma import, Windows and Linux builds, auto-update, `spawn_agents`, WebMCP.
+
 ## UX: better than pen.dev
 
 pen.dev's layout (from the user's screenshots): dark UI of floating rounded panels over the canvas; a left panel whose tabs (Agent, Layers, Slides, Components, Libraries) share one slot, so chat hides the layer tree; a vertical tool strip beside it; top-right pill with Agents, Goodies, Share, Settings, Present, Browser; right panel for properties or the web-import browser; zoom control at the bottom. The dashboard is prompt-first: category chips, Import from Figma / browser / screenshot, recents grid with thumbnails.

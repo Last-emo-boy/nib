@@ -30,7 +30,14 @@ export function buildScene(doc: PenDoc, node: Node, opts: SceneOptions = {}): Sc
 export function inheritedTheme(doc: PenDoc, id: string): ThemeContext {
   const chain: Node[] = [];
   for (let p = doc.locate(id)?.parent; p; p = doc.locate(p.id)?.parent) chain.unshift(p);
-  return chain.reduce((ctx, n) => withTheme(ctx, n.theme), defaultTheme(doc.data));
+  return chain.reduce((ctx, n) => withTheme(ctx, n.theme), documentTheme(doc));
+}
+
+/** Default theme of a document, with the defaults of axes only its imports define (a library's Mode). */
+function documentTheme(doc: PenDoc): ThemeContext {
+  let ctx: ThemeContext = {};
+  for (const lib of doc.imports.values()) ctx = { ...documentTheme(lib), ...ctx };
+  return { ...ctx, ...defaultTheme(doc.data) };
 }
 
 function resolveNode(doc: PenDoc, node: Node, outer: ThemeContext): SceneNode | undefined {

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "shadcn",
+    "name": "shadcn/ui",
+    "summary": {
+      "en": "Neutral, compact components from shadcn/ui: buttons, forms, menus, cards, tables and a dashboard to start from.",
+      "zh": "shadcn/ui 的中性、紧凑组件：按钮、表单、菜单、卡片、表格，以及一个可直接起步的仪表盘。"
+    },
+    "basedOn": "shadcn/ui (new-york, neutral theme)",
+    "license": "MIT",
+    "homepage": "https://ui.shadcn.com",
+    "components": 55,
+    "themes": {
+      "Mode": [
+        "Light",
+        "Dark"
+      ]
+    }
+  },
+  {
+    "id": "heroui",
+    "name": "HeroUI",
+    "summary": {
+      "en": "Soft, rounded components from HeroUI v3: pill buttons, chips, fields, cards, menus, a team table and a dashboard to start from.",
+      "zh": "HeroUI v3 的柔和圆润组件：胶囊按钮、标签、输入框、卡片、菜单、成员表格，以及一个可直接起步的仪表盘。"
+    },
+    "basedOn": "HeroUI v3 (default theme)",
+    "license": "Apache-2.0",
+    "homepage": "https://heroui.com",
+    "components": 54,
+    "themes": {
+      "Mode": [
+        "Light",
+        "Dark"
+      ]
+    }
+  }
+]

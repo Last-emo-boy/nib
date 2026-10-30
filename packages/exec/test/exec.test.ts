@@ -239,3 +239,12 @@ describe('checks', () => {
     expect(r.text).not.toContain('48.2K');
   });
 });
+
+describe('reports', () => {
+  it('names unnamed instances after their component', async () => {
+    const doc = new PenDoc({ version: '2.20', children: [{ type: 'frame', id: 'btn', name: 'Button', reusable: true, x: 0, y: 0, width: 10, height: 10 }] } as unknown as PenDocument);
+    const s = await ExecSession.open(doc, { renderer, images: noImages, baseDir: tmpdir() });
+    const r = await s.execute({ input: 'Insert(document, {type: "ref", ref: "btn", x: 50})' });
+    expect(r.text).toMatch(/"Button \(instance\)": "\w+"/);
+  });
+});

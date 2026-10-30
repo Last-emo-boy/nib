@@ -59,5 +59,5 @@ export async function getStyle(name: string | undefined, _params: Record<string,
     'Apply it through the document, not by hand on every node: define its colors, radii and spacing with SetVariables (e.g. `bg`, `text-primary`, `accent`, `radius-card`) and reference them as "$name" in fills, strokes, cornerRadius, gap and padding. Use its fonts by family name. Values below are guidance; adapt them to the brief.',
     '',
   ];
-  return { text: header.join('\n') + body, error: false };
+  return { text: `${header.join('\n')}\n${body}`, error: false };
 }

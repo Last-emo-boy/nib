@@ -499,7 +499,9 @@ export class PenApi {
   private noteCreated(node: Node, deep: boolean, id: string): void {
     const prefix = id.slice(0, id.length - node.id.length);
     const visit = (n: Node) => {
-      this.out.created.push({ id: prefix + n.id, name: n.name ?? n.type });
+      const comp = n.type === 'ref' ? this.doc.get((n as RefNode).ref) : undefined;
+      const name = n.name ?? (n.type === 'ref' ? `${comp?.name ?? (n as RefNode).ref} (instance)` : n.type);
+      this.out.created.push({ id: prefix + n.id, name });
       if (deep) childrenOf(n)?.forEach(visit);
     };
     visit(node);

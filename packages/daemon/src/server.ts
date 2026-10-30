@@ -8,6 +8,7 @@ import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } 
 import type { DocEvent, DocumentHost, Source } from './host.ts';
 import { drafts, newDraft, recents, thumbnail } from './library.ts';
 import { templateDocument, templateFile, templates } from './templates.ts';
+import type { BrowserService } from './browser/service.ts';
 
 export const DAEMON_VERSION = '0.1.0';
 export const DEFAULT_PORT = 7451;
@@ -16,6 +17,8 @@ export interface DaemonOptions {
   host: DocumentHost;
   /** Renders dashboard thumbnails. */
   renderer: Renderer;
+  /** The `browser` tool; without it the endpoint answers that no browser is available. */
+  browser?: BrowserService;
   fonts: FontLoader;
   icons: IconSource;
   images: (penFile: string) => ImageLoader;
@@ -133,6 +136,13 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         } catch (e) {
           return send(res, 409, { error: (e as Error).message });
         }
+      }
+      case 'POST /api/browser': {
+        const body = await readJson(req);
+        if (typeof body.filePath !== 'string') return send(res, 400, { error: 'filePath is required' });
+        if (!opts.browser) return send(res, 200, { text: 'No browser is available in this nib.', images: [], isError: true });
+        const { filePath, ...args } = body;
+        return send(res, 200, await opts.browser.run(filePath, args as never) as unknown as Json);
       }
       case 'GET /api/library':
         return send(res, 200, { recents: await recents(), drafts: await drafts(), open: host.list().map((d) => d.path) });

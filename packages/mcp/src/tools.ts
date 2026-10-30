@@ -71,6 +71,30 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: 'browser',
+    description: 'Drive a web page in nib\'s browser: load a url, take screenshots, read an element\'s DOM and styles, import a page or element as editable layers (import-to-canvas), place a screenshot on the canvas, or send a Chrome DevTools Protocol command. Pass nodeId to use a browser node on the canvas (the page then takes its size and the node shows it); without it a shared page is used. Call load-page first.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filePath: { type: 'string', description: 'The .pen file the result goes into (import-to-canvas, screenshot-to-canvas) or whose browser node is used.' },
+        action: { type: 'string', enum: ['load-page', 'import-to-canvas', 'screenshot-to-canvas', 'return-element', 'return-screenshot', 'cdp'] },
+        nodeId: { type: 'string', description: 'A browser node (type "browser") in the document; omit for the shared page.' },
+        target: { type: 'string', enum: ['full-page', 'selection', 'query'], description: 'What to act on (default full-page).' },
+        querySelector: { type: 'string', description: 'CSS selector, for target "query".' },
+        url: { type: 'string', description: 'http(s) or file URL, for load-page.' },
+        method: { type: 'string', description: 'A CDP method such as "Input.dispatchMouseEvent" (domains DOM, Input, Page, Runtime, Emulation, CSS, Accessibility), for cdp.' },
+        params: { type: 'object', additionalProperties: true, description: 'The CDP method\'s parameters.' },
+      },
+      required: ['filePath', 'action'],
+    },
+    async call(args, host) {
+      if (typeof args.filePath !== 'string') return text('browser needs `filePath`: the .pen file to work with.', true);
+      const { filePath, ...rest } = args;
+      const r = await host.browser(filePath, rest as never);
+      return { content: [{ type: 'text', text: r.text }, ...r.images.map((i) => ({ type: 'image' as const, data: i.data, mimeType: i.mimeType }))], ...(r.isError ? { isError: true } : {}) };
+    },
+  },
+  {
     name: 'read_skill',
     description: 'Read nib\'s guide to designing on a .pen canvas. Without a path it returns the overview (SKILL.md), which lists the other files; pass one of those as path, e.g. "execute.md".',
     inputSchema: {

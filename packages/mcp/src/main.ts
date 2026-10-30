@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { DocumentHost } from '@nib/daemon';
+import { BrowserService, DocumentHost, NIB_HOME } from '@nib/daemon';
 import { EXPORTERS } from '@nib/export';
-import { createNodeRenderer, imagesFor } from '@nib/render/node';
+import { createNodeRenderer, FallbackFontLoader, GoogleFontsLoader, imagesFor, SystemFontLoader } from '@nib/render/node';
 import { DaemonHost, LocalHost, type McpHost } from './hosts.ts';
 import { serve } from './server.ts';
 
@@ -15,7 +15,8 @@ async function host(): Promise<McpHost> {
       process.stderr.write(`nib: daemon unavailable (${(e as Error).message}); working headless\n`);
     }
   }
-  return new LocalHost(new DocumentHost({ renderer: await createNodeRenderer(), images: imagesFor, exporters: EXPORTERS }));
+  const host = new DocumentHost({ renderer: await createNodeRenderer(), images: imagesFor, exporters: EXPORTERS });
+  return new LocalHost(host, new BrowserService({ host, home: NIB_HOME, fonts: new FallbackFontLoader(new GoogleFontsLoader(), new SystemFontLoader()) }));
 }
 
 // The client closed stdin: stop, even with file watches still open.

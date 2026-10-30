@@ -1,4 +1,4 @@
-import { ensureDaemon, type DaemonInfo, type DocumentHost } from '@nib/daemon';
+import { ensureDaemon, type BrowserArgs, type BrowserResult, type BrowserService, type DaemonInfo, type DocumentHost } from '@nib/daemon';
 import type { ExecuteRequest } from '@nib/exec';
 
 export interface ExecuteReply {
@@ -15,15 +15,23 @@ export interface McpHost {
   agent?: string;
   appState(filePath?: string): Promise<string>;
   execute(filePath: string, req: ExecuteRequest): Promise<ExecuteReply>;
+  browser(filePath: string, args: BrowserArgs): Promise<BrowserResult>;
 }
 
 /** Documents held in this process. */
 export class LocalHost implements McpHost {
   agent?: string;
   private host: DocumentHost;
+  private browserService: BrowserService | undefined;
 
-  constructor(host: DocumentHost) {
+  constructor(host: DocumentHost, browser?: BrowserService) {
     this.host = host;
+    this.browserService = browser;
+  }
+
+  browser(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
+    if (!this.browserService) return Promise.resolve({ text: 'No browser is available.', images: [], isError: true });
+    return this.browserService.run(filePath, args);
   }
 
   appState(filePath?: string): Promise<string> {
@@ -55,6 +63,10 @@ export class DaemonHost implements McpHost {
 
   async execute(filePath: string, req: ExecuteRequest): Promise<ExecuteReply> {
     return (await this.post('/api/execute', { filePath, ...req, agent: this.agent ?? 'agent' })) as ExecuteReply;
+  }
+
+  async browser(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
+    return (await this.post('/api/browser', { filePath, ...args })) as BrowserResult;
   }
 
   private async post(path: string, body: unknown): Promise<unknown> {

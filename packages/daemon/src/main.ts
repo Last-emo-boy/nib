@@ -4,7 +4,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXPORTERS } from '@nib/export';
 import { createNodeRenderer, FallbackFontLoader, GoogleFontsLoader, imagesFor, PackageIconSource, platformFallbacks, SystemFontLoader } from '@nib/render/node';
+import { BrowserService } from './browser/service.ts';
 import { DocumentHost } from './host.ts';
+import { NIB_HOME } from './library.ts';
 import { removeInfo, writeInfo } from './info.ts';
 import { DAEMON_VERSION, DEFAULT_PORT, startDaemon } from './server.ts';
 
@@ -15,12 +17,24 @@ const fonts = new FallbackFontLoader(new GoogleFontsLoader(), new SystemFontLoad
 const icons = new PackageIconSource();
 const fallbacks = platformFallbacks();
 const renderer = await createNodeRenderer({ fonts, icons, fallbacks });
-const host = new DocumentHost({ renderer, images: imagesFor, exporters: EXPORTERS });
+// Browser nodes draw the latest snapshot of their page; everything else loads from files and the web.
+let browser: BrowserService | undefined;
+const images = (file: string) => {
+  const files = imagesFor(file);
+  return {
+    load: (url: string) => {
+      const m = /^nib-browser:([^@]+)@/.exec(url);
+      return m ? browser!.snapshot(file, m[1]) : files.load(url);
+    },
+  };
+};
+const host = new DocumentHost({ renderer, images, exporters: EXPORTERS });
+browser = new BrowserService({ host, home: NIB_HOME, fonts });
 const editorDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'editor', 'dist');
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 const daemon = await startDaemon({
-  host, renderer, fonts, icons, images: imagesFor, fallbacks,
+  host, renderer, browser, fonts, icons, images, fallbacks,
   port: Number(process.env.NIB_PORT ?? DEFAULT_PORT),
   editorDir: existsSync(editorDir) ? editorDir : undefined,
   devOrigins: process.env.NIB_DEV_ORIGIN ? process.env.NIB_DEV_ORIGIN.split(',') : undefined,
@@ -37,6 +51,7 @@ process.stderr.write(`nib daemon on ${daemon.url} (pid ${process.pid})\n`);
 async function shutdown(): Promise<void> {
   await removeInfo(process.pid);
   await daemon.close();
+  browser?.close();
   host.close();
   process.exit(0);
 }

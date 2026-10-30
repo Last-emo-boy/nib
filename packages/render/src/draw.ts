@@ -24,6 +24,9 @@ export interface DrawContext {
 type Rec = Record<string, unknown>;
 const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
+/** Image url under which the host provides a browser node's page snapshot; it changes with the page's url. */
+export const browserSnapshotUrl = (node: { id: string; url?: unknown }) => `nib-browser:${node.id}@${typeof node.url === 'string' ? node.url : ''}`;
+
 export const iconKey = (library: string, name: string, weight: number | undefined) => `${library}|${name}|${weight ?? ''}`;
 
 interface Shadow { inner: boolean; dx: number; dy: number; blur: number; spread: number; color: Float32Array }
@@ -100,6 +103,8 @@ export function drawNode(dc: DrawContext, canvas: Canvas, node: SceneNode): void
     if (filled) for (const s of fx.shadows) if (!s.inner) outerShadow(dc, canvas, node, outline, w, h, s);
     if (fx.backgroundBlur > 0) backgroundBlur(dc, canvas, outline, fx.backgroundBlur);
     paintFills(dc, canvas, node.fill, outline, w, h);
+    // A browser node shows the latest snapshot of its page over a neutral placeholder.
+    if (node.type === 'browser') paintFills(dc, canvas, ['#F1F3F5', { type: 'image', url: browserSnapshotUrl(node), mode: 'cover' }], outline, w, h);
     for (const s of fx.shadows) if (s.inner) innerShadow(dc, canvas, node, outline, w, h, s);
   }
 

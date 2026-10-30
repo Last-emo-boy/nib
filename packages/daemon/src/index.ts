@@ -3,3 +3,4 @@ export * from './info.ts';
 export * from './server.ts';
 export * from './library.ts';
 export * from './templates.ts';
+export * from './browser/index.ts';

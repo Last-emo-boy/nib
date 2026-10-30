@@ -1,7 +1,7 @@
 import type { Canvas, CanvasKit, Image } from 'canvaskit-wasm';
 import type { SceneNode } from '@nib/core';
 import { layoutScene, type LayoutResult } from '@nib/layout';
-import { drawNode, iconKey, type StrokeAlignment } from './draw.ts';
+import { browserSnapshotUrl, drawNode, iconKey, type StrokeAlignment } from './draw.ts';
 import { FontStore, fontWeight, type FontFace, type FontLoader } from './fonts.ts';
 import { isFontIconLibrary, type IconGeometry, type IconSource } from './icons.ts';
 import { ImageStore, type ImageLoader } from './images.ts';
@@ -97,6 +97,7 @@ export class Renderer {
         if (isFontIconLibrary(library)) faces.push({ family: library, weight: fontWeight(weight ?? 400), italic: false });
         else icons.push({ library, name: n.icon, weight });
       }
+      if (n.type === 'browser') urls.add(browserSnapshotUrl(n));
       for (const f of [...fillList(n.fill), ...fillList(n.stroke)]) {
         if (f && typeof f === 'object' && (f as { type?: unknown }).type === 'image') {
           const url = (f as { url?: unknown }).url;

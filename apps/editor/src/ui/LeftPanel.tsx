@@ -4,7 +4,8 @@ import { childrenOf, resolveVariable, defaultTheme, type PenDoc } from '@nib/cor
 import type { Node, Variable } from '@nib/format';
 import { commit, isContainer, setProps } from '../app/actions.ts';
 import { useT } from '../app/i18n.ts';
-import { store, useEditor, type LeftTab } from '../app/store.ts';
+import { store, toast, useEditor, type LeftTab } from '../app/store.ts';
+import { desktop } from '../app/desktop.ts';
 import { boundsOf, fitView } from '../canvas/Canvas.tsx';
 import { Icon } from './Icon.tsx';
 import { Components, Libraries } from './Libraries.tsx';
@@ -144,7 +145,51 @@ function LayerRow({ doc, node, depth, hasKids, expanded, toggle, selected }: { d
   );
 }
 
+/** Bring tokens in from a project (CSS variables or tokens JSON), and take the variables out as tokens. */
+function TokenActions() {
+  const t = useT();
+  const conn = useEditor((s) => s.conn);
+  if (!conn) return null;
+  const importFrom = async () => {
+    const file = desktop ? await desktop.pickFile() : prompt(t.tokensImportHint)?.trim();
+    if (!file) return;
+    const r = await fetch('/api/tokens/import', { method: 'POST', headers: { ...authHeaders(), 'content-type': 'application/json' }, body: JSON.stringify({ path: conn.path, file }) });
+    const j = await r.json();
+    toast(r.ok ? t.tokensImported(j.count, j.skipped.length) : j.error);
+  };
+  const exportAs = async (format: string) => {
+    const j = await (await fetch(`/api/tokens?${new URLSearchParams({ doc: conn.path, format })}`, { headers: authHeaders() })).json() as { text: string; name: string };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([j.text], { type: 'text/plain' }));
+    a.download = j.name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    await navigator.clipboard?.writeText(j.text).catch(() => {});
+    toast(t.tokensExported(j.name));
+  };
+  return (
+    <div className="token-actions">
+      <button onClick={() => void importFrom()}><Icon name="download" size={12} />{t.tokensImport}</button>
+      <select value="" onChange={(e) => { if (e.target.value) void exportAs(e.target.value); }}>
+        <option value="">{t.tokensExport}</option>
+        <option value="css">CSS variables</option>
+        <option value="tailwind">Tailwind theme</option>
+        <option value="json">Design tokens JSON</option>
+      </select>
+    </div>
+  );
+}
+
 function Variables() {
+  return (
+    <>
+      <TokenActions />
+      <VariableTable />
+    </>
+  );
+}
+
+function VariableTable() {
   const t = useT();
   const doc = useEditor((s) => s.doc);
   useEditor((s) => s.version);

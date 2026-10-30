@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat, writeFile } from '
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { applyOp, childrenOf, DocEditor, PenDoc, type Op } from '@nib/core';
-import { parsePen, serializePen, type Node, type PenDocument } from '@nib/format';
+import { parsePen, serializePen, type Node, type PenDocument, type Variable } from '@nib/format';
 import { importTree, loadPen, syncImports, type ImportTree } from './imports.ts';
 import { noteOpened } from './library.ts';
 import { ExecSession, partsOf, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat, type Problem } from '@nib/exec';
@@ -167,6 +167,19 @@ export class DocumentHost {
     if (Object.keys(props).length || unset.length) ops.push({ op: 'document', props, ...(unset.length ? { unset } : {}) });
     if (!ops.length) return open.version;
     return this.edit(path, ops, source, label);
+  }
+
+  /**
+   * Add variables (and the theme values they use) to a document as one undoable change; variables of the
+   * same name are replaced.
+   */
+  async addVariables(path: string, variables: Record<string, Variable>, themes: Record<string, string[]> | undefined, source: Source, label: string): Promise<void> {
+    const open = this.require(path);
+    const data = open.session.doc.data;
+    const merged = { ...(data.variables ?? {}), ...variables };
+    const axes = { ...(data.themes ?? {}) };
+    for (const [axis, values] of Object.entries(themes ?? {})) axes[axis] = [...new Set([...(axes[axis] ?? []), ...values])];
+    await this.edit(path, [{ op: 'document', props: { variables: merged, ...(Object.keys(axes).length ? { themes: axes } : {}) } }], source, label);
   }
 
   /** Undo the latest change to the document, whoever made it. */

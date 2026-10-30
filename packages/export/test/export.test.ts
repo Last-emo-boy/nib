@@ -5,7 +5,7 @@ import { buildScene, PenDoc } from '@nib/core';
 import type { PenDocument } from '@nib/format';
 import type { Renderer } from '@nib/render';
 import { createNodeRenderer } from '@nib/render/node';
-import { exportHtml, exportReact, writePdf, type CodeMap } from '../src/index.ts';
+import { exportHtml, exportReact, tokensFromCss, tokensFromJson, tokensToCss, tokensToJson, tokensToTailwind, writePdf, type CodeMap } from '../src/index.ts';
 
 let renderer: Renderer;
 const images = { load: async () => undefined };
@@ -100,5 +100,31 @@ describe('react export', () => {
     expect(out).not.toContain('Geist');
     expect(out).toContain('<ArrowRight className="flex-none h-[16px] w-[16px] text-[color:#ff0000]" />');
     expect(out).toContain('<Button className="w-full">Go</Button>');
+  });
+});
+
+describe('design tokens', () => {
+  const doc = { version: '2.20', themes: { Mode: ['Light', 'Dark'] }, children: [], variables: {
+    primary: { type: 'color', value: [{ value: '#111111', theme: { Mode: 'Light' } }, { value: '#EEEEEE', theme: { Mode: 'Dark' } }] },
+    'radius-card': { type: 'number', value: 12 },
+    'font-sans': { type: 'string', value: 'Inter' },
+  } } as unknown as PenDocument;
+
+  it('writes CSS variables per theme, a Tailwind theme and DTCG JSON', () => {
+    expect(tokensToCss(doc)).toBe(':root {\n  --primary: #111111;\n  --radius-card: 12px;\n  --font-sans: Inter;\n}\n\n.dark, [data-mode="dark"] {\n  --primary: #EEEEEE;\n}\n');
+    expect(tokensToTailwind(doc)).toContain('--color-primary: var(--primary);');
+    expect(tokensToTailwind(doc)).toContain('--radius-card: var(--radius-card);');
+    expect(JSON.parse(tokensToJson(doc)).primary).toEqual({ $type: 'color', $value: '#111111', $extensions: { nib: { themes: { 'Mode=Dark': '#EEEEEE' } } } });
+  });
+
+  it('reads them back, and reads a project\'s CSS variables in oklch, hsl and rem', () => {
+    expect(tokensFromCss(tokensToCss(doc)).variables).toEqual(doc.variables);
+    expect(tokensFromJson(tokensToJson(doc)).variables).toEqual(doc.variables);
+    const r = tokensFromCss(':root { --background: oklch(1 0 0); --ring: hsl(0 0% 50%); --radius: 0.625rem; --chart: var(--x); }\n.dark { --background: oklch(0.145 0 0); }');
+    expect(r.themes).toEqual({ Mode: ['Light', 'Dark'] });
+    expect(r.variables.background).toEqual({ type: 'color', value: [{ value: '#FFFFFF', theme: { Mode: 'Light' } }, { value: '#0A0A0A', theme: { Mode: 'Dark' } }] });
+    expect(r.variables.ring).toEqual({ type: 'color', value: '#808080' });
+    expect(r.variables.radius).toEqual({ type: 'number', value: 10 });
+    expect(r.skipped).toEqual(['chart']);
   });
 });

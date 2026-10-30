@@ -9,6 +9,7 @@ import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
 import { DRAFTS_DIR, drafts, newDraft, nodePreview, recents, thumbnail } from './library.ts';
 import { aliasFor, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
 import { templateDocument, templateFile, templates } from './templates.ts';
+import { tokensFromCss, tokensFromJson, tokensToCss, tokensToJson, tokensToTailwind } from '@nib/export';
 import type { BrowserService } from './browser/service.ts';
 import type { AgentService } from './agent/service.ts';
 
@@ -125,6 +126,32 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const doc = q.get('doc') ?? '';
         if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
         return send(res, 200, { problems: await host.problems(doc) });
+      }
+      case 'GET /api/tokens': {
+        // The document's variables as CSS variables, a Tailwind theme, or W3C design tokens JSON.
+        const open = await host.open(q.get('doc') ?? '');
+        const data = open.session.doc.data;
+        const format = q.get('format') ?? 'css';
+        const text = format === 'json' ? tokensToJson(data) : format === 'tailwind' ? tokensToTailwind(data) : tokensToCss(data);
+        return send(res, 200, { text, name: format === 'json' ? 'tokens.json' : format === 'tailwind' ? 'theme.css' : 'tokens.css' });
+      }
+      case 'POST /api/tokens/import': {
+        // CSS custom properties (:root and .dark blocks) or W3C design tokens JSON, from a file or text.
+        const body = await readJson(req);
+        if (typeof body.path !== 'string' || (typeof body.file !== 'string' && typeof body.text !== 'string')) return send(res, 400, { error: 'path and a file or text are required' });
+        const text = typeof body.text === 'string' ? body.text : await readFile(resolvePath(body.file as string), 'utf8');
+        const json = typeof body.file === 'string' ? body.file.endsWith('.json') : text.trimStart().startsWith('{');
+        let tokens;
+        try {
+          tokens = json ? tokensFromJson(text) : tokensFromCss(text);
+        } catch (e) {
+          return send(res, 400, { error: `could not read the tokens: ${(e as Error).message}` });
+        }
+        const count = Object.keys(tokens.variables).length;
+        if (!count) return send(res, 400, { error: 'no variables found (expected CSS custom properties like --primary: #000 or design tokens JSON)' });
+        const open = await host.open(body.path);
+        await host.addVariables(open.path, tokens.variables, tokens.themes, { kind: 'user' }, `Import ${count} variables`);
+        return send(res, 200, { count, skipped: tokens.skipped });
       }
       case 'POST /api/export': {
         const body = await readJson(req);

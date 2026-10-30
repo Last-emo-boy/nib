@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { childrenOf } from '@nib/core';
 import type { Node } from '@nib/format';
-import { copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, paste } from '../app/actions.ts';
+import { copyAsHtml, copyAsPng, copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, paste, saveAs } from '../app/actions.ts';
 import { useT } from '../app/i18n.ts';
 import { store, useEditor, type Tool } from '../app/store.ts';
 import { boundsOf, fitView } from '../canvas/Canvas.tsx';
@@ -28,7 +28,12 @@ export function Palette() {
     const tool = (id: Tool, label: string, icon: IconName, hint: string): Item => ({ key: `tool:${id}`, label, icon, hint, run: () => store.set({ tool: id }) });
     return [
       tool('move', t.move, 'pointer', 'V'), tool('frame', t.frame, 'frame', 'F'), tool('rectangle', t.rectangle, 'square', 'R'),
-      tool('ellipse', t.ellipse, 'circle', 'O'), tool('text', t.text, 'type', 'T'), tool('note', t.note, 'note', 'N'), tool('hand', t.hand, 'hand', 'H'),
+      tool('ellipse', t.ellipse, 'circle', 'O'), tool('polygon', t.polygon, 'hexagon', 'P'), tool('text', t.text, 'type', 'T'),
+      tool('icon', t.iconTool, 'smile', 'I'), tool('note', t.note, 'note', 'N'), tool('hand', t.hand, 'hand', 'H'),
+      { key: 'copy-png', label: t.copyPng, icon: 'image', hint: '⇧⌘C', run: () => void copyAsPng() },
+      { key: 'copy-html', label: t.copyHtml, icon: 'copy', run: () => void copyAsHtml() },
+      { key: 'copy-tailwind', label: t.copyTailwind, icon: 'copy', run: () => void copyAsHtml(true) },
+      { key: 'save-as', label: t.saveAs, icon: 'file', hint: '⇧⌘S', run: () => void saveAs() },
       { key: 'undo', label: t.undo, icon: 'undo', hint: '⌘Z', run: () => store.get().conn?.undo() },
       { key: 'redo', label: t.redo, icon: 'redo', hint: '⇧⌘Z', run: () => store.get().conn?.redo() },
       { key: 'copy', label: t.copy, icon: 'copy', hint: '⌘C', run: copySelection },

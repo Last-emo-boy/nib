@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { PenDoc } from '@nib/core';
 import type { Node, RefNode } from '@nib/format';
-import { isFree, setProps } from '../app/actions.ts';
+import { align, isFree, setProps, type Align } from '../app/actions.ts';
 import { authHeaders } from '../app/connection.ts';
 import { toast } from '../app/store.ts';
 import { useT, type Strings } from '../app/i18n.ts';
@@ -42,6 +42,13 @@ export function Properties() {
         <Icon name={typeIcon(n as Node)} />
         <span className="prop-title">{nodes.length > 1 ? `${nodes.length} layers` : layerName(doc, n as Node)}</span>
       </div>
+      {ids.some((id) => isFree(doc, id)) && (
+        <div className="align-row" title={t.align}>
+          {([['left', 'alignLeft'], ['hcenter', 'alignHCenter'], ['right', 'alignRight'], ['top', 'alignTop'], ['vcenter', 'alignVCenter'], ['bottom', 'alignBottom']] as const).map(([how, icon]) => (
+            <button key={how} className="icon-button" onClick={() => align(how as Align, (id) => canvas.cache?.box(id))}><Icon name={icon} size={14} /></button>
+          ))}
+        </div>
+      )}
       {n.type === 'ref' && nodes.length === 1 && (
         <Section title={t.instance}>
           <button className="link" onClick={() => { store.set({ selection: [(n as RefNode).ref] }); const b = boundsOf([(n as RefNode).ref]); if (b) store.set({ view: fitView(b, 2) }); }}>
@@ -55,7 +62,21 @@ export function Properties() {
         <div className="row">
           <Num label="%" title={t.opacity} value={shown('opacity') === undefined ? 100 : typeof shown('opacity') === 'number' ? Math.round(shown('opacity') * 100) : shown('opacity')} onChange={(v) => set({ opacity: v >= 100 ? undefined : Math.max(0, v) / 100 }, 'Opacity')} />
           {HAS_RADIUS.has(shownType) && <Num label="◜" title={t.radius} value={Array.isArray(shown('cornerRadius')) ? shown('cornerRadius')[0] : shown('cornerRadius') ?? 0} onChange={(v) => set({ cornerRadius: v || undefined }, 'Corner radius')} />}
+          {shownType === 'polygon' && <Num label="⬡" title="Sides" value={shown('polygonCount') ?? 4} onChange={(v) => set({ polygonCount: Math.max(3, Math.round(v)) }, 'Sides')} />}
         </div>
+        {(shownType === 'frame' || n.type === 'ref') && Object.entries(doc.data.themes ?? {}).map(([axis, values]) => (
+          <div className="row" key={axis}>
+            <span className="row-label">{t.theme} · {axis}</span>
+            <select value={(n.theme as Record<string, string> | undefined)?.[axis] ?? ''} onChange={(e) => {
+              const theme = { ...(n.theme ?? {}) } as Record<string, string>;
+              if (e.target.value) theme[axis] = e.target.value; else delete theme[axis];
+              set({ theme: Object.keys(theme).length ? theme : undefined }, 'Theme');
+            }}>
+              <option value="">—</option>
+              {values.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+        ))}
       </Section>
       {HAS_FILL.has(shownType) && <Fills t={t} title={t.fill} value={shown('fill')} onChange={(fill) => set({ fill }, 'Fill')} />}
       {HAS_STROKE.has(shownType) && <Strokes t={t} shown={shown} set={set} />}

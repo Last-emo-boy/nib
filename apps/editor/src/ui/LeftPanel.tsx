@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { authHeaders } from '../app/connection.ts';
 import { childrenOf, resolveVariable, defaultTheme, type PenDoc } from '@nib/core';
 import type { Node, Variable } from '@nib/format';
-import { setProps } from '../app/actions.ts';
+import { commit, isContainer, setProps } from '../app/actions.ts';
 import { useT } from '../app/i18n.ts';
 import { store, useEditor, type LeftTab } from '../app/store.ts';
 import { boundsOf, fitView } from '../canvas/Canvas.tsx';
@@ -82,16 +82,48 @@ function Layers() {
   return <div className="layers">{rows}</div>;
 }
 
+let dragging: string | undefined;
+
+type DropAt = 'above' | 'below' | 'inside';
+
+/**
+ * Move `id` relative to `target` in the layer list. The list shows the topmost layer first, so "above"
+ * means after the target among its siblings.
+ */
+function moveLayer(doc: PenDoc, id: string, target: string, at: DropAt): void {
+  if (id === target || doc.ancestors(target).some((a) => a.id === id)) return;
+  void commit('Move layer', (ed) => {
+    if (at === 'inside') { ed.move(id, doc.get(target)!); return; }
+    const t = doc.locate(target)!;
+    const self = doc.locate(id)!;
+    let index = at === 'above' ? t.index + 1 : t.index;
+    if (self.parent === t.parent && self.index < index) index--;
+    ed.move(id, t.parent, index);
+  });
+}
+
 function LayerRow({ doc, node, depth, hasKids, expanded, toggle, selected }: { doc: PenDoc; node: Node; depth: number; hasKids: boolean; expanded: boolean; toggle: (id: string) => void; selected: boolean }) {
   const [renaming, setRenaming] = useState(false);
+  const [drop, setDrop] = useState<DropAt | undefined>();
+  const dropAt = (e: React.DragEvent): DropAt => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const f = (e.clientY - r.top) / r.height;
+    if (isContainer(node) && f > 0.25 && f < 0.75) return 'inside';
+    return f < 0.5 ? 'above' : 'below';
+  };
   const hidden = node.enabled === false;
   const select = (e: React.MouseEvent) => {
     const { selection } = store.get();
     store.set({ selection: e.shiftKey || e.metaKey ? (selection.includes(node.id) ? selection.filter((i) => i !== node.id) : [...selection, node.id]) : [node.id] });
   };
   return (
-    <div className={`layer${selected ? ' selected' : ''}${hidden ? ' hidden' : ''}${depth === 0 ? ' top' : ''}`} style={{ paddingLeft: 6 + depth * 14 }}
+    <div className={`layer${selected ? ' selected' : ''}${hidden ? ' hidden' : ''}${depth === 0 ? ' top' : ''}${drop ? ` drop-${drop}` : ''}`} style={{ paddingLeft: 6 + depth * 14 }}
       onClick={select} onDoubleClick={() => setRenaming(true)}
+      draggable={!renaming} onDragStart={(e) => { dragging = node.id; e.dataTransfer.effectAllowed = 'move'; }}
+      onDragOver={(e) => { if (!dragging || dragging === node.id) return; e.preventDefault(); setDrop(dropAt(e)); }}
+      onDragLeave={() => setDrop(undefined)}
+      onDrop={(e) => { e.preventDefault(); setDrop(undefined); if (dragging) moveLayer(doc, dragging, node.id, dropAt(e)); dragging = undefined; }}
+      onDragEnd={() => { dragging = undefined; setDrop(undefined); }}
       onMouseEnter={() => store.set({ hover: node.id })} onMouseLeave={() => store.get().hover === node.id && store.set({ hover: undefined })}>
       <span className={`twisty${hasKids ? '' : ' none'}`} onClick={(e) => { e.stopPropagation(); toggle(node.id); }}>
         {hasKids && <Icon name={expanded ? 'chevronDown' : 'chevronRight'} size={12} />}

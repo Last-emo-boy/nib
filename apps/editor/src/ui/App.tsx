@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { Op } from '@nib/core';
-import { copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, nudge, paste, setProps } from '../app/actions.ts';
+import { copyAsPng, copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, nudge, paste, saveAs, setProps } from '../app/actions.ts';
 import { Connection, authHeaders, fileFromUrl } from '../app/connection.ts';
 import { useT } from '../app/i18n.ts';
-import { store, useEditor, type Tool } from '../app/store.ts';
+import { store, toast, useEditor, type Tool } from '../app/store.ts';
 import { boundsOf, CanvasView, fitView, isTyping } from '../canvas/Canvas.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
@@ -74,7 +74,8 @@ function ToolStrip() {
   const leftOpen = useEditor((s) => s.leftOpen);
   const tools: [Tool, IconName, string, string][] = [
     ['move', 'pointer', t.move, 'V'], ['frame', 'frame', t.frame, 'F'], ['rectangle', 'square', t.rectangle, 'R'],
-    ['ellipse', 'circle', t.ellipse, 'O'], ['text', 'type', t.text, 'T'], ['note', 'note', t.note, 'N'], ['hand', 'hand', t.hand, 'H'],
+    ['ellipse', 'circle', t.ellipse, 'O'], ['polygon', 'hexagon', t.polygon, 'P'], ['text', 'type', t.text, 'T'], ['icon', 'smile', t.iconTool, 'I'],
+    ['note', 'note', t.note, 'N'], ['hand', 'hand', t.hand, 'H'],
   ];
   return (
     <div className="pill tool-strip">
@@ -219,9 +220,12 @@ function useShortcuts() {
       const s = store.get();
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
-      const tools: Record<string, Tool> = { v: 'move', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', t: 'text', n: 'note', h: 'hand' };
+      const tools: Record<string, Tool> = { v: 'move', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', p: 'polygon', t: 'text', i: 'icon', n: 'note', h: 'hand' };
       if (mod && key === 'z') { e.preventDefault(); if (e.shiftKey) s.conn?.redo(); else s.conn?.undo(); return; }
       if (mod && key === 'y') { e.preventDefault(); s.conn?.redo(); return; }
+      if (mod && e.shiftKey && key === 'c') { e.preventDefault(); void copyAsPng(); return; }
+      if (mod && e.shiftKey && key === 's') { e.preventDefault(); void saveAs(); return; }
+      if (mod && key === 's') { e.preventDefault(); toast(store.get().lang === 'zh' ? '已自动保存：每次修改都会立即写入文件。' : 'Saved: nib writes every change to the file right away.'); return; }
       if (mod && key === 'k') { e.preventDefault(); store.set({ paletteOpen: !s.paletteOpen }); return; }
       if (mod && key === 'c') { e.preventDefault(); copySelection(); return; }
       if (mod && key === 'x') { e.preventDefault(); cutSelection(); return; }

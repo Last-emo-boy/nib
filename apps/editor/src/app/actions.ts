@@ -1,5 +1,6 @@
 import { DocEditor, newId, reassignIds, type Op, type PenDoc } from '@nib/core';
 import type { Node } from '@nib/format';
+import { authHeaders } from './connection.ts';
 import { store, toast } from './store.ts';
 
 /**
@@ -184,4 +185,95 @@ export async function paste(): Promise<void> {
     for (const n of nodes) ed.insert(parent, n);
   });
   if (ok) store.set({ selection: nodes.map((n) => n.id) });
+}
+
+export type Align = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom';
+
+/**
+ * Align free-placed layers: several to their common bounds, one to its parent. `boxes` gives laid-out
+ * boxes in canvas coordinates.
+ */
+export function align(how: Align, box: (id: string) => { x: number; y: number; width: number; height: number } | undefined): void {
+  const { selection, doc } = store.get();
+  if (!doc) return;
+  const ids = selection.filter((id) => isFree(doc, id) && box(id));
+  if (!ids.length) { toast('Only layers placed by x/y can be aligned; layers in a layout follow it.'); return; }
+  let ref: { x: number; y: number; width: number; height: number } | undefined;
+  if (ids.length === 1) {
+    const parent = doc.locate(ids[0])?.parent;
+    ref = parent ? box(parent.id) : undefined;
+    if (!ref) return;
+  } else {
+    const bs = ids.map((id) => box(id)!);
+    const x0 = Math.min(...bs.map((b) => b.x)), y0 = Math.min(...bs.map((b) => b.y));
+    ref = { x: x0, y: y0, width: Math.max(...bs.map((b) => b.x + b.width)) - x0, height: Math.max(...bs.map((b) => b.y + b.height)) - y0 };
+  }
+  const r = ref;
+  void commit('Align', (ed) => {
+    for (const id of ids) {
+      const b = box(id)!;
+      const n = doc.get(id)!;
+      let dx = 0, dy = 0;
+      if (how === 'left') dx = r.x - b.x;
+      if (how === 'hcenter') dx = r.x + r.width / 2 - (b.x + b.width / 2);
+      if (how === 'right') dx = r.x + r.width - (b.x + b.width);
+      if (how === 'top') dy = r.y - b.y;
+      if (how === 'vcenter') dy = r.y + r.height / 2 - (b.y + b.height / 2);
+      if (how === 'bottom') dy = r.y + r.height - (b.y + b.height);
+      if (dx || dy) ed.set(id, { x: Math.round((n.x ?? 0) + dx), y: Math.round((n.y ?? 0) + dy) });
+    }
+  });
+}
+
+async function exportFiles(ids: string[], format: string, scale = 2): Promise<{ name: string; data: string }[]> {
+  const conn = store.get().conn;
+  if (!conn) return [];
+  const r = await fetch('/api/export', { method: 'POST', headers: { ...authHeaders(), 'content-type': 'application/json' }, body: JSON.stringify({ filePath: conn.path, ids, format, scale }) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error);
+  return j.files;
+}
+
+/** Put the selection on the system clipboard as a PNG image (2×). */
+export async function copyAsPng(): Promise<void> {
+  const { selection } = store.get();
+  if (!selection.length) return;
+  try {
+    const [f] = await exportFiles(selection.slice(0, 1), 'png');
+    const bytes = Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0));
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': new Blob([bytes], { type: 'image/png' }) })]);
+    toast('Copied as PNG');
+  } catch (e) {
+    toast(`Copy as PNG: ${(e as Error).message}`);
+  }
+}
+
+/** Put the selection on the system clipboard as HTML with its styles (no page scaffold). */
+export async function copyAsHtml(tailwind = false): Promise<void> {
+  const { selection } = store.get();
+  if (!selection.length) return;
+  try {
+    const conn = store.get().conn!;
+      const r = await fetch('/api/export', { method: 'POST', headers: { ...authHeaders(), 'content-type': 'application/json' }, body: JSON.stringify({ filePath: conn.path, ids: selection, format: tailwind ? 'html-tailwind' : 'html-css', fragment: true }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    const html = new TextDecoder().decode(Uint8Array.from(atob(j.files[0].data), (c) => c.charCodeAt(0)));
+    await navigator.clipboard.writeText(html);
+    toast(tailwind ? 'Copied as HTML (Tailwind)' : 'Copied as HTML');
+  } catch (e) {
+    toast(`Copy as HTML: ${(e as Error).message}`);
+  }
+}
+
+/** Save the document under a new path and switch to it. */
+export async function saveAs(): Promise<void> {
+  const conn = store.get().conn;
+  if (!conn) return;
+  const target = prompt('Save a copy as (absolute path, .pen):', conn.path.replace(/\.pen$/, ' copy.pen'));
+  if (!target) return;
+  const r = await fetch('/api/save-as', { method: 'POST', headers: { ...authHeaders(), 'content-type': 'application/json' }, body: JSON.stringify({ filePath: conn.path, target }) });
+  const j = await r.json();
+  if (!r.ok) { toast(`Save as: ${j.error}`); return; }
+  location.hash = new URLSearchParams({ file: j.path }).toString();
+  location.reload();
 }

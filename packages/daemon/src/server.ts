@@ -118,8 +118,17 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
       case 'POST /api/export': {
         const body = await readJson(req);
         if (typeof body.filePath !== 'string' || !Array.isArray(body.ids) || typeof body.format !== 'string') return send(res, 400, { error: 'filePath, ids and format are required' });
-        const files = await host.exportNodes(body.filePath, body.ids as string[], body.format as never, typeof body.scale === 'number' ? body.scale : undefined);
+        const files = await host.exportNodes(body.filePath, body.ids as string[], body.format as never, typeof body.scale === 'number' ? body.scale : undefined, body.fragment === true);
         return send(res, 200, { files: files.map((f) => ({ name: f.name, data: Buffer.from(f.data).toString('base64') })) });
+      }
+      case 'POST /api/save-as': {
+        const body = await readJson(req);
+        if (typeof body.filePath !== 'string' || typeof body.target !== 'string') return send(res, 400, { error: 'filePath and target are required' });
+        try {
+          return send(res, 200, { path: await host.saveAs(body.filePath, body.target) });
+        } catch (e) {
+          return send(res, 409, { error: (e as Error).message });
+        }
       }
       case 'GET /api/docs':
         return send(res, 200, { docs: host.list().map((d) => ({ path: d.path, version: d.version, active: d.path === host.active })) });

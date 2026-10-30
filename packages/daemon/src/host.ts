@@ -147,15 +147,28 @@ export class DocumentHost {
     return this.enqueue(open, () => open.session.problems());
   }
 
+  /** Write a copy of the document to `target` (not overwriting a file) and return its absolute path. */
+  async saveAs(path: string, target: string): Promise<string> {
+    const open = this.require(path);
+    const dest = resolvePath(target);
+    if (!dest.endsWith('.pen')) throw new Error('the new file must end in .pen');
+    await mkdir(dirname(dest), { recursive: true });
+    await writeFile(dest, serializePen(open.session.doc.data), { flag: 'wx' }).catch((e: NodeJS.ErrnoException) => {
+      throw new Error(e.code === 'EEXIST' ? `${dest} already exists` : e.message);
+    });
+    return dest;
+  }
+
   /** Export nodes and return the files' bytes, for an editor to download. */
-  async exportNodes(path: string, ids: string[], format: ExportFormat, scale?: number): Promise<{ name: string; data: Uint8Array }[]> {
+  async exportNodes(path: string, ids: string[], format: ExportFormat, scale?: number, fragment = false): Promise<{ name: string; data: Uint8Array }[]> {
     const open = this.require(path);
     const dir = await mkdtemp(join(tmpdir(), 'nib-export-'));
     try {
       const single = format === 'pdf' || format.startsWith('html');
       const ext = format === 'pdf' ? 'pdf' : 'html';
       const target = single ? join(dir, `${basename(open.path, '.pen')}.${ext}`) : dir;
-      const r = await this.enqueue(open, () => open.session.execute({ input: `Export(${JSON.stringify(ids)}, ${JSON.stringify(format)}, ${JSON.stringify(target)}, ${JSON.stringify(scale ? { scale } : {})})` }));
+      const options = { ...(scale ? { scale } : {}), ...(fragment ? { includeHtmlScaffold: false } : {}) };
+      const r = await this.enqueue(open, () => open.session.execute({ input: `Export(${JSON.stringify(ids)}, ${JSON.stringify(format)}, ${JSON.stringify(target)}, ${JSON.stringify(options)})` }));
       if (!r.ok || r.text.includes('export to')) throw new Error(r.text.split('\n').find((l) => l.includes('Error') || l.includes('failed')) ?? 'export failed');
       const files = await readdir(dir);
       return Promise.all(files.map(async (name) => ({ name, data: new Uint8Array(await readFile(join(dir, name))) })));

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { PenDoc } from '@nib/core';
 import type { Change, Connection } from './connection.ts';
 
-export type Tool = 'move' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'text' | 'note';
+export type Tool = 'move' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'text' | 'icon' | 'note';
 export type LeftTab = 'layers' | 'components' | 'variables' | 'problems';
 export type Lang = 'en' | 'zh';
 

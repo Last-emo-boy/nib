@@ -358,12 +358,14 @@ async function finishCreate(doc: PenDoc, g: Extract<Gesture, { kind: 'create' }>
   const pos = parentBox ? { x: Math.round(r.x - parentBox.x), y: Math.round(r.y - parentBox.y) } : { x: Math.round(r.x), y: Math.round(r.y) };
   const size = (w: number, h: number) => (dragged ? { width: Math.round(r.width), height: Math.round(r.height) } : { width: w, height: h });
   const place = flow ? {} : pos;
-  const names: Record<string, string> = { frame: 'Frame', rectangle: 'Rectangle', ellipse: 'Ellipse', text: 'Text', note: 'Note' };
+  const names: Record<string, string> = { frame: 'Frame', rectangle: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', icon: 'Icon', text: 'Text', note: 'Note' };
   let node: Record<string, unknown>;
   switch (g.tool) {
     case 'frame': node = { type: 'frame', ...place, ...size(400, 300), layout: 'none', fill: '#FFFFFF', clip: true }; break;
     case 'rectangle': node = { type: 'rectangle', ...place, ...size(100, 100), fill: '#D9D9D9' }; break;
     case 'ellipse': node = { type: 'ellipse', ...place, ...size(100, 100), fill: '#D9D9D9' }; break;
+    case 'polygon': node = { type: 'polygon', ...place, ...size(100, 100), polygonCount: 6, fill: '#D9D9D9' }; break;
+    case 'icon': node = { type: 'icon', ...place, ...size(24, 24), library: 'lucide', icon: 'star', fill: '#111111' }; break;
     case 'note': node = { type: 'note', ...place, ...size(200, 120), content: '' }; break;
     case 'text': node = { type: 'text', ...place, ...(dragged ? { textGrowth: 'fixed-width', width: Math.round(r.width) } : {}), content: 'Text', fontFamily: 'Inter', fontSize: 16, fill: '#000000' }; break;
     default: return;

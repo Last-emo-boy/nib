@@ -291,6 +291,162 @@
         "Label": "@heroui/react",
         "Slider": "@heroui/react"
       }
+    },
+    "button-hover": {
+      "template": "<Button{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-focus": {
+      "template": "<Button{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-disabled": {
+      "template": "<Button isDisabled{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-secondary-hover": {
+      "template": "<Button variant=\"secondary\"{class}>{text:button-secondary-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-secondary-focus": {
+      "template": "<Button variant=\"secondary\"{class}>{text:button-secondary-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-secondary-disabled": {
+      "template": "<Button variant=\"secondary\" isDisabled{class}>{text:button-secondary-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-tertiary-hover": {
+      "template": "<Button variant=\"tertiary\"{class}>{text:button-tertiary-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-tertiary-focus": {
+      "template": "<Button variant=\"tertiary\"{class}>{text:button-tertiary-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-tertiary-disabled": {
+      "template": "<Button variant=\"tertiary\" isDisabled{class}>{text:button-tertiary-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-outline-hover": {
+      "template": "<Button variant=\"outline\"{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-outline-focus": {
+      "template": "<Button variant=\"outline\"{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-outline-disabled": {
+      "template": "<Button variant=\"outline\" isDisabled{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-ghost-hover": {
+      "template": "<Button variant=\"ghost\"{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-ghost-focus": {
+      "template": "<Button variant=\"ghost\"{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-ghost-disabled": {
+      "template": "<Button variant=\"ghost\" isDisabled{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-danger-hover": {
+      "template": "<Button variant=\"danger\"{class}>{text:button-danger-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-danger-focus": {
+      "template": "<Button variant=\"danger\"{class}>{text:button-danger-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "button-danger-disabled": {
+      "template": "<Button variant=\"danger\" isDisabled{class}>{text:button-danger-label}</Button>",
+      "imports": {
+        "Button": "@heroui/react"
+      }
+    },
+    "input-focus": {
+      "template": "<Input placeholder=\"{attr:input-text}\"{class} />",
+      "imports": {
+        "Input": "@heroui/react"
+      }
+    },
+    "input-invalid": {
+      "template": "<Input placeholder=\"{attr:input-text}\" isInvalid{class} />",
+      "imports": {
+        "Input": "@heroui/react"
+      }
+    },
+    "input-disabled": {
+      "template": "<Input placeholder=\"{attr:input-text}\" isDisabled{class} />",
+      "imports": {
+        "Input": "@heroui/react"
+      }
+    },
+    "textarea-focus": {
+      "template": "<TextArea placeholder=\"{attr:textarea-text}\"{class} />",
+      "imports": {
+        "TextArea": "@heroui/react"
+      }
+    },
+    "textarea-invalid": {
+      "template": "<TextArea placeholder=\"{attr:textarea-text}\" isInvalid{class} />",
+      "imports": {
+        "TextArea": "@heroui/react"
+      }
+    },
+    "textarea-disabled": {
+      "template": "<TextArea placeholder=\"{attr:textarea-text}\" isDisabled{class} />",
+      "imports": {
+        "TextArea": "@heroui/react"
+      }
+    },
+    "checkbox-off-disabled": {
+      "template": "<Checkbox name=\"{slug:checkbox-off-label}\" isDisabled{class}>\n  <Checkbox.Content>\n    <Checkbox.Control>\n      <Checkbox.Indicator />\n    </Checkbox.Control>\n    {text:checkbox-off-label}\n  </Checkbox.Content>\n</Checkbox>",
+      "imports": {
+        "Checkbox": "@heroui/react"
+      }
+    },
+    "switch-off-disabled": {
+      "template": "<Switch isDisabled{class}>\n  <Switch.Content>\n    <Switch.Control>\n      <Switch.Thumb />\n    </Switch.Control>\n    {text:switch-off-label}\n  </Switch.Content>\n</Switch>",
+      "imports": {
+        "Switch": "@heroui/react"
+      }
     }
   }
 }

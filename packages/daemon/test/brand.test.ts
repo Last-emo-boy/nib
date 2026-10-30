@@ -93,3 +93,23 @@ describe('brand', () => {
     }
   });
 });
+
+describe('component states', () => {
+  it('makes each state an instance of its base, written in code like the base', async () => {
+    for (const lib of await libraries()) {
+      const doc = parsePen(await readFile(join(LIBRARY_DIR, `${lib.id}.lib.pen`), 'utf8'));
+      const code = JSON.parse(await readFile(join(LIBRARY_DIR, `${lib.id}.code.json`), 'utf8')).components as Record<string, { template: string }>;
+      const all = new Map<string, Record<string, unknown>>();
+      const visit = (n: Record<string, unknown>) => { if (n.reusable) all.set(n.id as string, n); for (const c of (n.children as Record<string, unknown>[] | undefined) ?? []) visit(c); };
+      doc.children.forEach((n) => visit(n as unknown as Record<string, unknown>));
+      const states = [...all.values()].filter((n) => / \/ (Hover|Pressed|Focus|Disabled|Invalid)$/.test(n.name as string));
+      expect(states.length, lib.id).toBeGreaterThan(20);
+      for (const s of states) {
+        expect(s.type, `${lib.id} ${s.id}`).toBe('ref');
+        expect(all.has(s.ref as string), `${lib.id} ${s.id}`).toBe(true);
+        const base = code[s.ref as string];
+        if (base && String(s.id).endsWith('-hover')) expect(code[s.id as string]).toEqual(base);
+      }
+    }
+  });
+});

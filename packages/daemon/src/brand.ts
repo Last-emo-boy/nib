@@ -22,7 +22,7 @@ export interface BrandReading extends Brand { swatches: string[]; title?: string
 /**
  * How a library takes a brand. `anchor` becomes the brand color; each entry of `vars` is
  * - `brand`: the anchor's color, `brand/NN`: it at NN% opacity;
- * - `on`: text that reads on the anchor (white or near-black);
+ * - `on`: text that reads on the anchor (white or near-black), `on/NN`: it at NN% opacity (a state layer);
  * - `recolor`: the variable's own color turned to the brand's hue, keeping how it relates to the anchor.
  * Number variables named like the `radius` one scale with it.
  */
@@ -294,9 +294,12 @@ export function brandedLibrary(base: PenDocument, recipe: BrandRecipe, brand: Br
   apply(recipe.anchor, (_, theme) => anchorFor(theme));
   for (const [name, how] of Object.entries(recipe.vars)) {
     const alpha = /^brand\/(\d+)$/.exec(how);
+    const onAlpha = /^on\/(\d+)$/.exec(how);
+    const hex2 = (pct: string) => Math.round((Number(pct) / 100) * 255).toString(16).padStart(2, '0').toUpperCase();
     if (how === 'brand') apply(name, (_, theme) => anchorFor(theme));
-    else if (alpha) apply(name, (_, theme) => `${anchorFor(theme)}${Math.round((Number(alpha[1]) / 100) * 255).toString(16).padStart(2, '0').toUpperCase()}`);
+    else if (alpha) apply(name, (_, theme) => `${anchorFor(theme)}${hex2(alpha[1])}`);
     else if (how === 'on') apply(name, (_, theme) => onColor(anchorFor(theme)));
+    else if (onAlpha) apply(name, (_, theme) => `${onColor(anchorFor(theme))}${hex2(onAlpha[1])}`);
     else if (how === 'recolor') apply(name, (value) => recolor(value));
     else throw new Error(`unknown brand recipe "${how}" for ${name}`);
   }

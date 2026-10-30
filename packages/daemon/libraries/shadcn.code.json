@@ -41,7 +41,12 @@
     "input-background",
     "switch-thumb",
     "primary-soft",
-    "muted-hover"
+    "muted-hover",
+    "primary-hover",
+    "secondary-hover",
+    "destructive-hover",
+    "ring-soft",
+    "destructive-soft"
   ],
   "components": {
     "button": {
@@ -316,6 +321,173 @@
       "template": "<Calendar mode=\"single\"{class:rounded-lg border} />",
       "imports": {
         "Calendar": "@/components/ui/calendar"
+      }
+    },
+    "button-hover": {
+      "template": "<Button{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-focus": {
+      "template": "<Button{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-disabled": {
+      "template": "<Button disabled{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-secondary-hover": {
+      "template": "<Button variant=\"secondary\"{class}>{text:button-secondary-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-secondary-focus": {
+      "template": "<Button variant=\"secondary\"{class}>{text:button-secondary-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-secondary-disabled": {
+      "template": "<Button variant=\"secondary\" disabled{class}>{text:button-secondary-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-outline-hover": {
+      "template": "<Button variant=\"outline\"{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-outline-focus": {
+      "template": "<Button variant=\"outline\"{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-outline-disabled": {
+      "template": "<Button variant=\"outline\" disabled{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-ghost-hover": {
+      "template": "<Button variant=\"ghost\"{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-ghost-focus": {
+      "template": "<Button variant=\"ghost\"{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-ghost-disabled": {
+      "template": "<Button variant=\"ghost\" disabled{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-destructive-hover": {
+      "template": "<Button variant=\"destructive\"{class}>{text:button-destructive-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-destructive-focus": {
+      "template": "<Button variant=\"destructive\"{class}>{text:button-destructive-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "button-destructive-disabled": {
+      "template": "<Button variant=\"destructive\" disabled{class}>{text:button-destructive-label}</Button>",
+      "imports": {
+        "Button": "@/components/ui/button"
+      }
+    },
+    "input-focus": {
+      "template": "<Input placeholder=\"{attr:input-text}\"{class} />",
+      "imports": {
+        "Input": "@/components/ui/input"
+      }
+    },
+    "input-invalid": {
+      "template": "<Input placeholder=\"{attr:input-text}\" aria-invalid{class} />",
+      "imports": {
+        "Input": "@/components/ui/input"
+      }
+    },
+    "input-disabled": {
+      "template": "<Input placeholder=\"{attr:input-text}\" disabled{class} />",
+      "imports": {
+        "Input": "@/components/ui/input"
+      }
+    },
+    "select-focus": {
+      "template": "<Select>\n  <SelectTrigger{class}>\n    <SelectValue placeholder=\"{attr:select-text}\" />\n  </SelectTrigger>\n  <SelectContent />\n</Select>",
+      "imports": {
+        "Select": "@/components/ui/select",
+        "SelectContent": "@/components/ui/select",
+        "SelectTrigger": "@/components/ui/select",
+        "SelectValue": "@/components/ui/select"
+      }
+    },
+    "select-invalid": {
+      "template": "<Select>\n  <SelectTrigger{class}>\n    <SelectValue placeholder=\"{attr:select-text}\" />\n  </SelectTrigger>\n  <SelectContent />\n</Select>",
+      "imports": {
+        "Select": "@/components/ui/select",
+        "SelectContent": "@/components/ui/select",
+        "SelectTrigger": "@/components/ui/select",
+        "SelectValue": "@/components/ui/select"
+      }
+    },
+    "select-disabled": {
+      "template": "<Select>\n  <SelectTrigger{class}>\n    <SelectValue placeholder=\"{attr:select-text}\" />\n  </SelectTrigger>\n  <SelectContent />\n</Select>",
+      "imports": {
+        "Select": "@/components/ui/select",
+        "SelectContent": "@/components/ui/select",
+        "SelectTrigger": "@/components/ui/select",
+        "SelectValue": "@/components/ui/select"
+      }
+    },
+    "textarea-focus": {
+      "template": "<Textarea placeholder=\"{attr:textarea-text}\"{class} />",
+      "imports": {
+        "Textarea": "@/components/ui/textarea"
+      }
+    },
+    "textarea-invalid": {
+      "template": "<Textarea placeholder=\"{attr:textarea-text}\" aria-invalid{class} />",
+      "imports": {
+        "Textarea": "@/components/ui/textarea"
+      }
+    },
+    "textarea-disabled": {
+      "template": "<Textarea placeholder=\"{attr:textarea-text}\" disabled{class} />",
+      "imports": {
+        "Textarea": "@/components/ui/textarea"
+      }
+    },
+    "checkbox-off-disabled": {
+      "template": "<div{class:flex items-center gap-2}>\n  <Checkbox id=\"{slug:checkbox-off-label}\" />\n  <Label htmlFor=\"{slug:checkbox-off-label}\">{text:checkbox-off-label}</Label>\n</div>",
+      "imports": {
+        "Checkbox": "@/components/ui/checkbox",
+        "Label": "@/components/ui/label"
+      }
+    },
+    "switch-off-disabled": {
+      "template": "<div{class:flex items-center gap-2}>\n  <Switch id=\"{slug:switch-off-label}\" />\n  {if:switch-off-label}<Label htmlFor=\"{slug:switch-off-label}\">{text:switch-off-label}</Label>{/if}\n</div>",
+      "imports": {
+        "Switch": "@/components/ui/switch",
+        "Label": "@/components/ui/label"
       }
     }
   }

@@ -619,6 +619,91 @@
         }
       ]
     },
+    "primary-hover": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#171717E6",
+          "theme": {
+            "Mode": "Light"
+          }
+        },
+        {
+          "value": "#E5E5E5E6",
+          "theme": {
+            "Mode": "Dark"
+          }
+        }
+      ]
+    },
+    "secondary-hover": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#F5F5F5CC",
+          "theme": {
+            "Mode": "Light"
+          }
+        },
+        {
+          "value": "#262626CC",
+          "theme": {
+            "Mode": "Dark"
+          }
+        }
+      ]
+    },
+    "destructive-hover": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#E7000BE6",
+          "theme": {
+            "Mode": "Light"
+          }
+        },
+        {
+          "value": "#FF6467E6",
+          "theme": {
+            "Mode": "Dark"
+          }
+        }
+      ]
+    },
+    "ring-soft": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#A1A1A180",
+          "theme": {
+            "Mode": "Light"
+          }
+        },
+        {
+          "value": "#73737380",
+          "theme": {
+            "Mode": "Dark"
+          }
+        }
+      ]
+    },
+    "destructive-soft": {
+      "type": "color",
+      "value": [
+        {
+          "value": "#E7000B33",
+          "theme": {
+            "Mode": "Light"
+          }
+        },
+        {
+          "value": "#FF646766",
+          "theme": {
+            "Mode": "Dark"
+          }
+        }
+      ]
+    },
     "font-sans": {
       "type": "string",
       "value": "Geist"
@@ -2030,7 +2115,7 @@
           "id": "board-forms-11"
         }
       ],
-      "x": 936,
+      "x": 1600,
       "y": 0
     },
     {
@@ -2791,7 +2876,7 @@
           "id": "board-display-11"
         }
       ],
-      "x": 2140.2738494873047,
+      "x": 2804.2738494873047,
       "y": 0
     },
     {
@@ -7308,8 +7393,787 @@
           "id": "board-overlays-11"
         }
       ],
-      "x": 936,
+      "x": 1600,
       "y": 689.75
+    },
+    {
+      "type": "frame",
+      "id": "board-states",
+      "name": "States",
+      "layout": "vertical",
+      "gap": 32,
+      "padding": 48,
+      "fill": "$background",
+      "children": [
+        {
+          "type": "text",
+          "content": "States",
+          "fontFamily": "$font-sans",
+          "fontSize": 24,
+          "fill": "$foreground",
+          "lineHeight": 1.2,
+          "fontWeight": "600",
+          "id": "board-states-1"
+        },
+        {
+          "type": "text",
+          "content": "Hover, focus, invalid and disabled, each a component made from its base: changes to the base carry over.",
+          "fontFamily": "$font-sans",
+          "fontSize": 13,
+          "fill": "$muted-foreground",
+          "lineHeight": 1.43,
+          "id": "board-states-2"
+        },
+        {
+          "type": "frame",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "content": "Button / Default",
+              "fontFamily": "$font-sans",
+              "fontSize": 13,
+              "fill": "$muted-foreground",
+              "lineHeight": 1.43,
+              "id": "board-states-4"
+            },
+            {
+              "type": "frame",
+              "layout": "horizontal",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "ref": "button",
+                  "id": "board-states-6"
+                },
+                {
+                  "type": "ref",
+                  "ref": "button",
+                  "fill": "$primary-hover",
+                  "id": "button-hover",
+                  "name": "Button / Default / Hover",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "button",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 1
+                      },
+                      "blur": 2,
+                      "color": "#0000000D"
+                    },
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$ring-soft"
+                    }
+                  ],
+                  "id": "button-focus",
+                  "name": "Button / Default / Focus",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "button",
+                  "opacity": 0.5,
+                  "id": "button-disabled",
+                  "name": "Button / Default / Disabled",
+                  "reusable": true
+                }
+              ],
+              "id": "board-states-5"
+            }
+          ],
+          "id": "board-states-3"
+        },
+        {
+          "type": "frame",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "content": "Button / Secondary",
+              "fontFamily": "$font-sans",
+              "fontSize": 13,
+              "fill": "$muted-foreground",
+              "lineHeight": 1.43,
+              "id": "board-states-8"
+            },
+            {
+              "type": "frame",
+              "layout": "horizontal",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "ref": "button-secondary",
+                  "id": "board-states-10"
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-secondary",
+                  "fill": "$secondary-hover",
+                  "id": "button-secondary-hover",
+                  "name": "Button / Secondary / Hover",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-secondary",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 1
+                      },
+                      "blur": 2,
+                      "color": "#0000000D"
+                    },
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$ring-soft"
+                    }
+                  ],
+                  "id": "button-secondary-focus",
+                  "name": "Button / Secondary / Focus",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-secondary",
+                  "opacity": 0.5,
+                  "id": "button-secondary-disabled",
+                  "name": "Button / Secondary / Disabled",
+                  "reusable": true
+                }
+              ],
+              "id": "board-states-9"
+            }
+          ],
+          "id": "board-states-7"
+        },
+        {
+          "type": "frame",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "content": "Button / Outline",
+              "fontFamily": "$font-sans",
+              "fontSize": 13,
+              "fill": "$muted-foreground",
+              "lineHeight": 1.43,
+              "id": "board-states-12"
+            },
+            {
+              "type": "frame",
+              "layout": "horizontal",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "ref": "button-outline",
+                  "id": "board-states-14"
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-outline",
+                  "fill": "$accent",
+                  "descendants": {
+                    "button-outline-label": {
+                      "fill": "$accent-foreground"
+                    }
+                  },
+                  "id": "button-outline-hover",
+                  "name": "Button / Outline / Hover",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-outline",
+                  "stroke": "$ring",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 1
+                      },
+                      "blur": 2,
+                      "color": "#0000000D"
+                    },
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$ring-soft"
+                    }
+                  ],
+                  "id": "button-outline-focus",
+                  "name": "Button / Outline / Focus",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-outline",
+                  "opacity": 0.5,
+                  "id": "button-outline-disabled",
+                  "name": "Button / Outline / Disabled",
+                  "reusable": true
+                }
+              ],
+              "id": "board-states-13"
+            }
+          ],
+          "id": "board-states-11"
+        },
+        {
+          "type": "frame",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "content": "Button / Ghost",
+              "fontFamily": "$font-sans",
+              "fontSize": 13,
+              "fill": "$muted-foreground",
+              "lineHeight": 1.43,
+              "id": "board-states-16"
+            },
+            {
+              "type": "frame",
+              "layout": "horizontal",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "ref": "button-ghost",
+                  "id": "board-states-18"
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-ghost",
+                  "fill": "$accent",
+                  "descendants": {
+                    "button-ghost-label": {
+                      "fill": "$accent-foreground"
+                    }
+                  },
+                  "id": "button-ghost-hover",
+                  "name": "Button / Ghost / Hover",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-ghost",
+                  "fill": "$background",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$ring-soft"
+                    }
+                  ],
+                  "id": "button-ghost-focus",
+                  "name": "Button / Ghost / Focus",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-ghost",
+                  "opacity": 0.5,
+                  "id": "button-ghost-disabled",
+                  "name": "Button / Ghost / Disabled",
+                  "reusable": true
+                }
+              ],
+              "id": "board-states-17"
+            }
+          ],
+          "id": "board-states-15"
+        },
+        {
+          "type": "frame",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "content": "Button / Destructive",
+              "fontFamily": "$font-sans",
+              "fontSize": 13,
+              "fill": "$muted-foreground",
+              "lineHeight": 1.43,
+              "id": "board-states-20"
+            },
+            {
+              "type": "frame",
+              "layout": "horizontal",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "ref": "button-destructive",
+                  "id": "board-states-22"
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-destructive",
+                  "fill": "$destructive-hover",
+                  "id": "button-destructive-hover",
+                  "name": "Button / Destructive / Hover",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-destructive",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 1
+                      },
+                      "blur": 2,
+                      "color": "#0000000D"
+                    },
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$destructive-soft"
+                    }
+                  ],
+                  "id": "button-destructive-focus",
+                  "name": "Button / Destructive / Focus",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "button-destructive",
+                  "opacity": 0.5,
+                  "id": "button-destructive-disabled",
+                  "name": "Button / Destructive / Disabled",
+                  "reusable": true
+                }
+              ],
+              "id": "board-states-21"
+            }
+          ],
+          "id": "board-states-19"
+        },
+        {
+          "type": "frame",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "content": "Input",
+              "fontFamily": "$font-sans",
+              "fontSize": 13,
+              "fill": "$muted-foreground",
+              "lineHeight": 1.43,
+              "id": "board-states-24"
+            },
+            {
+              "type": "frame",
+              "layout": "horizontal",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "ref": "input",
+                  "id": "board-states-26"
+                },
+                {
+                  "type": "ref",
+                  "ref": "input",
+                  "stroke": "$ring",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 1
+                      },
+                      "blur": 2,
+                      "color": "#0000000D"
+                    },
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$ring-soft"
+                    }
+                  ],
+                  "id": "input-focus",
+                  "name": "Input / Focus",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "input",
+                  "stroke": "$destructive",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 1
+                      },
+                      "blur": 2,
+                      "color": "#0000000D"
+                    },
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$destructive-soft"
+                    }
+                  ],
+                  "id": "input-invalid",
+                  "name": "Input / Invalid",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "input",
+                  "opacity": 0.5,
+                  "id": "input-disabled",
+                  "name": "Input / Disabled",
+                  "reusable": true
+                }
+              ],
+              "id": "board-states-25"
+            }
+          ],
+          "id": "board-states-23"
+        },
+        {
+          "type": "frame",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "content": "Select",
+              "fontFamily": "$font-sans",
+              "fontSize": 13,
+              "fill": "$muted-foreground",
+              "lineHeight": 1.43,
+              "id": "board-states-28"
+            },
+            {
+              "type": "frame",
+              "layout": "horizontal",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "ref": "select",
+                  "id": "board-states-30"
+                },
+                {
+                  "type": "ref",
+                  "ref": "select",
+                  "stroke": "$ring",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 1
+                      },
+                      "blur": 2,
+                      "color": "#0000000D"
+                    },
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$ring-soft"
+                    }
+                  ],
+                  "id": "select-focus",
+                  "name": "Select / Focus",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "select",
+                  "stroke": "$destructive",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 1
+                      },
+                      "blur": 2,
+                      "color": "#0000000D"
+                    },
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$destructive-soft"
+                    }
+                  ],
+                  "id": "select-invalid",
+                  "name": "Select / Invalid",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "select",
+                  "opacity": 0.5,
+                  "id": "select-disabled",
+                  "name": "Select / Disabled",
+                  "reusable": true
+                }
+              ],
+              "id": "board-states-29"
+            }
+          ],
+          "id": "board-states-27"
+        },
+        {
+          "type": "frame",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "content": "Textarea",
+              "fontFamily": "$font-sans",
+              "fontSize": 13,
+              "fill": "$muted-foreground",
+              "lineHeight": 1.43,
+              "id": "board-states-32"
+            },
+            {
+              "type": "frame",
+              "layout": "horizontal",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "ref": "textarea",
+                  "id": "board-states-34"
+                },
+                {
+                  "type": "ref",
+                  "ref": "textarea",
+                  "stroke": "$ring",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 1
+                      },
+                      "blur": 2,
+                      "color": "#0000000D"
+                    },
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$ring-soft"
+                    }
+                  ],
+                  "id": "textarea-focus",
+                  "name": "Textarea / Focus",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "textarea",
+                  "stroke": "$destructive",
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 1
+                      },
+                      "blur": 2,
+                      "color": "#0000000D"
+                    },
+                    {
+                      "type": "shadow",
+                      "offset": {
+                        "x": 0,
+                        "y": 0
+                      },
+                      "blur": 0,
+                      "spread": 3,
+                      "color": "$destructive-soft"
+                    }
+                  ],
+                  "id": "textarea-invalid",
+                  "name": "Textarea / Invalid",
+                  "reusable": true
+                },
+                {
+                  "type": "ref",
+                  "ref": "textarea",
+                  "opacity": 0.5,
+                  "id": "textarea-disabled",
+                  "name": "Textarea / Disabled",
+                  "reusable": true
+                }
+              ],
+              "id": "board-states-33"
+            }
+          ],
+          "id": "board-states-31"
+        },
+        {
+          "type": "frame",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "content": "Checkbox / Unchecked",
+              "fontFamily": "$font-sans",
+              "fontSize": 13,
+              "fill": "$muted-foreground",
+              "lineHeight": 1.43,
+              "id": "board-states-36"
+            },
+            {
+              "type": "frame",
+              "layout": "horizontal",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "ref": "checkbox-off",
+                  "id": "board-states-38"
+                },
+                {
+                  "type": "ref",
+                  "ref": "checkbox-off",
+                  "opacity": 0.5,
+                  "id": "checkbox-off-disabled",
+                  "name": "Checkbox / Unchecked / Disabled",
+                  "reusable": true
+                }
+              ],
+              "id": "board-states-37"
+            }
+          ],
+          "id": "board-states-35"
+        },
+        {
+          "type": "frame",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "text",
+              "content": "Switch / Off",
+              "fontFamily": "$font-sans",
+              "fontSize": 13,
+              "fill": "$muted-foreground",
+              "lineHeight": 1.43,
+              "id": "board-states-40"
+            },
+            {
+              "type": "frame",
+              "layout": "horizontal",
+              "gap": 16,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ref",
+                  "ref": "switch-off",
+                  "id": "board-states-42"
+                },
+                {
+                  "type": "ref",
+                  "ref": "switch-off",
+                  "opacity": 0.5,
+                  "id": "switch-off-disabled",
+                  "name": "Switch / Off / Disabled",
+                  "reusable": true
+                }
+              ],
+              "id": "board-states-41"
+            }
+          ],
+          "id": "board-states-39"
+        }
+      ],
+      "x": 2804.2738494873047,
+      "y": 869.2
     },
     {
       "type": "frame",
@@ -7499,8 +8363,8 @@
           "id": "overview-1"
         }
       ],
-      "x": 2140.2738494873047,
-      "y": 869.2
+      "x": 0,
+      "y": 2143.05
     }
   ]
 }

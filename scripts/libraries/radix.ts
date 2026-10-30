@@ -157,6 +157,37 @@ export function radix(): Library {
   // The overview a new design starts from: a project workspace.
   const nav = (glyph: string, label: string, on = false): N => row({ height: 32, padding: [0, 8], gap: 8, alignItems: 'center', width: 'fill_container', cornerRadius: '$radius-2', ...(on ? { fill: '$accent-3' } : {}) },
     icon(glyph, { fill: on ? '$accent-11' : '$gray-11' }), t(label, { fill: on ? '$accent-11' : '$gray-12', fontWeight: on ? '500' : '400' }));
+  // States (Radix Themes: hover one step up the scale, active "brightness(0.92)" on solid buttons as a dark
+  // overlay, a 2px focus outline in accent-8 offset by 2px, disabled in gray-a3 with gray-a8 text) ------
+  const outline = [{ type: 'shadow', offset: { x: 0, y: 0 }, blur: 0, spread: 4, color: '$accent-8' }, { type: 'shadow', offset: { x: 0, y: 0 }, blur: 0, spread: 2, color: '$background' }];
+  const disabled = (label: string) => ({ props: { fill: '$gray-3', stroke: '#00000000', effect: [] }, parts: { [label]: { fill: '$gray-8' } } });
+  const press = (fill: string) => [fill, '#00000014'];
+  const looks: [string, string, string | string[], boolean][] = [
+    ['button', '$accent-10', press('$accent-10'), true], ['button-soft', '$accent-4', '$accent-5', false], ['button-surface', '$accent-3', '$accent-4', false],
+    ['button-outline', '$accent-2', '$accent-3', false], ['button-ghost', '$accent-3', '$accent-4', false], ['button-gray', '$gray-4', '$gray-5', false],
+    ['button-red', '$red-9', press('$red-9'), true],
+  ];
+  for (const [id, hover, pressed, solid] of looks) {
+    lib.states(id, {
+      hover: { props: { fill: id === 'button-red' ? ['$red-9', '#0000000D'] : hover } }, pressed: { props: { fill: pressed } },
+      // The outline is drawn from what the button paints: buttons without a fill take the page color.
+      focus: { props: { effect: outline, ...(solid || id !== 'button-outline' && id !== 'button-ghost' ? {} : { fill: '$background' }) } },
+      disabled: disabled(`${id}-label`),
+    });
+  }
+  for (const id of ['text-field', 'select']) {
+    lib.states(id, {
+      focus: { props: { stroke: '$accent-8', strokeWidth: 2 } },
+      invalid: { props: { stroke: '$red-9' }, code: 'color="red"' },
+      disabled: { props: { fill: '$gray-2', stroke: '$gray-6' }, parts: { [`${id}-text`]: { fill: '$gray-8' } } },
+    });
+  }
+  for (const id of ['checkbox-off', 'switch-off']) lib.states(id, { disabled: { props: { opacity: 0.5 } } });
+  const states = (id: string) => group(lib.components.get(id)!.name as string, ref(id), ...lib.statesOf(id).map((s) => show(s)));
+  lib.board('board-states', 'States', {}, heading('States'),
+    caption('Hover, pressed, focus, invalid and disabled, each a component made from its base: changes to the base carry over.'),
+    ...[...looks.map(([id]) => id), 'text-field', 'select', 'checkbox-off', 'switch-off'].map(states));
+
   lib.board('overview', 'Overview', { width: 1440, height: 900, padding: 0, gap: 0, layout: 'horizontal', clip: true, fill: '$gray-1' },
     col({ width: 240, height: 'fill_container', padding: 12, gap: 4, fill: '$gray-2', stroke: '$gray-6', strokeWidth: { right: 1 } },
       row({ height: 40, padding: [0, 8], gap: 8, alignItems: 'center', width: 'fill_container' }, row({ width: 24, height: 24, cornerRadius: '$radius-2', fill: '$accent-9', alignItems: 'center', justifyContent: 'center' }, icon('box', { width: 14, height: 14, fill: '$accent-contrast' })), t('Northwind', { fontWeight: '700' })),

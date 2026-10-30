@@ -61,9 +61,20 @@ export const rect = (props: N): N => ({ type: 'rectangle', ...props });
 export const ellipse = (props: N): N => ({ type: 'ellipse', ...props });
 export const ref = (component: string, props: N = {}, descendants?: Record<string, N>): N => ({ type: 'ref', ref: component, ...props, ...(descendants ? { descendants } : {}) });
 
+/** Interaction states a component can be drawn in. */
+export type State = 'hover' | 'pressed' | 'focus' | 'disabled' | 'invalid';
+const STATE_NAMES: Record<State, string> = { hover: 'Hover', pressed: 'Pressed', focus: 'Focus', disabled: 'Disabled', invalid: 'Invalid' };
+/**
+ * How a state looks: props on the component's root, overrides of its parts, and the attribute its code gets
+ * (default `disabled` for the disabled state).
+ */
+export interface Look { props?: N; parts?: Record<string, N>; code?: string }
+
 /** A library being written: its components (by id), the boards that show them, its variables and themes. */
 export class Library {
   readonly components = new Map<string, N>();
+  /** State components and the component each is a state of. */
+  private stateOf = new Map<string, { base: string; state: State; code?: string }>();
   /** How components are written in code (see @nib/export's CodeMap). */
   readonly code: Record<string, ComponentCode> = {};
   readonly boards: N[] = [];
@@ -86,6 +97,25 @@ export class Library {
     return id;
   }
 
+  /**
+   * Component `id` in other states, each a component of its own that is an instance of it ("Button / Default /
+   * Hover", id `button-hover`), so it follows changes to the base and keeps its part names. Returns their ids.
+   */
+  states(id: string, looks: Partial<Record<State, Look>>): string[] {
+    const base = this.components.get(id);
+    if (!base) throw new Error(`states of unknown component ${id}`);
+    return (Object.entries(looks) as [State, Look][]).map(([state, look]) => {
+      const sid = this.component(`${id}-${state}`, `${base.name} / ${STATE_NAMES[state]}`, ref(id, look.props ?? {}, look.parts));
+      this.stateOf.set(sid, { base: id, state, code: look.code ?? (state === 'disabled' ? 'disabled' : undefined) });
+      return sid;
+    });
+  }
+
+  /** The states made for component `id`, in the order they were given. */
+  statesOf(id: string): string[] {
+    return [...this.stateOf].filter(([, s]) => s.base === id).map(([sid]) => sid);
+  }
+
   /** How component `id` is written in code; `imports` maps the template's names to modules. */
   codeFor(id: string, template: string, imports: Record<string, string>): void {
     if (!this.components.has(id)) throw new Error(`code for unknown component ${id}`);
@@ -94,6 +124,14 @@ export class Library {
 
   /** The library's code map, its tokens being the color variables. */
   codeMap(meta: Omit<CodeMap, 'components' | 'tokens'>): CodeMap {
+    // A state is written as its component (hover, pressed and focus live in the component's styles); disabled and
+    // invalid get their attribute when the template's outer element is the control itself.
+    for (const [sid, { base, code }] of this.stateOf) {
+      const c = this.code[base];
+      if (!c || this.code[sid]) continue;
+      const control = /^<(?!label\b|div\b|span\b)[\w.-]+[^>]*?\{class/.test(c.template);
+      this.code[sid] = code && control ? { ...c, template: c.template.replace('{class', ` ${code}{class`) } : c;
+    }
     const tokens = Object.entries(this.variables).filter(([, v]) => v.type === 'color').map(([k]) => k);
     return { ...meta, tokens, components: this.code };
   }

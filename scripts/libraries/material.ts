@@ -11,6 +11,10 @@ const light = {
   'surface-container-lowest': '#FFFFFF', 'surface-container-low': '#F7F2FA', 'surface-container': '#F3EDF7', 'surface-container-high': '#ECE6F0', 'surface-container-highest': '#E6E0E9',
   outline: '#79747E', 'outline-variant': '#CAC4D0', 'inverse-surface': '#322F35', 'inverse-on-surface': '#F5EFF7', 'inverse-primary': '#D0BCFF',
   'shadow-1': '#0000004D', 'shadow-2': '#00000026',
+  // State layers (hover 8%, pressed and focus 10% of the content color) and disabled colors (on-surface at 4/12/38%).
+  'on-primary-hover': '#FFFFFF14', 'on-primary-pressed': '#FFFFFF1A', 'primary-hover': '#6750A414', 'primary-pressed': '#6750A41A',
+  'on-secondary-container-hover': '#1D192B14', 'on-secondary-container-pressed': '#1D192B1A', 'on-surface-hover': '#1D1B2014',
+  'on-surface-04': '#1D1B200A', 'on-surface-12': '#1D1B201F', 'on-surface-38': '#1D1B2061',
 };
 const dark = {
   primary: '#D0BCFF', 'on-primary': '#381E72', 'primary-container': '#4F378B', 'on-primary-container': '#EADDFF',
@@ -21,6 +25,9 @@ const dark = {
   'surface-container-lowest': '#0F0D13', 'surface-container-low': '#1D1B20', 'surface-container': '#211F26', 'surface-container-high': '#2B2930', 'surface-container-highest': '#36343B',
   outline: '#938F99', 'outline-variant': '#49454F', 'inverse-surface': '#E6E0E9', 'inverse-on-surface': '#322F35', 'inverse-primary': '#6750A4',
   'shadow-1': '#00000099', 'shadow-2': '#0000004D',
+  'on-primary-hover': '#381E7214', 'on-primary-pressed': '#381E721A', 'primary-hover': '#D0BCFF14', 'primary-pressed': '#D0BCFF1A',
+  'on-secondary-container-hover': '#E8DEF814', 'on-secondary-container-pressed': '#E8DEF81A', 'on-surface-hover': '#E6E0E914',
+  'on-surface-04': '#E6E0E90A', 'on-surface-12': '#E6E0E91F', 'on-surface-38': '#E6E0E961',
 };
 
 const shadow = (y: number, blur: number, spread: number, color: string) => ({ type: 'shadow', offset: { x: 0, y }, blur, spread, color });
@@ -52,7 +59,7 @@ export const meta = {
   license: 'Apache-2.0',
   homepage: 'https://m3.material.io',
   /** Which variables follow a brand's color, radius and font (see the daemon's brand.ts). */
-  brand: { anchor: 'primary', radius: 'shape-m', font: 'font-sans', vars: { 'on-primary': 'on', ...Object.fromEntries(['primary-container', 'on-primary-container', 'secondary', 'secondary-container', 'on-secondary-container', 'tertiary', 'tertiary-container', 'on-tertiary-container', 'surface', 'on-surface', 'on-surface-variant', 'surface-container-lowest', 'surface-container-low', 'surface-container', 'surface-container-high', 'surface-container-highest', 'outline', 'outline-variant', 'inverse-surface', 'inverse-on-surface', 'inverse-primary'].map((v) => [v, 'recolor'])) } },
+  brand: { anchor: 'primary', radius: 'shape-m', font: 'font-sans', vars: { 'on-primary': 'on', 'on-primary-hover': 'on/8', 'on-primary-pressed': 'on/10', 'primary-hover': 'brand/8', 'primary-pressed': 'brand/10', ...Object.fromEntries(['on-secondary-container-hover', 'on-secondary-container-pressed', 'on-surface-hover', 'on-surface-04', 'on-surface-12', 'on-surface-38', 'primary-container', 'on-primary-container', 'secondary', 'secondary-container', 'on-secondary-container', 'tertiary', 'tertiary-container', 'on-tertiary-container', 'surface', 'on-surface', 'on-surface-variant', 'surface-container-lowest', 'surface-container-low', 'surface-container', 'surface-container-high', 'surface-container-highest', 'outline', 'outline-variant', 'inverse-surface', 'inverse-on-surface', 'inverse-primary'].map((v) => [v, 'recolor'])) } },
 };
 
 export function material(): Library {
@@ -171,6 +178,32 @@ export function material(): Library {
     tall('Lists and menus', show('list-item'), show('menu')),
     tall('Dialogs', show('dialog'), show('snackbar')),
     tall('Bars', col({ gap: 16 }, show('top-app-bar'), show('tabs'), show('navigation-bar'))));
+
+  // States: state layers over the container, elevation on hover, a 3px focus ring in secondary offset by 2px,
+  // disabled containers and content in on-surface at 12% and 38% -----------------------------------------
+  const ring = [shadow(0, 0, 5, '$secondary'), shadow(0, 0, 2, '$surface')];
+  const layered = (id: string, container: string | undefined, layer: string, pressedLayer: string, lift = false) => lib.states(id, {
+    hover: { props: { fill: container ? [container, layer] : layer, ...(lift ? { effect: level1 } : {}) } },
+    pressed: { props: { fill: container ? [container, pressedLayer] : pressedLayer } },
+    focus: { props: { fill: container ? [container, pressedLayer] : [`$surface`, pressedLayer], effect: ring } },
+    disabled: { props: { fill: container ? '$on-surface-12' : '#00000000', effect: [], ...(id === 'button-outlined' ? { stroke: '$on-surface-12' } : {}) }, parts: { [`${id}-label`]: { fill: '$on-surface-38' } } },
+  });
+  layered('button-filled', '$primary', '$on-primary-hover', '$on-primary-pressed', true);
+  layered('button-tonal', '$secondary-container', '$on-secondary-container-hover', '$on-secondary-container-pressed', true);
+  layered('button-elevated', '$surface-container-low', '$primary-hover', '$primary-pressed');
+  layered('button-outlined', undefined, '$primary-hover', '$primary-pressed');
+  layered('button-text', undefined, '$primary-hover', '$primary-pressed');
+  lib.states('text-field', {
+    hover: { props: { fill: ['$surface-container-highest', '$on-surface-hover'], stroke: '$on-surface' } },
+    focus: { props: { stroke: '$primary', strokeWidth: { bottom: 2 } }, parts: { 'text-field-label': { fill: '$primary' } } },
+    invalid: { props: { stroke: '$error' }, parts: { 'text-field-label': { fill: '$error' } }, code: 'error' },
+    disabled: { props: { fill: '$on-surface-04', stroke: '$on-surface-38' }, parts: { 'text-field-label': { fill: '$on-surface-38' }, 'text-field-value': { fill: '$on-surface-38' } } },
+  });
+  for (const id of ['checkbox-off', 'switch-off']) lib.states(id, { disabled: { props: { opacity: 0.38 } } });
+  const states = (id: string) => group(lib.components.get(id)!.name as string, ref(id), ...lib.statesOf(id).map((s) => show(s)));
+  lib.board('board-states', 'States', { fill: '$surface' }, heading('States'),
+    caption('Hover, pressed, focus, error and disabled, each a component made from its base: changes to the base carry over.'),
+    ...['button-filled', 'button-tonal', 'button-elevated', 'button-outlined', 'button-text', 'text-field', 'checkbox-off', 'switch-off'].map(states));
 
   // The overview a new design starts from: a phone screen (mail).
   const mails: [string, string, string, string][] = [['A', 'Ali Connors', 'Brunch this weekend? I’ll be in your neighborhood…', '10 min'], ['S', 'Sandra Adams', 'Summer BBQ: wish I could come, but I’m out of town…', '2 h'],

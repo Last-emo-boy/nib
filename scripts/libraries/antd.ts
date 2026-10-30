@@ -12,6 +12,8 @@ const light = {
   fill: '#00000026', 'fill-secondary': '#0000000F', 'fill-tertiary': '#0000000A', 'fill-quaternary': '#00000005',
   'bg-container': '#FFFFFF', 'bg-elevated': '#FFFFFF', 'bg-layout': '#F5F5F5', 'bg-spotlight': '#000000D9', 'table-header': '#FAFAFA',
   'shadow-1': '#00000014', 'shadow-2': '#0000001F', 'shadow-3': '#0000000D', 'shadow-button': '#0591FF1A',
+  // Tokens of states: colorPrimaryActive, colorErrorHover/Active, and the focus glow of fields (activeShadow).
+  'primary-active': '#0958D9', 'error-hover': '#FF7875', 'error-active': '#D9363E', 'primary-outline': '#0591FF1A', 'error-outline': '#FF26050F',
 };
 const dark = {
   primary: '#1668DC', 'primary-hover': '#3C89E8', 'primary-bg': '#111A2C', 'primary-border': '#15325B',
@@ -23,6 +25,7 @@ const dark = {
   fill: '#FFFFFF2E', 'fill-secondary': '#FFFFFF1F', 'fill-tertiary': '#FFFFFF14', 'fill-quaternary': '#FFFFFF0A',
   'bg-container': '#141414', 'bg-elevated': '#1F1F1F', 'bg-layout': '#000000', 'bg-spotlight': '#424242', 'table-header': '#1D1D1D',
   'shadow-1': '#00000052', 'shadow-2': '#00000070', 'shadow-3': '#00000033', 'shadow-button': '#00000000',
+  'primary-active': '#1554AD', 'error-hover': '#E86E6B', 'error-active': '#AD393A', 'primary-outline': '#003CB426', 'error-outline': '#EE26381C',
 };
 
 const shadow = (x: number, y: number, blur: number, spread: number, color: string) => ({ type: 'shadow', offset: { x, y }, blur, spread, color });
@@ -49,7 +52,7 @@ export const meta = {
   license: 'MIT',
   homepage: 'https://ant.design',
   /** Which variables follow a brand's color, radius and font (see the daemon's brand.ts). */
-  brand: { anchor: 'primary', radius: 'radius', font: 'font-sans', vars: { 'primary-hover': 'recolor', 'primary-bg': 'recolor', 'primary-border': 'recolor' } },
+  brand: { anchor: 'primary', radius: 'radius', font: 'font-sans', vars: { 'primary-hover': 'recolor', 'primary-bg': 'recolor', 'primary-border': 'recolor', 'primary-active': 'recolor', 'primary-outline': 'recolor' } },
 };
 
 export function antd(): Library {
@@ -209,6 +212,33 @@ export function antd(): Library {
   const stat = (id: string, title: string, value: string, delta: string, up: boolean): N => col({ id, width: 'fill_container', padding: 24, gap: 8, cornerRadius: '$radius-lg', fill: '$bg-container', effect: card },
     ref('statistic', { id: `${id}-stat` }, { 'statistic-title': { content: title }, 'statistic-value': { content: value } }),
     row({ gap: 4, alignItems: 'center' }, icon(up ? 'trending-up' : 'trending-down', { width: 14, height: 14, fill: up ? '$success' : '$error' }), t(delta, { fill: up ? '$success' : '$error' }), sub('vs last week')));
+  // States (antd's hover and active colors, the 4px focus-visible outline, status error, disabled) -----
+  const outline = (color: string) => [shadow(0, 0, 0, 5, color), shadow(0, 0, 0, 1, '$bg-container')];
+  const disabled = (label: string) => ({ props: { fill: '$fill-tertiary', stroke: '$border', strokeWidth: 1, effect: [] }, parts: { [label]: { fill: '$text-quaternary' } } });
+  lib.states('button', { hover: { props: { fill: '$primary-hover' } }, pressed: { props: { fill: '$primary-active' } }, focus: { props: { effect: [primary.effect, ...outline('$primary-border')] } }, disabled: disabled('button-label') });
+  const lined = (id: string, hover: string, active: string, ring: string) => lib.states(id, {
+    hover: { props: { stroke: hover }, parts: { [`${id}-label`]: { fill: hover } } },
+    pressed: { props: { stroke: active }, parts: { [`${id}-label`]: { fill: active } } },
+    focus: { props: { effect: outline(ring) } }, disabled: disabled(`${id}-label`),
+  });
+  lined('button-default', '$primary-hover', '$primary-active', '$primary-border');
+  lined('button-danger-default', '$error-hover', '$error-active', '$error-border');
+  lib.states('button-danger', { hover: { props: { fill: '$error-hover' } }, pressed: { props: { fill: '$error-active' } }, focus: { props: { effect: outline('$error-border') } }, disabled: disabled('button-danger-label') });
+  lib.states('button-text', { hover: { props: { fill: '$fill-secondary' } }, pressed: { props: { fill: '$fill' } }, disabled: { parts: { 'button-text-label': { fill: '$text-quaternary' } } } });
+  for (const id of ['input', 'select', 'textarea']) {
+    lib.states(id, {
+      hover: { props: { stroke: '$primary-hover' } },
+      focus: { props: { stroke: '$primary', effect: [shadow(0, 0, 0, 2, '$primary-outline')] } },
+      invalid: { props: { stroke: '$error' }, code: 'status="error"' },
+      disabled: { props: { fill: '$fill-tertiary' }, parts: { [`${id}-text`]: { fill: '$text-quaternary' } } },
+    });
+  }
+  for (const id of ['checkbox-off', 'switch-off']) lib.states(id, { disabled: { props: { opacity: 0.5 } } });
+  const states = (id: string) => group(lib.components.get(id)!.name as string, ref(id), ...lib.statesOf(id).map((s) => show(s)));
+  lib.board('board-states', 'States', { fill: '$bg-layout' }, heading('States'),
+    caption('Hover, active, focus, error and disabled, each a component made from its base: changes to the base carry over.'),
+    ...['button', 'button-default', 'button-danger', 'button-danger-default', 'button-text', 'input', 'select', 'textarea', 'checkbox-off', 'switch-off'].map(states));
+
   lib.board('overview', 'Overview', { width: 1440, height: 900, padding: 0, gap: 0, layout: 'horizontal', clip: true, fill: '$bg-layout' },
     col({ width: 220, height: 'fill_container', fill: '$bg-container', stroke: '$border-secondary', strokeWidth: { right: 1 } },
       row({ height: 64, padding: [0, 24], gap: 10, alignItems: 'center', width: 'fill_container' },

@@ -88,6 +88,7 @@ Everything pen.dev has that nib lacks, the pain points seen while using nib's ag
 - B3. Turn this file into a library; more bundled design systems built on open-source ones (Material 3, Ant Design, Radix Themes).
 - B4. A design system from a brand: from a website (colors, fonts, radii read in the browser) or a logo (palette), as a themed copy of a bundled library.
 - B5. Component states: hover, pressed, focus, disabled variants in the libraries.
+- Status 2026-10-31: phase B done. Five bundled design systems with code maps (shadcn/ui, HeroUI, Ant Design, Radix Themes, Material 3 on Material Web, which needs side-effect imports). "Design system from a brand" in the Libraries panel reads a website in nib's browser (declared brand variables, theme-color, filled buttons, links, the logo SVG; button radius; the text font when nib can load it) or a logo file, and writes a themed copy of a bundled library beside the design; each library's catalog entry names the variables that follow the brand. Checked on stripe.com (#533AFD, 4 px), github.com, duolingo.com, airbnb.com (#DA1249), tailwindcss.com (logo #00BCFF). States: 160 state components (`<Component> / Hover`, `/ Pressed`, `/ Focus`, `/ Disabled`, `/ Invalid`), each an instance of its base following that system's rules, on a States board per library; React export writes them as the base with `disabled`, `aria-invalid`, `isDisabled`, `status="error"` and the like.
 
 **C. Editing (pen.dev parity, M5)**
 - C1. Pen tool and point editing; paste or import SVG as editable paths.

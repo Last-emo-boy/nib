@@ -269,6 +269,226 @@
       "imports": {
         "Tabs": "@radix-ui/themes"
       }
+    },
+    "button-hover": {
+      "template": "<Button{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-pressed": {
+      "template": "<Button{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-focus": {
+      "template": "<Button{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-disabled": {
+      "template": "<Button disabled{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-soft-hover": {
+      "template": "<Button variant=\"soft\"{class}>{text:button-soft-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-soft-pressed": {
+      "template": "<Button variant=\"soft\"{class}>{text:button-soft-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-soft-focus": {
+      "template": "<Button variant=\"soft\"{class}>{text:button-soft-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-soft-disabled": {
+      "template": "<Button variant=\"soft\" disabled{class}>{text:button-soft-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-surface-hover": {
+      "template": "<Button variant=\"surface\"{class}>{text:button-surface-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-surface-pressed": {
+      "template": "<Button variant=\"surface\"{class}>{text:button-surface-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-surface-focus": {
+      "template": "<Button variant=\"surface\"{class}>{text:button-surface-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-surface-disabled": {
+      "template": "<Button variant=\"surface\" disabled{class}>{text:button-surface-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-outline-hover": {
+      "template": "<Button variant=\"outline\"{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-outline-pressed": {
+      "template": "<Button variant=\"outline\"{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-outline-focus": {
+      "template": "<Button variant=\"outline\"{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-outline-disabled": {
+      "template": "<Button variant=\"outline\" disabled{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-ghost-hover": {
+      "template": "<Button variant=\"ghost\"{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-ghost-pressed": {
+      "template": "<Button variant=\"ghost\"{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-ghost-focus": {
+      "template": "<Button variant=\"ghost\"{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-ghost-disabled": {
+      "template": "<Button variant=\"ghost\" disabled{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-gray-hover": {
+      "template": "<Button color=\"gray\" variant=\"soft\"{class}>{text:button-gray-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-gray-pressed": {
+      "template": "<Button color=\"gray\" variant=\"soft\"{class}>{text:button-gray-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-gray-focus": {
+      "template": "<Button color=\"gray\" variant=\"soft\"{class}>{text:button-gray-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-gray-disabled": {
+      "template": "<Button color=\"gray\" variant=\"soft\" disabled{class}>{text:button-gray-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-red-hover": {
+      "template": "<Button color=\"red\"{class}>{text:button-red-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-red-pressed": {
+      "template": "<Button color=\"red\"{class}>{text:button-red-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-red-focus": {
+      "template": "<Button color=\"red\"{class}>{text:button-red-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-red-disabled": {
+      "template": "<Button color=\"red\" disabled{class}>{text:button-red-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "text-field-focus": {
+      "template": "<TextField.Root placeholder=\"{attr:text-field-text}\"{class} />",
+      "imports": {
+        "TextField": "@radix-ui/themes"
+      }
+    },
+    "text-field-invalid": {
+      "template": "<TextField.Root placeholder=\"{attr:text-field-text}\" color=\"red\"{class} />",
+      "imports": {
+        "TextField": "@radix-ui/themes"
+      }
+    },
+    "text-field-disabled": {
+      "template": "<TextField.Root placeholder=\"{attr:text-field-text}\" disabled{class} />",
+      "imports": {
+        "TextField": "@radix-ui/themes"
+      }
+    },
+    "select-focus": {
+      "template": "<Select.Root defaultValue=\"{slug:select-text}\">\n  <Select.Trigger{class} />\n  <Select.Content>\n    <Select.Item value=\"{slug:select-text}\">{text:select-text}</Select.Item>\n  </Select.Content>\n</Select.Root>",
+      "imports": {
+        "Select": "@radix-ui/themes"
+      }
+    },
+    "select-invalid": {
+      "template": "<Select.Root defaultValue=\"{slug:select-text}\">\n  <Select.Trigger{class} />\n  <Select.Content>\n    <Select.Item value=\"{slug:select-text}\">{text:select-text}</Select.Item>\n  </Select.Content>\n</Select.Root>",
+      "imports": {
+        "Select": "@radix-ui/themes"
+      }
+    },
+    "select-disabled": {
+      "template": "<Select.Root defaultValue=\"{slug:select-text}\">\n  <Select.Trigger{class} />\n  <Select.Content>\n    <Select.Item value=\"{slug:select-text}\">{text:select-text}</Select.Item>\n  </Select.Content>\n</Select.Root>",
+      "imports": {
+        "Select": "@radix-ui/themes"
+      }
+    },
+    "checkbox-off-disabled": {
+      "template": "<Text as=\"label\" size=\"2\" disabled{class}>\n  <Flex gap=\"2\">\n    <Checkbox />\n    {text:checkbox-off-label}\n  </Flex>\n</Text>",
+      "imports": {
+        "Checkbox": "@radix-ui/themes",
+        "Flex": "@radix-ui/themes",
+        "Text": "@radix-ui/themes"
+      }
+    },
+    "switch-off-disabled": {
+      "template": "<Text as=\"label\" size=\"2\" disabled{class}>\n  <Flex gap=\"2\">\n    <Switch />\n    {text:switch-off-label}\n  </Flex>\n</Text>",
+      "imports": {
+        "Flex": "@radix-ui/themes",
+        "Switch": "@radix-ui/themes",
+        "Text": "@radix-ui/themes"
+      }
     }
   }
 }

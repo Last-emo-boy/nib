@@ -22,6 +22,9 @@ const light = {
   // Not shadcn tokens: the fill of fields and the thumb of a switch, which differ between modes.
   'input-background': '#FFFFFF00', 'switch-thumb': L('oklch(1 0 0)'), 'primary-soft': L('oklch(0.205 0 0 / 20%)'),
   'muted-hover': L('oklch(0.97 0 0 / 50%)'),
+  // Colors of states (bg-primary/90, ring-ring/50, ring-destructive/20) that are not tokens of their own.
+  'primary-hover': L('oklch(0.205 0 0 / 90%)'), 'secondary-hover': L('oklch(0.97 0 0 / 80%)'), 'destructive-hover': L('oklch(0.577 0.245 27.325 / 90%)'),
+  'ring-soft': L('oklch(0.708 0 0 / 50%)'), 'destructive-soft': L('oklch(0.577 0.245 27.325 / 20%)'),
 };
 const dark = {
   background: L('oklch(0.145 0 0)'), foreground: L('oklch(0.985 0 0)'),
@@ -41,6 +44,8 @@ const dark = {
   'sidebar-border': L('oklch(1 0 0 / 10%)'), 'sidebar-ring': L('oklch(0.556 0 0)'),
   'input-background': L('oklch(1 0 0 / 4.5%)'), 'switch-thumb': L('oklch(0.985 0 0)'), 'primary-soft': L('oklch(0.922 0 0 / 20%)'),
   'muted-hover': L('oklch(0.269 0 0 / 50%)'),
+  'primary-hover': L('oklch(0.922 0 0 / 90%)'), 'secondary-hover': L('oklch(0.269 0 0 / 80%)'), 'destructive-hover': L('oklch(0.704 0.191 22.216 / 90%)'),
+  'ring-soft': L('oklch(0.556 0 0 / 50%)'), 'destructive-soft': L('oklch(0.704 0.191 22.216 / 40%)'),
 };
 
 const shadow = {
@@ -71,7 +76,7 @@ export const meta = {
   license: 'MIT',
   homepage: 'https://ui.shadcn.com',
   /** Which variables follow a brand's color, radius and font (see the daemon's brand.ts). */
-  brand: { anchor: 'primary', radius: 'radius', font: 'font-sans', vars: { 'primary-foreground': 'on', ring: 'brand/60', 'primary-soft': 'brand/20', 'sidebar-primary': 'brand', 'sidebar-primary-foreground': 'on', 'sidebar-ring': 'brand/60', 'chart-1': 'brand' } },
+  brand: { anchor: 'primary', radius: 'radius', font: 'font-sans', vars: { 'primary-foreground': 'on', ring: 'brand/60', 'primary-soft': 'brand/20', 'sidebar-primary': 'brand', 'sidebar-primary-foreground': 'on', 'sidebar-ring': 'brand/60', 'chart-1': 'brand', 'primary-hover': 'brand/90', 'ring-soft': 'brand/30' } },
 };
 
 export function shadcn(): Library {
@@ -325,6 +330,29 @@ export function shadcn(): Library {
     group('Charts', show('chart-card')));
 
   // The overview a new design starts from, and the dashboard's preview.
+  // States (hover:, focus-visible:, aria-invalid:, disabled: in the components' classes) -------------
+  const ring = (color: string) => ({ type: 'shadow', offset: { x: 0, y: 0 }, blur: 0, spread: 3, color });
+  const focus = { props: { effect: [shadow.xs, ring('$ring-soft')] } };
+  const outlineFocus = { props: { stroke: '$ring', effect: [shadow.xs, ring('$ring-soft')] } };
+  const disabled = { props: { opacity: 0.5 } };
+  lib.states('button', { hover: { props: { fill: '$primary-hover' } }, focus, disabled });
+  lib.states('button-secondary', { hover: { props: { fill: '$secondary-hover' } }, focus, disabled });
+  lib.states('button-outline', { hover: { props: { fill: '$accent' }, parts: { 'button-outline-label': { fill: '$accent-foreground' } } }, focus: outlineFocus, disabled });
+  lib.states('button-ghost', { hover: { props: { fill: '$accent' }, parts: { 'button-ghost-label': { fill: '$accent-foreground' } } },
+    // A ring is drawn from what a node paints: the ghost takes the page color to show it.
+    focus: { props: { fill: '$background', effect: [ring('$ring-soft')] } }, disabled });
+  lib.states('button-destructive', { hover: { props: { fill: '$destructive-hover' } }, focus: { props: { effect: [shadow.xs, ring('$destructive-soft')] } }, disabled });
+  for (const id of ['input', 'select', 'textarea']) {
+    lib.states(id, { focus: outlineFocus, invalid: { props: { stroke: '$destructive', effect: [shadow.xs, ring('$destructive-soft')] }, code: 'aria-invalid' }, disabled });
+  }
+  for (const id of ['checkbox-off', 'switch-off']) lib.states(id, { disabled });
+  // The base is on its own board already: here an instance of it stands first.
+  const states = (id: string) => group(lib.components.get(id)!.name as string, ref(id), ...lib.statesOf(id).map((s) => show(s)));
+  lib.board('board-states', 'States', {}, heading('States'),
+    caption('Hover, focus, invalid and disabled, each a component made from its base: changes to the base carry over.'),
+    ...['button', 'button-secondary', 'button-outline', 'button-ghost', 'button-destructive'].map(states),
+    ...['input', 'select', 'textarea'].map(states), states('checkbox-off'), states('switch-off'));
+
   lib.board('overview', 'Overview', { width: 1440, height: 900, padding: 0, gap: 0, layout: 'horizontal', clip: true },
     ref('sidebar', { id: 'overview-sidebar', height: 'fill_container' }),
     col({ width: 'fill_container', height: 'fill_container', padding: 32, gap: 24 },

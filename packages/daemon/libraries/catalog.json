@@ -20,10 +20,12 @@
         "sidebar-primary": "brand",
         "sidebar-primary-foreground": "on",
         "sidebar-ring": "brand/60",
-        "chart-1": "brand"
+        "chart-1": "brand",
+        "primary-hover": "brand/90",
+        "ring-soft": "brand/30"
       }
     },
-    "components": 55,
+    "components": 81,
     "themes": {
       "Mode": [
         "Light",
@@ -52,7 +54,7 @@
         "accent-soft-foreground": "recolor"
       }
     },
-    "components": 54,
+    "components": 83,
     "themes": {
       "Mode": [
         "Light",
@@ -77,10 +79,12 @@
       "vars": {
         "primary-hover": "recolor",
         "primary-bg": "recolor",
-        "primary-border": "recolor"
+        "primary-border": "recolor",
+        "primary-active": "recolor",
+        "primary-outline": "recolor"
       }
     },
-    "components": 49,
+    "components": 82,
     "themes": {
       "Mode": [
         "Light",
@@ -117,7 +121,7 @@
         "accent-contrast": "on"
       }
     },
-    "components": 40,
+    "components": 76,
     "themes": {
       "Mode": [
         "Light",
@@ -141,6 +145,16 @@
       "font": "font-sans",
       "vars": {
         "on-primary": "on",
+        "on-primary-hover": "on/8",
+        "on-primary-pressed": "on/10",
+        "primary-hover": "brand/8",
+        "primary-pressed": "brand/10",
+        "on-secondary-container-hover": "recolor",
+        "on-secondary-container-pressed": "recolor",
+        "on-surface-hover": "recolor",
+        "on-surface-04": "recolor",
+        "on-surface-12": "recolor",
+        "on-surface-38": "recolor",
         "primary-container": "recolor",
         "on-primary-container": "recolor",
         "secondary": "recolor",
@@ -164,7 +178,7 @@
         "inverse-primary": "recolor"
       }
     },
-    "components": 37,
+    "components": 63,
     "themes": {
       "Mode": [
         "Light",

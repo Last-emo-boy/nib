@@ -37,7 +37,12 @@
     "shadow-1",
     "shadow-2",
     "shadow-3",
-    "shadow-button"
+    "shadow-button",
+    "primary-active",
+    "error-hover",
+    "error-active",
+    "primary-outline",
+    "error-outline"
   ],
   "components": {
     "button": {
@@ -299,6 +304,205 @@
       "template": "<Steps current={1} items={[{ title: \"{attr:steps-1-title}\" }, { title: \"{attr:steps-2-title}\" }, { title: \"{attr:steps-3-title}\" }]}{class} />",
       "imports": {
         "Steps": "antd"
+      }
+    },
+    "button-hover": {
+      "template": "<Button type=\"primary\"{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-pressed": {
+      "template": "<Button type=\"primary\"{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-focus": {
+      "template": "<Button type=\"primary\"{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-disabled": {
+      "template": "<Button type=\"primary\" disabled{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-default-hover": {
+      "template": "<Button{class}>{text:button-default-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-default-pressed": {
+      "template": "<Button{class}>{text:button-default-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-default-focus": {
+      "template": "<Button{class}>{text:button-default-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-default-disabled": {
+      "template": "<Button disabled{class}>{text:button-default-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-danger-default-hover": {
+      "template": "<Button danger{class}>{text:button-danger-default-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-danger-default-pressed": {
+      "template": "<Button danger{class}>{text:button-danger-default-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-danger-default-focus": {
+      "template": "<Button danger{class}>{text:button-danger-default-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-danger-default-disabled": {
+      "template": "<Button danger disabled{class}>{text:button-danger-default-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-danger-hover": {
+      "template": "<Button type=\"primary\" danger{class}>{text:button-danger-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-danger-pressed": {
+      "template": "<Button type=\"primary\" danger{class}>{text:button-danger-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-danger-focus": {
+      "template": "<Button type=\"primary\" danger{class}>{text:button-danger-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-danger-disabled": {
+      "template": "<Button type=\"primary\" danger disabled{class}>{text:button-danger-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-text-hover": {
+      "template": "<Button type=\"text\"{class}>{text:button-text-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-text-pressed": {
+      "template": "<Button type=\"text\"{class}>{text:button-text-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-text-disabled": {
+      "template": "<Button type=\"text\" disabled{class}>{text:button-text-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "input-hover": {
+      "template": "<Input placeholder=\"{attr:input-text}\"{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "input-focus": {
+      "template": "<Input placeholder=\"{attr:input-text}\"{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "input-invalid": {
+      "template": "<Input placeholder=\"{attr:input-text}\" status=\"error\"{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "input-disabled": {
+      "template": "<Input placeholder=\"{attr:input-text}\" disabled{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "select-hover": {
+      "template": "<Select placeholder=\"{attr:select-text}\" options={[]}{class} />",
+      "imports": {
+        "Select": "antd"
+      }
+    },
+    "select-focus": {
+      "template": "<Select placeholder=\"{attr:select-text}\" options={[]}{class} />",
+      "imports": {
+        "Select": "antd"
+      }
+    },
+    "select-invalid": {
+      "template": "<Select placeholder=\"{attr:select-text}\" options={[]} status=\"error\"{class} />",
+      "imports": {
+        "Select": "antd"
+      }
+    },
+    "select-disabled": {
+      "template": "<Select placeholder=\"{attr:select-text}\" options={[]} disabled{class} />",
+      "imports": {
+        "Select": "antd"
+      }
+    },
+    "textarea-hover": {
+      "template": "<Input.TextArea rows={3} placeholder=\"{attr:textarea-text}\"{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "textarea-focus": {
+      "template": "<Input.TextArea rows={3} placeholder=\"{attr:textarea-text}\"{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "textarea-invalid": {
+      "template": "<Input.TextArea rows={3} placeholder=\"{attr:textarea-text}\" status=\"error\"{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "textarea-disabled": {
+      "template": "<Input.TextArea rows={3} placeholder=\"{attr:textarea-text}\" disabled{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "checkbox-off-disabled": {
+      "template": "<Checkbox disabled{class}>{text:checkbox-off-label}</Checkbox>",
+      "imports": {
+        "Checkbox": "antd"
+      }
+    },
+    "switch-off-disabled": {
+      "template": "<Space disabled{class}>\n  <Switch />\n  {text:switch-off-label}\n</Space>",
+      "imports": {
+        "Space": "antd",
+        "Switch": "antd"
       }
     }
   }

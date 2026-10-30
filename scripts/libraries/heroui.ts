@@ -292,6 +292,25 @@ export function heroui(): Library {
   const settingRow = (id: string, title: string, note: string, on: boolean): N => row({ id, width: 'fill_container', gap: 12, alignItems: 'center' },
     col({ width: 'fill_container' }, medium(title), muted(note, { fontSize: 12, lineHeight: 1.33, width: 'fill_container' })),
     ref(on ? 'switch' : 'switch-off', { id: `${id}-switch` }, { [on ? 'switch-label' : 'switch-off-label']: { enabled: false } }));
+  // States (HeroUI's hover, focus-visible ring with a 2px offset, invalid and disabled styles) -------
+  const ring = (color: string) => [{ type: 'shadow', offset: { x: 0, y: 0 }, blur: 0, spread: 4, color }, { type: 'shadow', offset: { x: 0, y: 0 }, blur: 0, spread: 2, color: '$background' }];
+  const focus = { props: { effect: ring('$accent') } };
+  const disabled = { props: { opacity: 0.5 }, code: 'isDisabled' };
+  lib.states('button', { hover: { props: { fill: '$accent-hover' } }, focus, disabled });
+  lib.states('button-secondary', { hover: { props: { fill: '$default-hover' } }, focus, disabled });
+  lib.states('button-tertiary', { hover: { props: { fill: '$default-hover' } }, focus, disabled });
+  lib.states('button-outline', { hover: { props: { fill: '$default' } }, focus: { props: { fill: '$background', effect: ring('$accent') } }, disabled });
+  lib.states('button-ghost', { hover: { props: { fill: '$default' } }, focus: { props: { fill: '$background', effect: ring('$accent') } }, disabled });
+  lib.states('button-danger', { hover: { props: { fill: '$danger-hover' } }, focus: { props: { effect: ring('$danger') } }, disabled });
+  for (const id of ['input', 'select', 'textarea']) {
+    lib.states(id, { focus: { props: { effect: [...surfaceShadow, ...ring('$accent')] } }, invalid: { props: { effect: [...surfaceShadow, ...ring('$danger')] }, code: 'isInvalid' }, disabled });
+  }
+  for (const id of ['checkbox-off', 'switch-off']) lib.states(id, { disabled });
+  const states = (id: string) => group(lib.components.get(id)!.name as string, ref(id), ...lib.statesOf(id).map((s) => show(s)));
+  lib.board('board-states', 'States', {}, heading('States'),
+    caption('Hover, focus, invalid and disabled, each a component made from its base: changes to the base carry over. Pressed buttons shrink to 97% in code.'),
+    ...['button', 'button-secondary', 'button-tertiary', 'button-outline', 'button-ghost', 'button-danger', 'input', 'select', 'textarea', 'checkbox-off', 'switch-off'].map(states));
+
   lib.board('overview', 'Overview', { width: 1440, height: 900, padding: 0, gap: 0, clip: true },
     row({ width: 'fill_container', height: 72, padding: [0, 32], gap: 32, alignItems: 'center' },
       row({ gap: 10, alignItems: 'center' },

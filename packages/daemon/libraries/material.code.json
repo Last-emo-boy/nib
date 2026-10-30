@@ -34,7 +34,17 @@
     "inverse-on-surface",
     "inverse-primary",
     "shadow-1",
-    "shadow-2"
+    "shadow-2",
+    "on-primary-hover",
+    "on-primary-pressed",
+    "primary-hover",
+    "primary-pressed",
+    "on-secondary-container-hover",
+    "on-secondary-container-pressed",
+    "on-surface-hover",
+    "on-surface-04",
+    "on-surface-12",
+    "on-surface-38"
   ],
   "components": {
     "button-filled": {
@@ -202,6 +212,162 @@
       "imports": {
         "@material/web/tabs/tabs.js": "side-effect",
         "@material/web/tabs/primary-tab.js": "side-effect"
+      }
+    },
+    "button-filled-hover": {
+      "template": "<md-filled-button{class}>{text:button-filled-label}</md-filled-button>",
+      "imports": {
+        "@material/web/button/filled-button.js": "side-effect"
+      }
+    },
+    "button-filled-pressed": {
+      "template": "<md-filled-button{class}>{text:button-filled-label}</md-filled-button>",
+      "imports": {
+        "@material/web/button/filled-button.js": "side-effect"
+      }
+    },
+    "button-filled-focus": {
+      "template": "<md-filled-button{class}>{text:button-filled-label}</md-filled-button>",
+      "imports": {
+        "@material/web/button/filled-button.js": "side-effect"
+      }
+    },
+    "button-filled-disabled": {
+      "template": "<md-filled-button disabled{class}>{text:button-filled-label}</md-filled-button>",
+      "imports": {
+        "@material/web/button/filled-button.js": "side-effect"
+      }
+    },
+    "button-tonal-hover": {
+      "template": "<md-filled-tonal-button{class}>{text:button-tonal-label}</md-filled-tonal-button>",
+      "imports": {
+        "@material/web/button/filled-tonal-button.js": "side-effect"
+      }
+    },
+    "button-tonal-pressed": {
+      "template": "<md-filled-tonal-button{class}>{text:button-tonal-label}</md-filled-tonal-button>",
+      "imports": {
+        "@material/web/button/filled-tonal-button.js": "side-effect"
+      }
+    },
+    "button-tonal-focus": {
+      "template": "<md-filled-tonal-button{class}>{text:button-tonal-label}</md-filled-tonal-button>",
+      "imports": {
+        "@material/web/button/filled-tonal-button.js": "side-effect"
+      }
+    },
+    "button-tonal-disabled": {
+      "template": "<md-filled-tonal-button disabled{class}>{text:button-tonal-label}</md-filled-tonal-button>",
+      "imports": {
+        "@material/web/button/filled-tonal-button.js": "side-effect"
+      }
+    },
+    "button-elevated-hover": {
+      "template": "<md-elevated-button{class}>{text:button-elevated-label}</md-elevated-button>",
+      "imports": {
+        "@material/web/button/elevated-button.js": "side-effect"
+      }
+    },
+    "button-elevated-pressed": {
+      "template": "<md-elevated-button{class}>{text:button-elevated-label}</md-elevated-button>",
+      "imports": {
+        "@material/web/button/elevated-button.js": "side-effect"
+      }
+    },
+    "button-elevated-focus": {
+      "template": "<md-elevated-button{class}>{text:button-elevated-label}</md-elevated-button>",
+      "imports": {
+        "@material/web/button/elevated-button.js": "side-effect"
+      }
+    },
+    "button-elevated-disabled": {
+      "template": "<md-elevated-button disabled{class}>{text:button-elevated-label}</md-elevated-button>",
+      "imports": {
+        "@material/web/button/elevated-button.js": "side-effect"
+      }
+    },
+    "button-outlined-hover": {
+      "template": "<md-outlined-button{class}>{text:button-outlined-label}</md-outlined-button>",
+      "imports": {
+        "@material/web/button/outlined-button.js": "side-effect"
+      }
+    },
+    "button-outlined-pressed": {
+      "template": "<md-outlined-button{class}>{text:button-outlined-label}</md-outlined-button>",
+      "imports": {
+        "@material/web/button/outlined-button.js": "side-effect"
+      }
+    },
+    "button-outlined-focus": {
+      "template": "<md-outlined-button{class}>{text:button-outlined-label}</md-outlined-button>",
+      "imports": {
+        "@material/web/button/outlined-button.js": "side-effect"
+      }
+    },
+    "button-outlined-disabled": {
+      "template": "<md-outlined-button disabled{class}>{text:button-outlined-label}</md-outlined-button>",
+      "imports": {
+        "@material/web/button/outlined-button.js": "side-effect"
+      }
+    },
+    "button-text-hover": {
+      "template": "<md-text-button{class}>{text:button-text-label}</md-text-button>",
+      "imports": {
+        "@material/web/button/text-button.js": "side-effect"
+      }
+    },
+    "button-text-pressed": {
+      "template": "<md-text-button{class}>{text:button-text-label}</md-text-button>",
+      "imports": {
+        "@material/web/button/text-button.js": "side-effect"
+      }
+    },
+    "button-text-focus": {
+      "template": "<md-text-button{class}>{text:button-text-label}</md-text-button>",
+      "imports": {
+        "@material/web/button/text-button.js": "side-effect"
+      }
+    },
+    "button-text-disabled": {
+      "template": "<md-text-button disabled{class}>{text:button-text-label}</md-text-button>",
+      "imports": {
+        "@material/web/button/text-button.js": "side-effect"
+      }
+    },
+    "text-field-hover": {
+      "template": "<md-filled-text-field label=\"{attr:text-field-label}\" value=\"{attr:text-field-value}\"{class}></md-filled-text-field>",
+      "imports": {
+        "@material/web/textfield/filled-text-field.js": "side-effect"
+      }
+    },
+    "text-field-focus": {
+      "template": "<md-filled-text-field label=\"{attr:text-field-label}\" value=\"{attr:text-field-value}\"{class}></md-filled-text-field>",
+      "imports": {
+        "@material/web/textfield/filled-text-field.js": "side-effect"
+      }
+    },
+    "text-field-invalid": {
+      "template": "<md-filled-text-field label=\"{attr:text-field-label}\" value=\"{attr:text-field-value}\" error{class}></md-filled-text-field>",
+      "imports": {
+        "@material/web/textfield/filled-text-field.js": "side-effect"
+      }
+    },
+    "text-field-disabled": {
+      "template": "<md-filled-text-field label=\"{attr:text-field-label}\" value=\"{attr:text-field-value}\" disabled{class}></md-filled-text-field>",
+      "imports": {
+        "@material/web/textfield/filled-text-field.js": "side-effect"
+      }
+    },
+    "checkbox-off-disabled": {
+      "template": "<label{class:flex items-center gap-3}>\n  <md-checkbox touch-target=\"wrapper\"></md-checkbox>\n  {text:checkbox-off-label}\n</label>",
+      "imports": {
+        "@material/web/checkbox/checkbox.js": "side-effect"
+      }
+    },
+    "switch-off-disabled": {
+      "template": "<label{class:flex items-center gap-3}>\n  <md-switch></md-switch>\n  {text:switch-off-label}\n</label>",
+      "imports": {
+        "@material/web/switch/switch.js": "side-effect"
       }
     }
   }

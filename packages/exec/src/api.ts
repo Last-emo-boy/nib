@@ -6,7 +6,7 @@ import {
 import type { Box } from '@nib/layout';
 import { problemOf, type BoundsCache, type ClipProblem } from './bounds.ts';
 import { ExecError } from './errors.ts';
-import { componentDescendant, componentRoot, DOCUMENT, findById, normalizeDescendantKeys, resolve, type Target } from './targets.ts';
+import { componentDescendant, componentRoot, DOCUMENT, findById, nestedComponent, normalizeDescendantKeys, resolve, type Target } from './targets.ts';
 
 type Props = Record<string, unknown>;
 type Inside = Extract<Target, { kind: 'inside' }>;
@@ -319,6 +319,15 @@ export class PenApi {
     const node = structuredClone(data) as unknown as Node;
     const strip = (n: Props) => { delete n.id; for (const c of (Array.isArray(n.children) ? n.children : [])) if (isObject(c)) strip(c); };
     strip(node as unknown as Props);
+    // Overrides may name parts by name or set a text or icon with a plain string: turn them into the
+    // stored form first, so the schema sees what will be saved.
+    const shorthand = (n: Props) => {
+      if (n.type === 'ref' && typeof n.ref === 'string' && isObject(n.descendants) && this.doc.get(n.ref)) {
+        try { n.descendants = normalizeDescendantKeys(this.doc, n.ref, n.descendants); } catch (e) { throw new ExecError(`${fn}: ${(e as Error).message}`); }
+      }
+      for (const c of (Array.isArray(n.children) ? n.children : [])) if (isObject(c)) shorthand(c);
+    };
+    shorthand(node as unknown as Props);
     this.check(validateNode(node, { strict: true }), fn);
     const refs = (n: Node) => { if (n.type === 'ref') this.prepareRef(n as RefNode, fn); childrenOf(n)?.forEach(refs); };
     refs(node);
@@ -332,32 +341,32 @@ export class PenApi {
     if (!comp) throw new ExecError(`${fn}: component "${ref.ref}" not found`);
     if (!comp.reusable) throw new ExecError(`${fn}: "${ref.ref}" is not a component; make it one with Update("${ref.ref}", {reusable: true}) first`);
     if ('children' in ref) throw new ExecError(`${fn}: an instance gets its children from its component; change them through descendants`);
-    const root = componentRoot(this.doc, comp);
+    const root = componentRoot(this.doc, ref.ref);
     const own = NODE_SPECS.ref;
     const rootProps: Props = {};
     for (const [k, v] of Object.entries(ref)) if (!(k in own)) rootProps[k] = v;
     if (root) this.checkProps(root.type, rootProps, ref.name ? `"${ref.name}"` : '(instance)', fn);
-    if (ref.descendants) ref.descendants = this.prepareDescendants(comp, ref.descendants, fn);
+    if (ref.descendants) ref.descendants = this.prepareDescendants(ref.ref, ref.descendants, fn);
   }
 
-  private prepareDescendants(comp: Node, descendants: Props, fn: string): Record<string, Props> {
-    const out = normalizeDescendantKeys(this.doc, comp.id, descendants);
+  /** `refId`: the component, as instances reference it (`alias:id` for an imported one). */
+  private prepareDescendants(refId: string, descendants: Props, fn: string): Record<string, Props> {
+    const out = normalizeDescendantKeys(this.doc, refId, descendants);
     // An entry for a nested instance may carry that instance's own `descendants`; they become path keys,
     // prepared against the nested instance's component.
     const nestedOut: Record<string, Props> = {};
     for (const [key, entry] of Object.entries(out)) {
       if ('type' in entry || entry.descendants === undefined) continue;
       const { descendants: nested, ...props } = entry;
-      const inner = this.doc.get(key.split('/').pop()!);
-      if (inner?.type !== 'ref' || !isObject(nested)) throw new ExecError(`${fn}: descendants["${key}"] is not a component instance, so it cannot have descendants`);
-      const innerComp = this.doc.get((inner as RefNode).ref);
-      if (!innerComp) throw new ExecError(`${fn}: component "${(inner as RefNode).ref}" not found`);
+      const innerRef = nestedComponent(this.doc, refId, key);
+      if (!innerRef || !isObject(nested)) throw new ExecError(`${fn}: descendants["${key}"] is not a component instance, so it cannot have descendants; set its properties directly, or address a part inside an instance as "instance/part"`);
+      if (!this.doc.get(innerRef)) throw new ExecError(`${fn}: component "${innerRef}" not found`);
       if (Object.keys(props).length) out[key] = props;
       else delete out[key];
-      for (const [k, v] of Object.entries(this.prepareDescendants(innerComp, nested, fn))) nestedOut[`${key}/${k}`] = v;
+      for (const [k, v] of Object.entries(this.prepareDescendants(innerRef, nested, fn))) nestedOut[`${key}/${k}`] = v;
     }
     for (const [key, entry] of Object.entries(out)) {
-      const target = componentDescendant(this.doc, comp, key);
+      const target = componentDescendant(this.doc, refId, key);
       if ('type' in entry) {
         out[key] = this.prepareNew(entry, fn) as unknown as Props;
       } else if (target) {
@@ -409,8 +418,9 @@ export class PenApi {
       }
       const { descendants, ...rest } = changes;
       const own = NODE_SPECS.ref;
-      const comp = this.doc.get(typeof rest.ref === 'string' ? rest.ref : ref.ref);
-      const root = comp && componentRoot(this.doc, comp);
+      const refId = typeof rest.ref === 'string' ? rest.ref : ref.ref;
+      const comp = this.doc.get(refId);
+      const root = comp && componentRoot(this.doc, refId);
       const rootProps = Object.fromEntries(Object.entries(rest).filter(([k]) => !(k in own)));
       if (root) this.checkProps(root.type, rootProps, node.name ? `"${node.name}"` : node.id, fn);
       this.checkProps('ref', Object.fromEntries(Object.entries(rest).filter(([k]) => k in own)), node.name ? `"${node.name}"` : node.id, fn);
@@ -419,7 +429,7 @@ export class PenApi {
         if (!isObject(descendants)) throw new ExecError(`${fn}: descendants must be an object keyed by descendant id or name`);
         if (!comp) throw new ExecError(`${fn}: component "${ref.ref}" not found`);
         const merged = { ...(ref.descendants ?? {}) };
-        for (const [k, v] of Object.entries(this.prepareDescendants(comp, descendants, fn))) {
+        for (const [k, v] of Object.entries(this.prepareDescendants(refId, descendants, fn))) {
           merged[k] = 'type' in v || !merged[k] || 'type' in merged[k] ? v : { ...merged[k], ...v };
         }
         ref.descendants = merged;
@@ -447,7 +457,7 @@ export class PenApi {
         const comp = this.doc.get((inst as RefNode).ref);
         if (!comp) throw new ExecError(`Copy: component "${(inst as RefNode).ref}" not found`);
         const merged = { ...((inst as RefNode).descendants ?? {}) };
-        for (const [k, v] of Object.entries(this.prepareDescendants(comp, { [rest.join('/')]: entry }, 'Copy'))) {
+        for (const [k, v] of Object.entries(this.prepareDescendants((inst as RefNode).ref, { [rest.join('/')]: entry }, 'Copy'))) {
           merged[k] = 'type' in v || !merged[k] || 'type' in merged[k] ? v : { ...merged[k], ...v };
         }
         (inst as RefNode).descendants = merged;

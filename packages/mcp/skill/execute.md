@@ -31,7 +31,18 @@ const header = Insert(screen, {type: "frame", name: "Header", width: "fill_conta
 Insert(header, {type: "text", name: "Title", content: "Settings", fontSize: 24, fontWeight: "600", fill: "$text"})
 ```
 
-To make an instance, insert `{type: "ref", ref: componentId, ...}` (see `components.md`).
+To make an instance, insert `{type: "ref", ref: componentId, ...}` (see `components.md`), or use `Use`.
+
+### `Use(parent, component, parts?, props?) → id`
+
+Inserts an instance of `component` (an id, or `alias:id` for a library's component). `parts` overrides the texts and icons inside it, keyed as `get_app_state` lists them for each library component: a string sets a text's content or an icon's name, an object sets any properties. `props` goes on the instance itself (size, position, name).
+
+```js
+save = Use(footer, "shadcn:button", {"button-label": "Save"})
+Use(form, "shadcn:field", {"field-label/label-text": "Email", "field-input/input-text": "you@example.com"}, {width: "fill_container"})
+```
+
+A key that does not exist fails with the component's list of texts and icons.
 
 ### `Copy(path, parent, changes?) → id`
 

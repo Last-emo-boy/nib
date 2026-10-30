@@ -284,4 +284,31 @@ describe('pen.dev compatibility', () => {
     const copy = doc.get(/"(\w+)" \(= c\)/.exec(r.text)![1]) as unknown as { children: { descendants: unknown }[] };
     expect(copy.children[0].descendants).toEqual({ b1: { opacity: 0.5 }, 'b1/lb': { content: 'New' } });
   });
+
+  it('overrides parts of imported components by key, name or string shorthand, and lists the parts when a key is wrong', async () => {
+    const lib = new PenDoc({ version: '2.20', children: [
+      { type: 'frame', id: 'label', reusable: true, children: [{ type: 'text', id: 'label-text', content: 'Label', fill: '#000000' }] },
+      { type: 'frame', id: 'button', reusable: true, children: [{ type: 'icon', id: 'button-icon', library: 'lucide', icon: 'mail', width: 16, height: 16 }, { type: 'text', id: 'button-label', content: 'Button', fill: '#000000' }] },
+      { type: 'frame', id: 'card', reusable: true, layout: 'vertical', children: [
+        { type: 'text', id: 'card-title', content: 'Title', fill: '#000000' },
+        { type: 'ref', id: 'card-label', ref: 'label' },
+        { type: 'ref', id: 'card-action', ref: 'button' },
+      ] },
+    ] } as unknown as PenDocument);
+    const { doc, run } = await session([{ type: 'frame', id: 'screen', x: 0, y: 0, width: 400, height: 300, layout: 'vertical' }], { imports: { ui: './ui.lib.pen' } });
+    doc.imports.set('ui', lib);
+    const r = await run(`c = Use("screen", "ui:card", {"card-title": "Sign in", "card-label/label-text": "Email", "card-action": {descendants: {"button-label": "Go", "button-icon": "log-in"}}})`);
+    expect(r.ok, r.text).toBe(true);
+    const inst = doc.get(createdId(r.text, 'Card (instance)') ?? (doc.get('screen') as { children: { id: string }[] }).children[0].id) as unknown as { descendants: Record<string, unknown> };
+    expect(inst.descendants).toEqual({ 'card-title': { content: 'Sign in' }, 'card-label/label-text': { content: 'Email' }, 'card-action/button-label': { content: 'Go' }, 'card-action/button-icon': { icon: 'log-in' } });
+    const bad = await run(`Use("screen", "ui:card", {"card-content": "x"})`);
+    expect(bad.ok).toBe(false);
+    expect(bad.text).toContain('component "ui:card" has no descendant "card-content"; its texts and icons are "card-title" (text "Title"), "card-label/label-text" (text "Label"), "card-action/button-icon" (icon "mail"), "card-action/button-label" (text "Button")');
+  });
+
+  it('hints that a node id used as a variable needs quotes', async () => {
+    const { run } = await session([{ type: 'frame', id: 'screen', x: 0, y: 0, width: 100, height: 100 }]);
+    const r = await run(`Insert(screen, {type: "rectangle", width: 10, height: 10})`);
+    expect(r.text).toContain('Hint: "screen" is a node id, and ids are strings: write "screen" in quotes');
+  });
 });

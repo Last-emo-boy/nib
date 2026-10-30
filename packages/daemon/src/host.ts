@@ -6,7 +6,7 @@ import { applyOp, childrenOf, DocEditor, PenDoc, type Op } from '@nib/core';
 import { parsePen, serializePen, type Node, type PenDocument } from '@nib/format';
 import { importTree, loadPen, syncImports, type ImportTree } from './imports.ts';
 import { noteOpened } from './library.ts';
-import { ExecSession, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat, type Problem } from '@nib/exec';
+import { ExecSession, partsOf, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat, type Problem } from '@nib/exec';
 import type { ImageLoader, Renderer } from '@nib/render';
 
 /** Version written into new documents: the newest seen in files pen.dev saved. */
@@ -230,6 +230,15 @@ export class DocumentHost {
     return out.join('\n');
   }
 
+  /** One document's state as get_app_state describes it (opening it if needed), for nib's own agent. */
+  async describeDocument(filePath: string): Promise<string> {
+    const notes: string[] = [];
+    const d = await this.open(filePath, notes);
+    await this.sync(d, notes);
+    notes.push(...d.pending.splice(0));
+    return [describe(d, true), ...notes.map((n) => `Note: ${n}`)].join('\n');
+  }
+
   close(): void {
     for (const d of this.docs.values()) {
       d.watcher?.close();
@@ -392,8 +401,12 @@ function describe(d: OpenDocument, active: boolean): string {
     const visitLib = (n: Node) => { if (n.reusable) libComps.push(n); childrenOf(n)?.forEach(visitLib); };
     lib.data.children.forEach(visitLib);
     const libVars = Object.keys(lib.data.variables ?? {});
-    lines.push('', `Library \`${alias}\` (${doc.data.imports?.[alias] ?? ''}): use its components as \`ref: "${alias}:id"\` and its variables as \`"$${alias}:name"\`; Get("${alias}:id") shows a component's children, whose ids are the keys for \`descendants\` overrides.`);
-    lines.push(`Components (${libComps.length}): ${libComps.map((c) => `\`${alias}:${c.id}\`${c.name ? ` ${c.name}` : ''}`).join(', ')}`);
+    lines.push('', `Library \`${alias}\` (${doc.data.imports?.[alias] ?? ''}): add its components with \`Use(parent, "${alias}:id", {part: "text or icon name"}, {props})\` and use its variables as \`"$${alias}:name"\`. Each component lists its texts and icons, by the keys overrides use.`);
+    lines.push(`Components (${libComps.length}):`);
+    for (const c of libComps) {
+      const parts = partsOf(doc, `${alias}:${c.id}`, 5).map((p) => `${p.key}${p.kind === 'icon' ? ' (icon)' : ''}`);
+      lines.push(`- \`${alias}:${c.id}\`${c.name ? ` ${c.name}` : ''}${parts.length ? `: ${parts.join(', ')}` : ''}`);
+    }
     if (libVars.length) lines.push(`Variables (${libVars.length}): ${libVars.join(', ')}`);
   }
   return lines.join('\n');

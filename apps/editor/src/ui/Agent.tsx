@@ -116,7 +116,8 @@ function Item({ item }: { item: ChatItem }) {
 
 function usageLine(u: Extract<ChatItem, { kind: 'usage' }>): string {
   const n = (x: number) => (x >= 1000 ? `${(x / 1000).toFixed(x >= 10000 ? 0 : 1)}k` : String(x));
-  return [`${(u.durationMs / 1000).toFixed(1)}s`, u.inputTokens ? `${n(u.inputTokens)} in` : '', u.outputTokens ? `${n(u.outputTokens)} out` : '', u.costUsd ? `$${u.costUsd.toFixed(3)}` : ''].filter(Boolean).join(' · ');
+  const cached = u.inputTokens && u.cachedTokens ? ` (${Math.round((u.cachedTokens / u.inputTokens) * 100)}% cached)` : '';
+  return [`${(u.durationMs / 1000).toFixed(1)}s`, u.inputTokens ? `${n(u.inputTokens)} in${cached}` : '', u.outputTokens ? `${n(u.outputTokens)} out` : '', u.costUsd ? `$${u.costUsd.toFixed(3)}` : ''].filter(Boolean).join(' · ');
 }
 
 /** A short hint of what a tool call did: the guide file, the page, or the first line of a snippet. */

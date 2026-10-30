@@ -46,8 +46,12 @@ export class AgentService {
   private listeners = new Map<string, Set<(e: AgentEvent) => void>>();
   private saving = new Map<string, ReturnType<typeof setTimeout>>();
 
-  constructor(opts: { home: string; providers?: Provider[] }) {
+  /** The document's state for the first message of a session (get_app_state's description of it). */
+  private describe: ((doc: string) => Promise<string>) | undefined;
+
+  constructor(opts: { home: string; providers?: Provider[]; describe?: (doc: string) => Promise<string> }) {
     this.home = opts.home;
+    this.describe = opts.describe;
     this.dir = join(opts.home, 'agent', 'sessions');
     this.keys = new Keys(opts.home);
     this.providers = opts.providers ?? [new ClaudeProvider(), new CodexProvider(), ...PRESETS.map((p) => new CompatibleProvider(p, this.keys))];
@@ -116,6 +120,15 @@ export class AgentService {
     return () => set.delete(fn);
   }
 
+  /** The libraries a document imports, from its file. */
+  private async imports(doc: string): Promise<Record<string, string>> {
+    try {
+      return (JSON.parse(await readFile(doc, 'utf8')) as { imports?: Record<string, string> }).imports ?? {};
+    } catch {
+      return {};
+    }
+  }
+
   /** How the agent's runtime starts nib's MCP server: this runtime, named after the provider. */
   private mcp(provider: string): McpLaunch {
     return {
@@ -128,7 +141,7 @@ export class AgentService {
   private async run(s: AgentSession, provider: Provider, req: SendRequest, first: boolean, abort: AbortController): Promise<void> {
     const started = Date.now();
     let current: Extract<ChatItem, { kind: 'assistant' }> | undefined;
-    let usage: { costUsd?: number; inputTokens?: number; outputTokens?: number } = {};
+    let usage: { costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number } = {};
     const close = () => { if (current) { current.streaming = false; this.update(s, current); current = undefined; } };
     const emit = (e: RunEvent) => {
       switch (e.t) {
@@ -165,8 +178,14 @@ export class AgentService {
     };
     try {
       const info = await provider.info();
-      const prompt = req.context ? `${req.text}\n\n<context>\n${req.context}\n</context>` : req.text;
-      await provider.run({ session: s, prompt, system: systemPrompt(s.doc, info.vision), first, mcp: this.mcp(info.name), signal: abort.signal, emit });
+      // The first message carries the whole document's state; later ones only what is selected.
+      const state = first && this.describe ? await this.describe(s.doc).catch(() => undefined) : undefined;
+      const context = [state && `Document state:\n${state}`, req.context].filter(Boolean).join('\n\n');
+      const prompt = context ? `${req.text}\n\n<context>\n${context}\n</context>` : req.text;
+      // The system prompt stays the same through a session (provider caches key on it).
+      const libraries = Object.keys(await this.imports(s.doc)).length > 0;
+      if (abort.signal.aborted) return;
+      await provider.run({ session: s, prompt, system: systemPrompt(s.doc, info.vision, libraries), first, mcp: this.mcp(info.name), signal: abort.signal, emit });
     } catch (e) {
       close();
       if (!abort.signal.aborted) this.push(s, { kind: 'error', id: newId(), at: Date.now(), text: (e as Error).message || String(e) });

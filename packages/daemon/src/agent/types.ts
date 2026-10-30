@@ -4,7 +4,7 @@ export type ChatItem =
   | { kind: 'assistant'; id: string; at: number; text: string; streaming?: boolean }
   | { kind: 'tool'; id: string; at: number; name: string; input?: string; status: 'running' | 'done' | 'error'; output?: string }
   | { kind: 'error'; id: string; at: number; text: string }
-  | { kind: 'usage'; id: string; at: number; costUsd?: number; inputTokens?: number; outputTokens?: number; durationMs: number };
+  | { kind: 'usage'; id: string; at: number; costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number; durationMs: number };
 
 export interface AgentSession {
   id: string;
@@ -41,7 +41,8 @@ export type RunEvent =
   | { t: 'resume'; id: string }
   /** Something went wrong that does not stop the run. */
   | { t: 'warning'; text: string }
-  | { t: 'usage'; costUsd?: number; inputTokens?: number; outputTokens?: number };
+  /** Input tokens include the cached ones (read from the provider's prompt cache, billed far lower). */
+  | { t: 'usage'; costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number };
 
 export interface RunRequest {
   session: AgentSession;

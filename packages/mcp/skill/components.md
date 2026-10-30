@@ -23,7 +23,8 @@ Insert(form, {type: "ref", ref: button, fill: "$surface", descendants: {[buttonL
 ```
 
 - Properties on the `ref` node itself, other than `ref` and `descendants`, override the component root: `fill`, `width`, `padding`, ...
-- `descendants` maps a node inside the component (by id, by id path for nested instances, or by unique name) to property overrides.
+- `descendants` maps a node inside the component (by id, by id path for nested instances, or by unique name) to property overrides. A plain string sets a text's `content` or an icon's `icon`: `descendants: {Label: "Save"}`.
+- `Use(parent, component, parts, props)` is the short form: `Use(form, button, {Label: "Save"})`.
 - `Copy(componentId, parent)` also makes an instance.
 
 ## Changing one instance

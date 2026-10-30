@@ -84,6 +84,8 @@ const PRELUDE = String.raw`
   const api = {
     document: 'document',
     Insert: (parent, data) => call('insert', [parent, data]),
+    // An instance of a component: Use(parent, "lib:button", {"button-label": "Save"}, {width: "fill_container"}).
+    Use: (parent, component, parts, props) => call('insert', [parent, { ...(props || {}), type: 'ref', ref: component, ...(parts ? { descendants: parts } : {}) }]),
     Copy: (path, parent, data) => call('copy', [path, parent, data]),
     Update: (path, data) => { call('update', [path, data]); },
     Replace: (path, data) => call('replace', [path, data]),

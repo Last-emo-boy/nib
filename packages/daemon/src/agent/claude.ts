@@ -96,7 +96,7 @@ export class ClaudeProvider implements Provider {
         break;
       }
       case 'result':
-        emit({ t: 'usage', costUsd: m.total_cost_usd, inputTokens: m.usage.input_tokens + (m.usage.cache_read_input_tokens ?? 0) + (m.usage.cache_creation_input_tokens ?? 0), outputTokens: m.usage.output_tokens });
+        emit({ t: 'usage', costUsd: m.total_cost_usd, inputTokens: m.usage.input_tokens + (m.usage.cache_read_input_tokens ?? 0) + (m.usage.cache_creation_input_tokens ?? 0), cachedTokens: m.usage.cache_read_input_tokens ?? 0, outputTokens: m.usage.output_tokens });
         if (m.subtype !== 'success') throw new Error(m.errors?.join('\n') || `Claude stopped: ${m.subtype}`);
         if (m.is_error) throw new Error(m.result || 'Claude could not finish.');
         break;

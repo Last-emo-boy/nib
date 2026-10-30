@@ -27,7 +27,10 @@ export function resolve(doc: PenDoc, path: string): Target {
   if (!tree) throw new ExecError(`instance "${first}" cannot be expanded: its component is missing`);
   let found = findById(tree, path);
   if (!found && rest.length === 1) found = findUniqueByName(tree, rest[0], path);
-  if (!found) throw new ExecError(`instance "${first}" has no descendant "${rest.join('/')}"`);
+  if (!found) {
+    const parts = partsOf(doc, (ref as RefNode).ref);
+    throw new ExecError(`instance "${first}" has no descendant "${rest.join('/')}"${parts.length ? `; its texts and icons are ${describeParts(parts)}` : ''}`);
+  }
   return { kind: 'inside', path: found.id, ref: ref as RefNode, key: found.id.slice(first.length + 1), expanded: found };
 }
 
@@ -48,41 +51,98 @@ function findUniqueByName(tree: Node, name: string, path: string): Node | undefi
   return hits[0];
 }
 
+/** Id prefix of the instance `componentTree` expands. */
+const PROBE = '__component';
+
+/**
+ * Component `refId` (an id, or `alias:id` for an imported one) as an instance of it would show it: nested
+ * instances expanded, references inside an imported component resolved in its own document. Node ids are
+ * `__component/<key>`, where key is what `descendants` overrides use.
+ */
+export function componentTree(doc: PenDoc, refId: string): Node | undefined {
+  return expandTree(doc, { type: 'ref', id: PROBE, ref: refId } as unknown as Node);
+}
+
+const keyOf = (n: Node) => n.id.slice(PROBE.length + 1);
+
+/** A text or icon inside a component that instances can change, by its override key. */
+export interface Part { key: string; kind: 'text' | 'icon'; value: string }
+
+/** The visible texts and icons of component `refId` (nested instances' too), at most `limit`. */
+export function partsOf(doc: PenDoc, refId: string, limit = 12): Part[] {
+  const tree = componentTree(doc, refId);
+  const out: Part[] = [];
+  const visit = (n: Node) => {
+    if (out.length >= limit || n.enabled === false) return;
+    if (n !== tree && n.type === 'text') out.push({ key: keyOf(n), kind: 'text', value: String(n.content ?? '') });
+    else if (n !== tree && n.type === 'icon') out.push({ key: keyOf(n), kind: 'icon', value: String((n as { icon?: unknown }).icon ?? '') });
+    childrenOf(n)?.forEach(visit);
+  };
+  if (tree) visit(tree);
+  return out;
+}
+
+export const describeParts = (parts: Part[]) => parts.map((p) => `"${p.key}" (${p.kind} ${JSON.stringify(p.value.slice(0, 32))})`).join(', ');
+
 /**
  * Turn `descendants` keys into id paths relative to the component: keys may already be ids or paths,
- * or unique names of descendants.
+ * or unique names of descendants. A string value is shorthand for a text's content or an icon's name.
  */
-export function normalizeDescendantKeys(doc: PenDoc, componentId: string, descendants: Record<string, unknown>): Record<string, Record<string, unknown>> {
-  const comp = doc.get(componentId);
-  const tree = comp ? expandTree(doc, comp) : undefined;
+export function normalizeDescendantKeys(doc: PenDoc, refId: string, descendants: Record<string, unknown>): Record<string, Record<string, unknown>> {
+  const tree = componentTree(doc, refId);
   const out: Record<string, Record<string, unknown>> = {};
   for (const [key, value] of Object.entries(descendants)) {
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new ExecError(`descendants["${key}"] must be an object of properties or a node`);
-    let id = key;
-    if (tree && !findById(tree, key) && !(comp?.type === 'ref' && hasPath(doc, comp as RefNode, key))) {
-      const byName = tree ? findUniqueByName(tree, key, key) : undefined;
-      if (!byName) throw new ExecError(`component "${componentId}" has no descendant "${key}"`);
-      id = byName.id;
+    let node = tree ? findById(tree, `${PROBE}/${key}`) : undefined;
+    if (tree && !node) {
+      node = findUniqueByName(tree, key, key);
+      if (!node) {
+        const parts = partsOf(doc, refId);
+        throw new ExecError(`component "${refId}" has no descendant "${key}"${parts.length ? `; its texts and icons are ${describeParts(parts)}` : ''}`);
+      }
     }
+    const id = node ? keyOf(node) : key;
+    if (typeof value === 'string') {
+      if (node?.type === 'text') out[id] = { content: value };
+      else if (node?.type === 'icon') out[id] = { icon: value };
+      else throw new ExecError(`descendants["${key}"]: a string sets a text's content or an icon's name, but this is a ${node?.type ?? 'missing node'}; give an object of properties`);
+      continue;
+    }
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new ExecError(`descendants["${key}"] must be an object of properties, a node, or a string for a text or icon`);
     out[id] = value as Record<string, unknown>;
   }
   return out;
 }
 
-/** For a component that is itself an instance, descendant keys address the inner component. */
-function hasPath(doc: PenDoc, ref: RefNode, key: string): boolean {
-  const inner = doc.get(ref.ref);
-  const tree = inner ? expandTree(doc, inner) : undefined;
-  return !!tree && !!findById(tree, key);
+/** The node `key` (an override key) names inside component `refId`, as an instance shows it. */
+export function componentDescendant(doc: PenDoc, refId: string, key: string): Node | undefined {
+  const tree = componentTree(doc, refId);
+  return tree ? findById(tree, `${PROBE}/${key}`) : undefined;
 }
 
-/** The node `key` (an id path relative to the component) names inside component `comp`, as expanded. */
-export function componentDescendant(doc: PenDoc, comp: Node, key: string): Node | undefined {
-  const tree = expandTree(doc, comp);
-  return tree ? findById(tree, comp.type === 'ref' ? `${comp.id}/${key}` : key) : undefined;
+/**
+ * The component of the nested instance `key` inside component `refId`, as a reference that resolves from
+ * this document (`alias:id` when the outer component is imported), or undefined when `key` is no instance.
+ */
+export function nestedComponent(doc: PenDoc, refId: string, key: string): string | undefined {
+  let ref = refId;
+  for (const seg of key.split('/')) {
+    let root = doc.get(ref);
+    // A reusable instance addresses its own component's nodes.
+    while (root?.type === 'ref') { ref = qualifiedRef(ref, (root as RefNode).ref); root = doc.get(ref); }
+    const hit = root ? findById(root, seg) : undefined;
+    if (hit?.type !== 'ref') return undefined;
+    ref = qualifiedRef(ref, (hit as RefNode).ref);
+  }
+  return ref;
+}
+
+/** A reference written inside the component `from` points into the same document as `from`. */
+function qualifiedRef(from: string, ref: string): string {
+  const colon = from.lastIndexOf(':');
+  return colon > 0 ? `${from.slice(0, colon + 1)}${ref}` : ref;
 }
 
 /** Root type of a component as instances see it (a reusable instance stands for its own component). */
-export function componentRoot(doc: PenDoc, comp: Node): Node | undefined {
-  return comp.type === 'ref' ? expandTree(doc, comp) : comp;
+export function componentRoot(doc: PenDoc, refId: string): Node | undefined {
+  return componentTree(doc, refId);
 }

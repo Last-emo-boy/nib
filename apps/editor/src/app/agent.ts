@@ -8,7 +8,7 @@ export type ChatItem =
   | { kind: 'assistant'; id: string; at: number; text: string; streaming?: boolean }
   | { kind: 'tool'; id: string; at: number; name: string; input?: string; status: 'running' | 'done' | 'error'; output?: string }
   | { kind: 'error'; id: string; at: number; text: string }
-  | { kind: 'usage'; id: string; at: number; costUsd?: number; inputTokens?: number; outputTokens?: number; durationMs: number };
+  | { kind: 'usage'; id: string; at: number; costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number; durationMs: number };
 
 export interface SessionSummary { id: string; title: string; doc: string; provider: string; model: string; created: number; updated: number; running: boolean }
 export interface ModelChoice { id: string; label: string; vision?: boolean }

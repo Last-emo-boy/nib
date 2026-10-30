@@ -28,6 +28,7 @@ nib edits `.pen` design files: JSON documents holding a canvas of nodes (frames,
 - Use `gap` and `padding` for spacing. There is no margin.
 - Don't put `const` results you need later in `const`: assign to a global (`card = Insert(...)`) so the next snippet can use it.
 - Never write ids yourself. nib generates them; read them from the reply's "Created nodes" list or from return values.
+- With a library imported, build from its components: `Use(parent, "lib:button", {"button-label": "Save"})`. `get_app_state` lists each component's texts and icons by the keys to use.
 
 ## Files
 

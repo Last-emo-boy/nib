@@ -1,5 +1,7 @@
+import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { dirname } from 'node:path';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 import type { ThreadItem } from '@openai/codex-sdk';
 import { findExecutable, textOf } from './util.ts';
 import type { Provider, ProviderInfo, RunRequest } from './types.ts';
@@ -45,17 +47,19 @@ export class CodexProvider implements Provider {
     const { Codex } = await import('@openai/codex-sdk');
     const codex = new Codex({
       ...(bin ? { codexPathOverride: bin } : {}),
-      // nib's tools only change the open design, so they run without asking.
-      config: { mcp_servers: { nib: { command: req.mcp.command, args: req.mcp.args, env: req.mcp.env, default_tools_approval_mode: 'approve' } } },
+      config: {
+        // nib's tools only change the open design, so they run without asking; the person's other MCP
+        // servers stay off, so their tools neither distract the agent nor fill its context.
+        mcp_servers: { ...Object.fromEntries((await otherMcpServers()).map((name) => [name, { enabled: false }])), nib: { command: req.mcp.command, args: req.mcp.args, env: req.mcp.env, default_tools_approval_mode: 'approve' } },
+        developer_instructions: req.system,
+      },
     });
     const options = {
       model: req.session.model || undefined, sandboxMode: 'read-only' as const, approvalPolicy: 'never' as const,
       workingDirectory: dirname(req.session.doc), skipGitRepoCheck: true,
     };
     const thread = req.session.resume ? codex.resumeThread(req.session.resume, options) : codex.startThread(options);
-    // Codex has no separate system prompt: the instructions open the conversation.
-    const input = req.first ? `${req.system}\n\n---\n\n${req.prompt}` : req.prompt;
-    const { events } = await thread.runStreamed(input, { signal: req.signal });
+    const { events } = await thread.runStreamed(req.prompt, { signal: req.signal });
     const said = new Map<string, number>();
     const message = (item: ThreadItem, done: boolean) => {
       if (item.type !== 'agent_message') return;
@@ -86,7 +90,7 @@ export class CodexProvider implements Provider {
           message(e.item, true);
           break;
         case 'turn.completed':
-          req.emit({ t: 'usage', inputTokens: e.usage.input_tokens, outputTokens: e.usage.output_tokens });
+          req.emit({ t: 'usage', inputTokens: e.usage.input_tokens, cachedTokens: e.usage.cached_input_tokens, outputTokens: e.usage.output_tokens });
           break;
         case 'turn.failed':
           throw new Error(e.error.message);
@@ -95,4 +99,14 @@ export class CodexProvider implements Provider {
       }
     }
   }
+}
+
+/** MCP servers the person configured for Codex (other than nib), from its config file. */
+async function otherMcpServers(): Promise<string[]> {
+  const file = join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'config.toml');
+  const text = await readFile(file, 'utf8').catch(() => '');
+  const names = new Set<string>();
+  for (const m of text.matchAll(/^\s*\[mcp_servers\.(?:"([^"]+)"|([A-Za-z0-9_-]+))\]/gm)) names.add(m[1] ?? m[2]);
+  names.delete('nib');
+  return [...names];
 }

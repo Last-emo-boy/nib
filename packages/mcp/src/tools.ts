@@ -32,7 +32,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'execute',
-    description: 'Run a JavaScript snippet against a .pen document with nib\'s design API (Insert, Copy, Update, Replace, Move, Delete, Get, SetVariables, FindEmptySpace, TakeScreenshot, Export, Print). A snippet is one transaction: if it throws, nothing changes and the reply gives an editId for patching it with `edits`. Successful changes are saved to the file. API reference: read_skill({path: "execute.md"}).',
+    description: 'Run a JavaScript snippet against a .pen document with nib\'s design API (Insert, Use, Copy, Update, Replace, Move, Delete, Get, SetVariables, FindEmptySpace, TakeScreenshot, Export, Print). A snippet is one transaction: if it throws, nothing changes and the reply gives an editId for patching it with `edits`. Successful changes are saved to the file. API reference: read_skill({path: "execute.md"}).',
     inputSchema: {
       type: 'object',
       properties: {

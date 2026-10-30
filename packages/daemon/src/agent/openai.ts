@@ -82,9 +82,10 @@ export class CompatibleProvider implements Provider {
         type: 'function', function: { name: t.name, description: t.description ?? '', parameters: t.inputSchema as Record<string, unknown> },
       }));
       const transcript = (req.session.transcript ?? []) as Message[];
+      trimEarlierTurns(transcript);
       transcript.push({ role: 'user', content: req.prompt });
       req.session.transcript = transcript;
-      let input = 0, output = 0;
+      let input = 0, output = 0, cached = 0;
       for (let step = 0; step < MAX_STEPS; step++) {
         const stream = await api.chat.completions.create(
           { model, messages: [{ role: 'system', content: req.system }, ...transcript], tools, stream: true, stream_options: { include_usage: true } },
@@ -93,7 +94,13 @@ export class CompatibleProvider implements Provider {
         let text = '', reasoning = '';
         const calls: { id: string; name: string; args: string }[] = [];
         for await (const chunk of stream) {
-          if (chunk.usage) { input += chunk.usage.prompt_tokens; output += chunk.usage.completion_tokens; }
+          if (chunk.usage) {
+            input += chunk.usage.prompt_tokens;
+            output += chunk.usage.completion_tokens;
+            // DeepSeek reports prompt_cache_hit_tokens; OpenAI-style services prompt_tokens_details.cached_tokens.
+            const u = chunk.usage as typeof chunk.usage & { prompt_cache_hit_tokens?: number };
+            cached += u.prompt_cache_hit_tokens ?? u.prompt_tokens_details?.cached_tokens ?? 0;
+          }
           const delta = chunk.choices[0]?.delta as (OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta & { reasoning_content?: string }) | undefined;
           if (!delta) continue;
           if (delta.reasoning_content) reasoning += delta.reasoning_content;
@@ -135,7 +142,7 @@ export class CompatibleProvider implements Provider {
         // Tool messages carry only text: screenshots follow as the person's message.
         if (seen.length) transcript.push({ role: 'user', content: [{ type: 'text', text: 'Screenshots from the tool calls above:' }, ...seen] });
       }
-      req.emit({ t: 'usage', inputTokens: input, outputTokens: output });
+      req.emit({ t: 'usage', inputTokens: input, cachedTokens: cached, outputTokens: output });
     } finally {
       // Screenshots are for the run that took them; the saved conversation keeps a note instead.
       const transcript = (req.session.transcript ?? []) as Message[];
@@ -146,6 +153,19 @@ export class CompatibleProvider implements Provider {
     }
   }
 }
+
+/**
+ * Long tool results from earlier messages are rarely needed again but are sent with every request: keep
+ * their start. (Done between messages, not during a run, so the provider's prompt cache holds within it.)
+ */
+function trimEarlierTurns(transcript: Message[]): void {
+  for (const [i, m] of transcript.entries()) {
+    if (m.role === 'tool' && typeof m.content === 'string' && m.content.length > TRIM_AT) {
+      transcript[i] = { ...m, content: `${m.content.slice(0, TRIM_TO)}\n[… ${m.content.length - TRIM_TO} more characters from an earlier step]` };
+    }
+  }
+}
+const TRIM_AT = 2400, TRIM_TO = 1200;
 
 /** The environment a child process needs to find its interpreter and files. */
 function inherited(): Record<string, string> {

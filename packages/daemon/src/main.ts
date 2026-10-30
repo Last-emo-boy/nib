@@ -31,7 +31,7 @@ const images = (file: string) => {
 };
 const host = new DocumentHost({ renderer, images, exporters: EXPORTERS });
 browser = new BrowserService({ host, home: NIB_HOME, fonts });
-const agent = new AgentService({ home: NIB_HOME });
+const agent = new AgentService({ home: NIB_HOME, describe: (doc) => host.describeDocument(doc) });
 const editorDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'editor', 'dist');
 
 let timer: ReturnType<typeof setTimeout> | undefined;

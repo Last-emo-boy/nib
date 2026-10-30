@@ -160,11 +160,18 @@ export class ExecSession {
         const error: SnippetError = run.kind === 'fonts' ? { name: 'Error', message: `fonts could not be loaded: ${run.faces.map((f) => f.family).join(', ')}` } : run.error;
         editId ??= newEditId(this.failed);
         this.failed.set(editId, code);
-        return { ...failureReport(error, editId, run.kind === 'error' ? run.out : undefined), ops: [], undo: [] };
+        return { ...failureReport(error, editId, run.kind === 'error' ? run.out : undefined, this.hint(error)), ops: [], undo: [] };
       }
       if (editId) this.failed.delete(editId);
       return this.finish(run.out, run.globals, run.ops, run.undo);
     }
+  }
+
+  /** A likely fix for a common mistake, such as using a node id as a variable name. */
+  private hint(error: SnippetError): string | undefined {
+    const name = error.name === 'ReferenceError' ? /'([^']+)' is not defined/.exec(error.message)?.[1] : undefined;
+    if (name && this.doc.get(name)) return `"${name}" is a node id, and ids are strings: write "${name}" in quotes (or keep it in a global from an earlier call: ${name}Id = "${name}").`;
+    return undefined;
   }
 
   private attempt(code: string):
@@ -299,11 +306,12 @@ function failure(text: string): ExecuteResult {
   return { ok: false, text, images: [], ops: [], undo: [] };
 }
 
-function failureReport(error: SnippetError, editId: string, out: ApiOutput | undefined): { ok: false; text: string; images: ExecuteImage[] } {
+function failureReport(error: SnippetError, editId: string, out: ApiOutput | undefined, hint?: string): { ok: false; text: string; images: ExecuteImage[] } {
   const where = error.line !== undefined ? `\n  at line ${error.line}: \`${error.source}\`` : '';
   const parts = [
     '### Execution failed; nothing was changed',
     `\`\`\`\n${error.name}: ${error.message}${where}\n\`\`\``,
+    ...(hint ? [`Hint: ${hint}`] : []),
   ];
   if (out?.prints.length) parts.push(`## Print output before the error\n${out.prints.join('  \n')}`);
   parts.push(

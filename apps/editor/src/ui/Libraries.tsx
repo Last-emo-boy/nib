@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { commit } from '../app/actions.ts';
-import { token } from '../app/connection.ts';
-import { desktop } from '../app/desktop.ts';
+import { authHeaders, token } from '../app/connection.ts';
+import { desktop, openDocument } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
 import { COMPONENT_MIME, componentsOf, post, previewUrl, useLibraries, type ComponentEntry } from '../app/libraries.ts';
 import { store, toast, useEditor } from '../app/store.ts';
@@ -77,6 +77,30 @@ function groups(entries: ComponentEntry[]): [string, ComponentEntry[]][] {
   return [...out];
 }
 
+/** .lib.pen files beside this one, in its libraries/ folder, or opened recently, that it does not use yet. */
+function Nearby({ path, imported, onAdd }: { path: string; imported: string[]; onAdd: (file: string) => void }) {
+  const t = useT();
+  const [files, setFiles] = useState<{ path: string; name: string; rel: string }[]>([]);
+  useEffect(() => {
+    void fetch(`/api/library/nearby?${new URLSearchParams({ doc: path })}`, { headers: authHeaders() }).then((r) => r.json()).then((j) => setFiles(j.files ?? []), () => {});
+  }, [path, imported.join('|')]);
+  const used = new Set(imported.map((r) => r.replace(/^\.\//, '')));
+  const shown = files.filter((f) => !used.has(f.rel.replace(/^\.\//, '')));
+  if (!shown.length) return null;
+  return (
+    <>
+      <div className="comp-section static">{t.nearbyLibraries}</div>
+      {shown.map((f) => (
+        <div key={f.path} className="lib-row" title={f.path}>
+          <span className="layer-icon component"><Icon name="library" size={15} /></span>
+          <div className="lib-text"><span className="lib-name">{f.name}</span><span className="lib-sub">{f.rel}</span></div>
+          <button className="lib-use" onClick={() => onAdd(f.path)}>{t.addLibrary}</button>
+        </div>
+      ))}
+    </>
+  );
+}
+
 /** The libraries this file imports, the design systems nib ships, and importing any .pen file as one. */
 export function Libraries() {
   const t = useT();
@@ -136,7 +160,14 @@ export function Libraries() {
           </div>
         );
       })}
+      <Nearby path={conn.path} imported={imports.map(([, rel]) => rel)} onAdd={(file) => void run('file', () => post('/api/library/import', { path: conn.path, file }))} />
       <button className="lib-import" disabled={busy === 'file'} onClick={() => void importFile()}><Icon name="folder" size={14} />{t.importLibrary}</button>
+      {!conn.path.endsWith('.lib.pen') && (
+        <button className="lib-import" onClick={() => {
+          if (!confirm(t.convertConfirm)) return;
+          void post<{ path: string }>('/api/library/convert', { path: conn.path }).then((r) => openDocument(r.path), (e: Error) => toast(e.message));
+        }}><Icon name="library" size={14} />{t.convertToLibrary}</button>
+      )}
     </div>
   );
 }

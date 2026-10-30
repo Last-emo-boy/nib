@@ -99,6 +99,17 @@ describe('daemon', () => {
     expect(parsePen(await readFile(file, 'utf8')).children.map((n) => n.id)).not.toEqual(['one', 'two']);
   });
 
+  it('turns a document into a library by renaming it, and keeps editing it there', async () => {
+    const file = join(dir, 'kit.pen');
+    await writeFile(file, serializePen({ version: '2.20', children: [{ type: 'frame', id: 'k', x: 0, y: 0, width: 10, height: 10, reusable: true }] } as PenDocument));
+    await host.open(file);
+    const r = await (await api('/api/library/convert', { path: file })).json();
+    expect(r.path).toBe(join(dir, 'kit.lib.pen'));
+    await host.execute(r.path, { input: 'Update("k", {width: 20})' }, 'agent');
+    expect(parsePen(await readFile(r.path, 'utf8')).children[0]).toMatchObject({ width: 20 });
+    expect(await stat(file).catch(() => undefined)).toBeUndefined();
+  });
+
   it('reloads a document that changed on disk and tells editors', async () => {
     const file = join(dir, 'b.pen');
     await writeFile(file, serializePen({ version: '2.20', children: [] } as unknown as PenDocument));

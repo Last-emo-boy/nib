@@ -1,7 +1,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { dirname, extname, join, normalize, relative, resolve as resolvePath } from 'node:path';
+import { basename, dirname, extname, join, normalize, relative, resolve as resolvePath } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { Op } from '@nib/core';
 import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } from '@nib/render';
@@ -260,6 +260,28 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const alias = imports[body.id] === rel ? body.id : aliasFor(body.id, Object.keys(imports));
         if (imports[alias] !== rel) await host.addImport(open.path, alias, rel, { kind: 'user' });
         return send(res, 200, { alias, path: rel });
+      }
+      case 'POST /api/library/convert': {
+        // "Turn this file into a library": x.pen becomes x.lib.pen, in place.
+        const body = await readJson(req);
+        if (typeof body.path !== 'string' || !body.path.endsWith('.pen') || body.path.endsWith('.lib.pen')) return send(res, 400, { error: 'path must be a .pen file that is not a library yet' });
+        const open = await host.open(body.path);
+        try {
+          return send(res, 200, { path: await host.rename(open.path, open.path.replace(/\.pen$/, '.lib.pen')) });
+        } catch (e) {
+          return send(res, 409, { error: (e as Error).message });
+        }
+      }
+      case 'GET /api/library/nearby': {
+        // Libraries a document could use: .lib.pen files beside it and in its libraries/ folder, and recent ones.
+        const doc = resolvePath(q.get('doc') ?? '');
+        const found = new Set<string>();
+        for (const dir of [dirname(doc), join(dirname(doc), 'libraries')]) {
+          for (const f of await readdir(dir).catch(() => [] as string[])) if (f.endsWith('.lib.pen')) found.add(join(dir, f));
+        }
+        for (const r of await recents()) if (r.path.endsWith('.lib.pen')) found.add(r.path);
+        found.delete(doc);
+        return send(res, 200, { files: [...found].map((path) => ({ path, name: basename(path, '.lib.pen'), rel: relative(dirname(doc), path) })) });
       }
       case 'POST /api/library/import': {
         // Any .lib.pen (or .pen) file, imported by its path relative to the document.

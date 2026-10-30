@@ -209,6 +209,25 @@ export class DocumentHost {
     return dest;
   }
 
+  /** Rename an open document's file (in the same folder, so its relative paths still hold); returns the new path. */
+  async rename(path: string, target: string): Promise<string> {
+    const open = this.require(path);
+    const dest = resolvePath(target);
+    if (dirname(dest) !== dirname(open.path)) throw new Error('a document can only be renamed within its folder');
+    if (await stat(dest).catch(() => undefined)) throw new Error(`${dest} already exists`);
+    return this.enqueue(open, async () => {
+      open.watcher?.close();
+      await rename(open.path, dest);
+      this.docs.delete(open.path);
+      if (this.active === open.path) this.active = dest;
+      open.path = dest;
+      this.docs.set(dest, open);
+      if (this.opts.watch !== false) this.watchFile(open);
+      await noteOpened(dest).catch(() => undefined);
+      return dest;
+    });
+  }
+
   /** Export nodes and return the files' bytes, for an editor to download. */
   async exportNodes(path: string, ids: string[], format: ExportFormat, scale?: number, fragment = false): Promise<{ name: string; data: Uint8Array }[]> {
     const open = this.require(path);

@@ -16,6 +16,8 @@ const en = {
   openTitle: 'Open a .pen file', openHint: 'Absolute path of a .pen file (a missing file is created)', open: 'Open',
   openDocs: 'Open in nib', makeComponent: 'Make component', detach: 'Go to component', hidden: 'Hidden',
   shortcuts: 'Shortcuts', language: '中文', loading: 'Rendering…',
+  problems: 'Problems', noProblems: 'No problems found.', palette: 'Search layers and commands…', exportAs: 'Export', exportButton: 'Export selection',
+  copy: 'Copy', cut: 'Cut', paste: 'Paste', duplicate: 'Duplicate', delete: 'Delete', frameSelection: 'Frame selection', fitAll: 'Zoom to fit all', fitSelection: 'Zoom to selection', togglePanel: 'Toggle left panel', toggleActivity: 'Toggle activity', switchLanguage: 'Switch language',
 };
 const zh: typeof en = {
   layers: '图层', components: '组件', variables: '变量', activity: '动态',
@@ -33,6 +35,8 @@ const zh: typeof en = {
   openTitle: '打开 .pen 文件', openHint: '.pen 文件的绝对路径（不存在会新建）', open: '打开',
   openDocs: 'nib 中已打开', makeComponent: '创建组件', detach: '前往组件', hidden: '已隐藏',
   shortcuts: '快捷键', language: 'English', loading: '渲染中…',
+  problems: '问题', noProblems: '没有发现问题。', palette: '搜索图层和命令…', exportAs: '导出', exportButton: '导出所选',
+  copy: '复制', cut: '剪切', paste: '粘贴', duplicate: '创建副本', delete: '删除', frameSelection: '用画框包裹', fitAll: '缩放到全部', fitSelection: '缩放到所选', togglePanel: '切换左侧面板', toggleActivity: '切换动态', switchLanguage: '切换语言',
 };
 
 export type Strings = typeof en;

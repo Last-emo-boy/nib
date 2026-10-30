@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { PenDoc } from '@nib/core';
 import type { Node, RefNode } from '@nib/format';
 import { isFree, setProps } from '../app/actions.ts';
+import { authHeaders } from '../app/connection.ts';
+import { toast } from '../app/store.ts';
 import { useT, type Strings } from '../app/i18n.ts';
 import { store, useEditor } from '../app/store.ts';
 import { boundsOf, canvas, fitView } from '../canvas/Canvas.tsx';
@@ -67,6 +69,7 @@ export function Properties() {
           </div>
         </Section>
       )}
+      <ExportSection t={t} ids={ids} />
       {nodes.length === 1 && n.type !== 'ref' && (
         <Section title={t.component}>
           <label className="check"><input type="checkbox" checked={n.reusable === true} onChange={(e) => set({ reusable: e.target.checked || undefined }, e.target.checked ? 'Make component' : 'Detach component')} /> {t.makeComponent}</label>
@@ -332,3 +335,48 @@ function ColorField({ value, onChange }: { value: string; onChange: (v: string) 
   );
 }
 
+
+/** Export the selection through the daemon (same renderer as agents' Export) and download the files. */
+function ExportSection({ t, ids }: { t: Strings; ids: string[] }) {
+  const [format, setFormat] = useState('png');
+  const [scale, setScale] = useState(2);
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    const conn = store.get().conn;
+    if (!conn) return;
+    setBusy(true);
+    try {
+      const r = await fetch('/api/export', { method: 'POST', headers: { ...authHeaders(), 'content-type': 'application/json' }, body: JSON.stringify({ filePath: conn.path, ids, format, scale }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      for (const f of j.files as { name: string; data: string }[]) {
+        const bytes = Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0));
+        const url = URL.createObjectURL(new Blob([bytes]));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = f.name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
+    } catch (e) {
+      toast(`${t.exportAs}: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Section title={t.exportAs}>
+      <div className="row">
+        <select value={format} onChange={(e) => setFormat(e.target.value)}>
+          {['png', 'jpeg', 'webp', 'pdf', 'html-css', 'html-tailwind'].map((f) => <option key={f} value={f}>{f.toUpperCase().replace('HTML-', 'HTML ')}</option>)}
+        </select>
+        {['png', 'jpeg', 'webp', 'pdf'].includes(format) && (
+          <select value={scale} onChange={(e) => setScale(Number(e.target.value))}>
+            {[0.5, 1, 2, 3, 4].map((s) => <option key={s} value={s}>{s}×</option>)}
+          </select>
+        )}
+      </div>
+      <button className="wide-button" disabled={busy} onClick={run}><Icon name="download" size={14} /> {t.exportButton}</button>
+    </Section>
+  );
+}

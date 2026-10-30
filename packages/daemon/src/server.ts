@@ -110,6 +110,17 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           images: r.images.map((i) => ({ data: Buffer.from(i.data).toString('base64'), mimeType: i.mimeType })),
         });
       }
+      case 'GET /api/problems': {
+        const doc = q.get('doc') ?? '';
+        if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
+        return send(res, 200, { problems: await host.problems(doc) });
+      }
+      case 'POST /api/export': {
+        const body = await readJson(req);
+        if (typeof body.filePath !== 'string' || !Array.isArray(body.ids) || typeof body.format !== 'string') return send(res, 400, { error: 'filePath, ids and format are required' });
+        const files = await host.exportNodes(body.filePath, body.ids as string[], body.format as never, typeof body.scale === 'number' ? body.scale : undefined);
+        return send(res, 200, { files: files.map((f) => ({ name: f.name, data: Buffer.from(f.data).toString('base64') })) });
+      }
       case 'GET /api/docs':
         return send(res, 200, { docs: host.list().map((d) => ({ path: d.path, version: d.version, active: d.path === host.active })) });
       case 'GET /api/config':

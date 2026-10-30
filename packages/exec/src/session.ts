@@ -4,8 +4,8 @@ import type { Node } from '@nib/format';
 import { buildScene, childrenOf, DocEditor, type Op, type PenDoc, type SceneNode } from '@nib/core';
 import { FontsNotLoaded, type FontFace, type ImageLoader, type Renderer } from '@nib/render';
 import { PenApi, type ApiOutput, type CapturedScene, type ExportFormat, type ExportOptions } from './api.ts';
-import { BoundsCache, type LayoutFn } from './bounds.ts';
-import { assetIssues, layoutIssues, variableIssues } from './checks.ts';
+import { BoundsCache, problemOf, type LayoutFn } from './bounds.ts';
+import { assetIssues, layoutIssues, variableIssues, type Problem } from './checks.ts';
 import { ExecError } from './errors.ts';
 import { Sandbox, type SnippetError } from './sandbox.ts';
 
@@ -92,6 +92,32 @@ export class ExecSession {
     this.editor = new DocEditor(doc);
     this.bounds = new BoundsCache(doc, this.layoutFn);
     await this.loadScenes(doc.data.children);
+  }
+
+  /**
+   * Problems anywhere in the document, for the editor's problems panel: the checks agents get after each
+   * snippet, plus nodes that a clipping parent hides completely.
+   */
+  async problems(): Promise<Problem[]> {
+    const doc = this.current;
+    const scenes = await this.loadScenes(doc.data.children);
+    const ids = new Set(doc.ids());
+    const out: Problem[] = [...variableIssues(doc, ids)];
+    try {
+      out.push(...layoutIssues(doc, this.bounds, ids));
+      for (const id of ids) {
+        const at = doc.locate(id);
+        if (!at?.parent || at.parent.type !== 'frame' || (at.parent as { clip?: unknown }).clip !== true) continue;
+        const box = this.bounds.box(id), parent = this.bounds.box(at.parent.id);
+        if (box && parent && problemOf(box, parent) === 'fully clipped') {
+          out.push({ id, message: `${at.node.name ? `"${at.node.name}"` : id} is outside its parent, which clips it, so it is never visible.` });
+        }
+      }
+    } catch (e) {
+      if (!(e instanceof FontsNotLoaded)) throw e;
+    }
+    out.push(...assetIssues(this.opts.renderer, scenes, ids, this.opts.renderer.report(this.opts.images).missingImages));
+    return out;
   }
 
   /** Layout box of a document node, relative to its parent; undefined when hidden or its fonts are not loaded. */
@@ -189,13 +215,13 @@ export class ExecSession {
     const tops = new Set<Node>();
     for (const id of touched) { const top = this.doc.topLevel(id); if (top) tops.add(top); }
     const scenes = await this.loadScenes([...tops]);
-    const issues = [...out.warnings, ...variableIssues(this.doc, touched)];
+    const issues = [...out.warnings, ...variableIssues(this.doc, touched).map((p) => p.message)];
     try {
-      issues.push(...layoutIssues(this.doc, this.bounds, touched));
+      issues.push(...layoutIssues(this.doc, this.bounds, touched).map((p) => p.message));
     } catch (e) {
       if (!(e instanceof FontsNotLoaded)) throw e;
     }
-    issues.push(...assetIssues(this.opts.renderer, scenes, touched, this.opts.renderer.report(this.opts.images).missingImages));
+    issues.push(...assetIssues(this.opts.renderer, scenes, touched, this.opts.renderer.report(this.opts.images).missingImages).map((p) => p.message));
 
     const images: ExecuteImage[] = [];
     const shots: string[] = [];

@@ -4,7 +4,7 @@ import {
   type DocEditor, type PenDoc, type SceneNode, type ThemeContext,
 } from '@nib/core';
 import type { Box } from '@nib/layout';
-import { problemOf, type BoundsCache, type Problem } from './bounds.ts';
+import { problemOf, type BoundsCache, type ClipProblem } from './bounds.ts';
 import { ExecError } from './errors.ts';
 import { componentDescendant, componentRoot, DOCUMENT, findById, normalizeDescendantKeys, resolve, type Target } from './targets.ts';
 
@@ -23,7 +23,7 @@ export interface GetOptions {
 export interface TreeEntry {
   n: Props;
   b: Box;
-  p?: Problem;
+  p?: ClipProblem;
   c?: TreeEntry[];
 }
 

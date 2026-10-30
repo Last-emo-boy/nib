@@ -1,0 +1,90 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { childrenOf } from '@nib/core';
+import type { Node } from '@nib/format';
+import { copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, paste } from '../app/actions.ts';
+import { useT } from '../app/i18n.ts';
+import { store, useEditor, type Tool } from '../app/store.ts';
+import { boundsOf, fitView } from '../canvas/Canvas.tsx';
+import { Icon } from './Icon.tsx';
+import type { IconName } from './icons.ts';
+import { layerName, typeIcon } from './LeftPanel.tsx';
+
+interface Item { key: string; label: string; hint?: string; icon: IconName; run: () => void }
+
+const MAX_LAYERS = 4000;
+
+/** One search box for every command and every named layer (Cmd/Ctrl+K). */
+export function Palette() {
+  const t = useT();
+  const open = useEditor((s) => s.paletteOpen);
+  const doc = useEditor((s) => s.doc);
+  const version = useEditor((s) => s.version);
+  const [query, setQuery] = useState('');
+  const [active, setActive] = useState(0);
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (open) { setQuery(''); setActive(0); setTimeout(() => input.current?.focus(), 0); } }, [open]);
+
+  const commands = useMemo<Item[]>(() => {
+    const tool = (id: Tool, label: string, icon: IconName, hint: string): Item => ({ key: `tool:${id}`, label, icon, hint, run: () => store.set({ tool: id }) });
+    return [
+      tool('move', t.move, 'pointer', 'V'), tool('frame', t.frame, 'frame', 'F'), tool('rectangle', t.rectangle, 'square', 'R'),
+      tool('ellipse', t.ellipse, 'circle', 'O'), tool('text', t.text, 'type', 'T'), tool('note', t.note, 'note', 'N'), tool('hand', t.hand, 'hand', 'H'),
+      { key: 'undo', label: t.undo, icon: 'undo', hint: '⌘Z', run: () => store.get().conn?.undo() },
+      { key: 'redo', label: t.redo, icon: 'redo', hint: '⇧⌘Z', run: () => store.get().conn?.redo() },
+      { key: 'copy', label: t.copy, icon: 'copy', hint: '⌘C', run: copySelection },
+      { key: 'cut', label: t.cut, icon: 'copy', hint: '⌘X', run: cutSelection },
+      { key: 'paste', label: t.paste, icon: 'copy', hint: '⌘V', run: () => void paste() },
+      { key: 'duplicate', label: t.duplicate, icon: 'copy', hint: '⌘D', run: () => void duplicateSelection() },
+      { key: 'delete', label: t.delete, icon: 'trash', hint: '⌫', run: deleteSelection },
+      { key: 'frame-selection', label: t.frameSelection, icon: 'frame', hint: '⌥⌘G', run: frameSelection },
+      { key: 'fit', label: t.fitAll, icon: 'maximize', hint: '⇧1', run: () => store.set({ view: fitView(boundsOf()) }) },
+      { key: 'fit-selection', label: t.fitSelection, icon: 'maximize', hint: '⇧2', run: () => { const b = boundsOf(store.get().selection); if (b) store.set({ view: fitView(b, 4) }); } },
+      { key: 'panel', label: t.togglePanel, icon: 'panelLeft', hint: '⌘\\', run: () => store.set({ leftOpen: !store.get().leftOpen }) },
+      { key: 'activity', label: t.toggleActivity, icon: 'activity', run: () => store.set({ activityOpen: !store.get().activityOpen }) },
+      { key: 'problems', label: t.problems, icon: 'scan', run: () => store.set({ leftOpen: true, leftTab: 'problems' }) },
+      { key: 'lang', label: t.switchLanguage, icon: 'languages', run: () => { const lang = store.get().lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', lang); store.set({ lang }); } },
+    ];
+  }, [t]);
+
+  const layers = useMemo<Item[]>(() => {
+    if (!doc) return [];
+    const out: Item[] = [];
+    const visit = (n: Node, path: string) => {
+      if (out.length >= MAX_LAYERS) return;
+      const name = layerName(doc, n);
+      if (n.name || !path) out.push({ key: n.id, label: name, hint: path, icon: typeIcon(n), run: () => { store.set({ selection: [n.id] }); const b = boundsOf([n.id]); if (b) store.set({ view: fitView(b, 2) }); } });
+      for (const c of childrenOf(n) ?? []) visit(c, path ? `${path} / ${name}` : name);
+    };
+    for (const n of doc.data.children) visit(n, '');
+    return out;
+  }, [doc, version]);
+
+  if (!open) return null;
+  const q = query.trim().toLowerCase();
+  const match = (i: Item) => !q || i.label.toLowerCase().includes(q) || (i.hint?.toLowerCase().includes(q) ?? false);
+  const items = [...commands.filter(match), ...(q ? layers.filter(match) : layers.slice(0, 20))].slice(0, 60);
+  const close = () => store.set({ paletteOpen: false });
+  const run = (i: Item | undefined) => { if (!i) return; close(); i.run(); };
+  return (
+    <div className="palette-backdrop" onPointerDown={close}>
+      <div className="palette" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="palette-input"><Icon name="search" /><input ref={input} value={query} placeholder={t.palette}
+          onChange={(e) => { setQuery(e.target.value); setActive(0); }}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Escape') close();
+            if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(items.length - 1, a + 1)); }
+            if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
+            if (e.key === 'Enter') run(items[active]);
+          }} /></div>
+        <div className="palette-list">
+          {items.map((i, n) => (
+            <button key={i.key} className={`palette-item${n === active ? ' active' : ''}`} onMouseEnter={() => setActive(n)} onClick={() => run(i)}>
+              <Icon name={i.icon} size={14} /><span className="label">{i.label}</span>{i.hint && <span className="hint">{i.hint}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

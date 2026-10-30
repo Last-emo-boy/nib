@@ -3,7 +3,7 @@ import type { PenDoc } from '@nib/core';
 import type { Change, Connection } from './connection.ts';
 
 export type Tool = 'move' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'text' | 'note';
-export type LeftTab = 'layers' | 'components' | 'variables';
+export type LeftTab = 'layers' | 'components' | 'variables' | 'problems';
 export type Lang = 'en' | 'zh';
 
 /** Canvas position: a document point (x, y) appears on screen at (x * zoom + tx, y * zoom + ty). */
@@ -30,6 +30,7 @@ export interface EditorState {
   /** The node whose text is being edited on the canvas. */
   editingText?: string;
   lang: Lang;
+  paletteOpen: boolean;
   toast?: { text: string; at: number };
 }
 
@@ -67,6 +68,7 @@ export const store = createStore<EditorState>({
   changes: [],
   activityOpen: false,
   lang: savedLang,
+  paletteOpen: false,
 });
 
 export function useEditor<T>(select: (s: EditorState) => T): T {

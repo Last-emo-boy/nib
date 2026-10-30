@@ -49,10 +49,10 @@ export class BoundsCache {
   }
 }
 
-export type Problem = 'partially clipped' | 'fully clipped';
+export type ClipProblem = 'partially clipped' | 'fully clipped';
 
 /** Whether a child box sticks out of its parent's box (both in the parent's space; tolerance half a pixel). */
-export function problemOf(child: Box, parent: { width: number; height: number }): Problem | undefined {
+export function problemOf(child: Box, parent: { width: number; height: number }): ClipProblem | undefined {
   const e = 0.5;
   const outside = child.x + child.width <= e || child.y + child.height <= e || child.x >= parent.width - e || child.y >= parent.height - e;
   if (outside && (child.width > 0 || child.height > 0)) return 'fully clipped';

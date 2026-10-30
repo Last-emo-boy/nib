@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { authHeaders } from '../app/connection.ts';
 import { childrenOf, resolveVariable, defaultTheme, type PenDoc } from '@nib/core';
 import type { Node, Variable } from '@nib/format';
 import { setProps } from '../app/actions.ts';
@@ -35,7 +36,7 @@ export function layerName(doc: PenDoc, n: Node): string {
 export function LeftPanel() {
   const t = useT();
   const tab = useEditor((s) => s.leftTab);
-  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['components', 'component', t.components], ['variables', 'variable', t.variables]];
+  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['components', 'component', t.components], ['variables', 'variable', t.variables], ['problems', 'scan', t.problems]];
   return (
     <div className="panel left-panel">
       <div className="tabs">
@@ -49,6 +50,7 @@ export function LeftPanel() {
         {tab === 'layers' && <Layers />}
         {tab === 'components' && <Components />}
         {tab === 'variables' && <Variables />}
+        {tab === 'problems' && <Problems />}
       </div>
     </div>
   );
@@ -157,4 +159,33 @@ function Variables() {
 function VarValue({ v, value }: { v: Variable; value: unknown }) {
   if (v.type === 'color' && typeof value === 'string') return <span className="var-color"><i style={{ background: value }} />{value}</span>;
   return <span>{value === undefined ? '—' : String(value)}</span>;
+}
+
+/** Problems the daemon finds in the whole document; refreshed after changes. */
+function Problems() {
+  const t = useT();
+  const conn = useEditor((s) => s.conn);
+  const version = useEditor((s) => s.version);
+  const doc = useEditor((s) => s.doc);
+  const [problems, setProblems] = useState<{ id: string; message: string }[] | undefined>();
+  useEffect(() => {
+    if (!conn) return;
+    const h = setTimeout(() => {
+      fetch(`/api/problems?${new URLSearchParams({ doc: conn.path })}`, { headers: authHeaders() })
+        .then((r) => r.json()).then((j) => setProblems(j.problems ?? [])).catch(() => setProblems([]));
+    }, 400);
+    return () => clearTimeout(h);
+  }, [conn, version]);
+  if (!problems) return <p className="empty">{t.loading}</p>;
+  if (!problems.length) return <p className="empty">{t.noProblems}</p>;
+  return (
+    <div className="problems">
+      {problems.map((p, i) => (
+        <button key={i} className="problem" onClick={() => { if (doc?.has(p.id)) { store.set({ selection: [p.id] }); const b = boundsOf([p.id]); if (b) store.set({ view: fitView(b, 2) }); } }}>
+          <span className="problem-node">{doc?.get(p.id) ? layerName(doc, doc.get(p.id)!) : p.id}</span>
+          <span className="problem-text">{p.message}</span>
+        </button>
+      ))}
+    </div>
+  );
 }

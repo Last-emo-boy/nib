@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Op } from '@nib/core';
-import { deleteSelection, duplicateSelection, frameSelection, nudge, setProps } from '../app/actions.ts';
+import { copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, nudge, paste, setProps } from '../app/actions.ts';
 import { Connection, authHeaders, fileFromUrl } from '../app/connection.ts';
 import { useT } from '../app/i18n.ts';
 import { store, useEditor, type Tool } from '../app/store.ts';
@@ -8,6 +8,7 @@ import { boundsOf, CanvasView, fitView, isTyping } from '../canvas/Canvas.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
 import { LeftPanel, layerName } from './LeftPanel.tsx';
+import { Palette } from './Palette.tsx';
 import { Properties } from './Properties.tsx';
 
 export function App() {
@@ -38,6 +39,7 @@ export function App() {
       <Zoom />
       <ActivityFeed />
       <Status />
+      <Palette />
       <Toast />
     </div>
   );
@@ -220,6 +222,10 @@ function useShortcuts() {
       const tools: Record<string, Tool> = { v: 'move', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', t: 'text', n: 'note', h: 'hand' };
       if (mod && key === 'z') { e.preventDefault(); if (e.shiftKey) s.conn?.redo(); else s.conn?.undo(); return; }
       if (mod && key === 'y') { e.preventDefault(); s.conn?.redo(); return; }
+      if (mod && key === 'k') { e.preventDefault(); store.set({ paletteOpen: !s.paletteOpen }); return; }
+      if (mod && key === 'c') { e.preventDefault(); copySelection(); return; }
+      if (mod && key === 'x') { e.preventDefault(); cutSelection(); return; }
+      if (mod && key === 'v') { e.preventDefault(); void paste(); return; }
       if (mod && key === 'd') { e.preventDefault(); void duplicateSelection(); return; }
       if (mod && e.altKey && key === 'g') { e.preventDefault(); frameSelection(); return; }
       if (mod && e.altKey && key === 'k') { e.preventDefault(); void setProps(s.selection, { reusable: true }, 'Make component'); return; }

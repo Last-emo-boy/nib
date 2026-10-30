@@ -137,3 +137,51 @@ export function pruneSelection(doc: PenDoc): void {
   const kept = selection.filter((id) => doc.has(id));
   if (kept.length !== selection.length) store.set({ selection: kept });
 }
+
+/** What was copied: deep copies of nodes, with where they came from. */
+interface Clip { nib: 1; nodes: Node[]; parent: string | null }
+let clipboard: Clip | undefined;
+
+/** Copy the selection, to nib's own clipboard and as JSON text to the system's (so it pastes into other nib windows). */
+export function copySelection(): void {
+  const { selection, doc } = store.get();
+  if (!doc || !selection.length) return;
+  const at = selection.map((id) => doc.locate(id)).filter((a) => !!a);
+  clipboard = { nib: 1, nodes: at.map((a) => structuredClone(a.node)), parent: at[0].parent?.id ?? null };
+  void navigator.clipboard?.writeText(JSON.stringify(clipboard)).catch(() => {});
+}
+
+export function cutSelection(): void {
+  copySelection();
+  deleteSelection();
+}
+
+/**
+ * Paste into the selected frame, else next to where the nodes were copied from (shifted when they sit
+ * at their own x/y), else onto the canvas.
+ */
+export async function paste(): Promise<void> {
+  let clip = clipboard;
+  try {
+    const text = await navigator.clipboard?.readText();
+    const parsed = text ? JSON.parse(text) : undefined;
+    if (parsed?.nib === 1 && Array.isArray(parsed.nodes)) clip = parsed as Clip;
+  } catch {
+    // Not nib content, or no clipboard permission: use what was copied in this window.
+  }
+  const { doc, selection } = store.get();
+  if (!clip || !doc) return;
+  const target = selection.length === 1 && isContainer(doc.get(selection[0])) && !clip.nodes.some((n) => n.id === selection[0]) ? selection[0] : clip.parent && doc.has(clip.parent) ? clip.parent : null;
+  const parent = target ? doc.get(target)! : null;
+  const free = !parent || parent.type === 'group' || (parent as { layout?: string }).layout === 'none';
+  const nodes = clip.nodes.map((n) => {
+    const copy = structuredClone(n);
+    reassignIds(doc, copy);
+    if (free && target === clip!.parent) Object.assign(copy, { x: (n.x ?? 0) + (parent ? 10 : 40), y: (n.y ?? 0) + (parent ? 10 : 40) });
+    return copy;
+  });
+  const ok = await commit(nodes.length > 1 ? `Paste ${nodes.length} layers` : 'Paste', (ed) => {
+    for (const n of nodes) ed.insert(parent, n);
+  });
+  if (ok) store.set({ selection: nodes.map((n) => n.id) });
+}

@@ -1,9 +1,10 @@
 import { watch, type FSWatcher } from 'node:fs';
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { applyOp, childrenOf, DocEditor, PenDoc, type Op } from '@nib/core';
 import { parsePen, serializePen, type Node, type PenDocument } from '@nib/format';
-import { ExecSession, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat } from '@nib/exec';
+import { ExecSession, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat, type Problem } from '@nib/exec';
 import type { ImageLoader, Renderer } from '@nib/render';
 
 /** Version written into new documents: the newest seen in files pen.dev saved. */
@@ -138,6 +139,29 @@ export class DocumentHost {
 
   redo(path: string): Promise<boolean> {
     return this.step(path, 'redo');
+  }
+
+  /** Problems anywhere in the document (the problems panel). */
+  problems(path: string): Promise<Problem[]> {
+    const open = this.require(path);
+    return this.enqueue(open, () => open.session.problems());
+  }
+
+  /** Export nodes and return the files' bytes, for an editor to download. */
+  async exportNodes(path: string, ids: string[], format: ExportFormat, scale?: number): Promise<{ name: string; data: Uint8Array }[]> {
+    const open = this.require(path);
+    const dir = await mkdtemp(join(tmpdir(), 'nib-export-'));
+    try {
+      const single = format === 'pdf' || format.startsWith('html');
+      const ext = format === 'pdf' ? 'pdf' : 'html';
+      const target = single ? join(dir, `${basename(open.path, '.pen')}.${ext}`) : dir;
+      const r = await this.enqueue(open, () => open.session.execute({ input: `Export(${JSON.stringify(ids)}, ${JSON.stringify(format)}, ${JSON.stringify(target)}, ${JSON.stringify(scale ? { scale } : {})})` }));
+      if (!r.ok || r.text.includes('export to')) throw new Error(r.text.split('\n').find((l) => l.includes('Error') || l.includes('failed')) ?? 'export failed');
+      const files = await readdir(dir);
+      return Promise.all(files.map(async (name) => ({ name, data: new Uint8Array(await readFile(join(dir, name))) })));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   }
 
   subscribe(path: string, listener: Listener): () => void {

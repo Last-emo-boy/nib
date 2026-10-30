@@ -56,6 +56,8 @@ import alignVCenter from 'lucide-static/icons/align-center-horizontal.svg?raw';
 import alignBottom from 'lucide-static/icons/align-end-horizontal.svg?raw';
 import maximize from 'lucide-static/icons/maximize.svg?raw';
 import globe from 'lucide-static/icons/globe.svg?raw';
+import library from 'lucide-static/icons/library-big.svg?raw';
+import palette from 'lucide-static/icons/palette.svg?raw';
 
-export const ICONS = { check, settings, hexagon, alignLeft, alignHCenter, alignRight, alignTop, alignVCenter, alignBottom, pointer, hand, square, circle, type, frame, note, layers, component, variable, undo, redo, minus, plus, panelLeft, eye, eyeOff, chevronRight, chevronDown, activity, download, languages, bot, hash, image, smile, penTool, lock, box, grid, text, diamond, folder, file, x, alignStart, arrowRight, arrowDown, scan, command, link, search, user, sparkles, trash, copy, maximize, globe };
+export const ICONS = { check, settings, hexagon, alignLeft, alignHCenter, alignRight, alignTop, alignVCenter, alignBottom, pointer, hand, square, circle, type, frame, note, layers, component, variable, undo, redo, minus, plus, panelLeft, eye, eyeOff, chevronRight, chevronDown, activity, download, languages, bot, hash, image, smile, penTool, lock, box, grid, text, diamond, folder, file, x, alignStart, arrowRight, arrowDown, scan, command, link, search, user, sparkles, trash, copy, maximize, globe, library, palette };
 export type IconName = keyof typeof ICONS;

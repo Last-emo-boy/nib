@@ -65,7 +65,7 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
           return (
             <text key={n.id} x={x} y={y - 6} className={`frame-label${selection.includes(n.id) ? ' selected' : ''}`}
               onPointerDown={(e) => { e.stopPropagation(); store.set({ selection: e.shiftKey ? [...selection, n.id] : [n.id] }); }}>
-              {clip(n.name ?? pageHost(n) ?? n.type, s.width / 6.5)}{n.reusable ? ' ◇' : ''}
+              {clip(n.name ?? pageHost(n) ?? (n.type === 'ref' ? doc.get(n.ref)?.name : undefined) ?? n.type, s.width / 6.5)}{n.reusable ? ' ◇' : ''}
             </text>
           );
         })}

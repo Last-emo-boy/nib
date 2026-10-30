@@ -30,7 +30,15 @@ const en = {
   languageTitle: 'Language', agentsTitle: 'Agents', agentsHint: 'Let your coding agents design with nib: this adds nib\'s MCP server to their settings. Your existing settings are kept, and the original file is backed up once.',
   notInstalled: 'Not found on this computer', connected: 'Added', addNib: 'Add nib', updateNib: 'Use this app', runsElsewhere: 'Now runs', aboutTitle: 'About',
   aboutText: 'open-source design canvas for .pen files. Everything stays on this computer.',
-  credits: 'Includes scene templates and style guides from ZSeven-W/openpencil (MIT) and icons from lucide (ISC).',
+  libraries: 'Libraries', designSystems: 'Design systems', thisFile: 'This file', inThisFile: 'Used in this file',
+  designSystemsHint: 'Start a design from a component library: you and your agents build with its components, colors and type, in light and dark.',
+  componentCount: (n: number) => `${n} component${n === 1 ? '' : 's'}`, basedOn: 'Based on',
+  noLibraries: 'This file uses no libraries yet. Add a design system to use its components and variables.',
+  addLibrary: 'Add', libraryAdded: 'Added', removeLibrary: 'Stop using this library', libraryMissing: 'Not found',
+  importLibrary: 'Import a .pen file as a library…', importHint: 'Absolute path of a .pen or .lib.pen file',
+  searchComponents: 'Search components', noMatches: 'Nothing matches.',
+  insertHint: 'Click to insert, or drag onto the canvas', localComponentHint: 'Click to select, double-click to insert, or drag onto the canvas',
+  credits: 'Includes design systems built on shadcn/ui (MIT) and HeroUI (Apache-2.0), scene templates and style guides from ZSeven-W/openpencil (MIT), and icons from lucide (ISC).',
 };
 const zh: typeof en = {
   layers: '图层', components: '组件', variables: '变量', activity: '动态',
@@ -62,7 +70,15 @@ const zh: typeof en = {
   languageTitle: '语言', agentsTitle: '智能体', agentsHint: '让编程智能体用 nib 做设计：把 nib 的 MCP 服务器加进它们的设置。原有设置会保留，原文件会先备份一次。',
   notInstalled: '这台电脑上没有找到', connected: '已添加', addNib: '添加 nib', updateNib: '改用此应用', runsElsewhere: '当前运行', aboutTitle: '关于',
   aboutText: '开源的 .pen 设计画布，所有内容都留在这台电脑上。',
-  credits: '包含来自 ZSeven-W/openpencil（MIT）的场景模板和风格指南，以及 lucide（ISC）的图标。',
+  libraries: '组件库', designSystems: '设计系统', thisFile: '本文件', inThisFile: '本文件使用',
+  designSystemsHint: '从组件库开始一个设计：你和智能体用它的组件、颜色和字体来搭建，支持浅色和深色。',
+  componentCount: (n: number) => `${n} 个组件`, basedOn: '基于',
+  noLibraries: '这个文件还没有使用组件库。添加一个设计系统，就能用它的组件和变量。',
+  addLibrary: '添加', libraryAdded: '已添加', removeLibrary: '不再使用这个组件库', libraryMissing: '找不到文件',
+  importLibrary: '把 .pen 文件导入为组件库…', importHint: '.pen 或 .lib.pen 文件的绝对路径',
+  searchComponents: '搜索组件', noMatches: '没有匹配项。',
+  insertHint: '点击插入，或拖到画布上', localComponentHint: '点击选中，双击插入，或拖到画布上',
+  credits: '包含基于 shadcn/ui（MIT）和 HeroUI（Apache-2.0）的设计系统、来自 ZSeven-W/openpencil（MIT）的场景模板和风格指南，以及 lucide（ISC）的图标。',
 };
 
 export type Strings = typeof en;

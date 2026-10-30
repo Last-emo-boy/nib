@@ -7,6 +7,7 @@ import { useT } from '../app/i18n.ts';
 import { store, useEditor, type LeftTab } from '../app/store.ts';
 import { boundsOf, fitView } from '../canvas/Canvas.tsx';
 import { Icon } from './Icon.tsx';
+import { Components, Libraries } from './Libraries.tsx';
 import type { IconName } from './icons.ts';
 
 export function typeIcon(n: Node): IconName {
@@ -37,7 +38,7 @@ export function layerName(doc: PenDoc, n: Node): string {
 export function LeftPanel() {
   const t = useT();
   const tab = useEditor((s) => s.leftTab);
-  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['components', 'component', t.components], ['variables', 'variable', t.variables], ['problems', 'scan', t.problems]];
+  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['components', 'component', t.components], ['libraries', 'library', t.libraries], ['variables', 'variable', t.variables], ['problems', 'scan', t.problems]];
   return (
     <div className="panel left-panel">
       <div className="tabs">
@@ -50,6 +51,7 @@ export function LeftPanel() {
       <div className="panel-body">
         {tab === 'layers' && <Layers />}
         {tab === 'components' && <Components />}
+        {tab === 'libraries' && <Libraries />}
         {tab === 'variables' && <Variables />}
         {tab === 'problems' && <Problems />}
       </div>
@@ -138,27 +140,6 @@ function LayerRow({ doc, node, depth, hasKids, expanded, toggle, selected }: { d
       <button className="eye" title="Show / hide" onClick={(e) => { e.stopPropagation(); void setProps([node.id], { enabled: hidden ? undefined : false }, hidden ? 'Show' : 'Hide'); }}>
         <Icon name={hidden ? 'eyeOff' : 'eye'} size={13} />
       </button>
-    </div>
-  );
-}
-
-function Components() {
-  const t = useT();
-  const doc = useEditor((s) => s.doc);
-  useEditor((s) => s.version);
-  if (!doc) return null;
-  const comps: Node[] = [];
-  const visit = (n: Node) => { if (n.reusable) comps.push(n); childrenOf(n)?.forEach(visit); };
-  doc.data.children.forEach(visit);
-  if (!comps.length) return <p className="empty">{t.noComponents}</p>;
-  return (
-    <div className="layers">
-      {comps.map((c) => (
-        <div key={c.id} className="layer" onClick={() => { store.set({ selection: [c.id] }); const b = boundsOf([c.id]); if (b) store.set({ view: fitView(b, 2) }); }}>
-          <span className="layer-icon component"><Icon name="component" size={14} /></span>
-          <span className="layer-name">{layerName(doc, c)}</span>
-        </div>
-      ))}
     </div>
   );
 }

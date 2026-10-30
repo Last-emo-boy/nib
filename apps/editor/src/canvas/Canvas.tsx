@@ -3,6 +3,7 @@ import type { Surface } from 'canvaskit-wasm';
 import type { PenDoc } from '@nib/core';
 import type { Box } from '@nib/layout';
 import { commit, insertNode, isContainer, isFree, pruneSelection } from '../app/actions.ts';
+import { COMPONENT_MIME } from '../app/libraries.ts';
 import type { Connection } from '../app/connection.ts';
 import { store, type View } from '../app/store.ts';
 import { getEngine, imagesFor, type Engine } from './engine.ts';
@@ -86,6 +87,26 @@ function pick(doc: PenDoc, chain: string[], selection: string[], deep: boolean):
 function containerAt(doc: PenDoc, chain: string[]): string | null {
   for (const id of chain) if (isContainer(doc.get(id)) && doc.get(id)?.type === 'frame') return id;
   return null;
+}
+
+/**
+ * Put an instance of component `ref` (`alias:id` for a library's) where it was dropped, at a point on the
+ * screen, or from a click into the selected frame or the middle of the view.
+ */
+export async function insertInstance(ref: string, screen?: { sx: number; sy: number }): Promise<void> {
+  const s = store.get();
+  const cache = canvas.cache;
+  if (!s.doc || !cache) return;
+  const a = visibleArea();
+  const p = toDoc(s.view, screen?.sx ?? a.x + a.width / 2, screen?.sy ?? a.y + a.height / 2);
+  const selected = s.selection.length === 1 && isContainer(s.doc.get(s.selection[0])) ? s.selection[0] : null;
+  const parent = screen ? containerAt(s.doc, cache.hit(p.x, p.y)) : selected;
+  const parentNode = parent ? s.doc.get(parent) : undefined;
+  const flow = !!parentNode && parentNode.type === 'frame' && parentNode.layout !== 'none';
+  const parentBox = parent ? cache.box(parent) : undefined;
+  const pos = flow ? {} : parentBox ? { x: Math.round(p.x - parentBox.x), y: Math.round(p.y - parentBox.y) } : { x: Math.round(p.x), y: Math.round(p.y) };
+  const name = s.doc.get(ref)?.name ?? 'component';
+  await insertNode(parent, { type: 'ref', ref, ...pos }, `Insert ${name}`);
 }
 
 export function CanvasView() {
@@ -345,7 +366,9 @@ export function CanvasView() {
   const forceOverlay = () => forceOverlayRef.current();
 
   return (
-    <div ref={host} className={`canvas tool-${store.get().tool}`} onWheel={onWheel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onDoubleClick={onDoubleClick} onPointerLeave={() => store.get().hover && store.set({ hover: undefined })}>
+    <div ref={host} className={`canvas tool-${store.get().tool}`} onWheel={onWheel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onDoubleClick={onDoubleClick} onPointerLeave={() => store.get().hover && store.set({ hover: undefined })}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(COMPONENT_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } }}
+      onDrop={(e) => { const ref = e.dataTransfer.getData(COMPONENT_MIME); if (ref) { e.preventDefault(); void insertInstance(ref, local(e)); } }}>
       <canvas ref={el} />
       <AgentCursors />
       <Overlay gesture={gesture} register={(f) => { forceOverlayRef.current = f; }} startResize={(handle, box) => {

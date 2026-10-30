@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { authHeaders, token } from '../app/connection.ts';
 import { desktop, openDocument } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
+import { useLibraries, type LibraryInfo } from '../app/libraries.ts';
 import { store, toast, useEditor } from '../app/store.ts';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
@@ -9,7 +10,7 @@ import type { IconName } from './icons.ts';
 interface FileEntry { path: string; name: string; folder: string; modified: number; opened?: number; draft: boolean }
 interface Template { id: string; scene: string; frames: number; width: number; height: number; title: { en: string; zh: string }; summary: { en: string; zh: string }; tags: string[] }
 
-type View = 'recents' | 'drafts' | `templates:${string}`;
+type View = 'recents' | 'drafts' | 'systems' | `templates:${string}`;
 
 const SCENES: [string, IconName][] = [['all', 'grid'], ['card', 'square'], ['slides', 'frame'], ['infographic', 'text'], ['comparison', 'copy'], ['tutorial', 'note'], ['carousel', 'layers'], ['app', 'box'], ['web', 'link']];
 const KINDS: [string, IconName][] = [['landing', 'frame'], ['mobile', 'box'], ['webapp', 'panelLeft'], ['slides', 'frame'], ['dashboard', 'grid'], ['other', 'sparkles']];
@@ -31,6 +32,7 @@ export function Dashboard() {
   const [library, setLibrary] = useState<{ recents: FileEntry[]; drafts: FileEntry[] }>({ recents: [], drafts: [] });
   const [templates, setTemplates] = useState<Template[]>([]);
   const [query, setQuery] = useState('');
+  const systems = useLibraries();
   const refresh = () => { api<{ recents: FileEntry[]; drafts: FileEntry[] }>('/api/library').then(setLibrary).catch(() => {}); };
   useEffect(() => {
     refresh();
@@ -39,9 +41,9 @@ export function Dashboard() {
     return () => clearInterval(h);
   }, []);
 
-  const create = async (template?: Template) => {
+  const create = async (template?: Template, system?: LibraryInfo) => {
     try {
-      const { path } = await api<{ path: string }>('/api/new', template ? { template: template.id, name: template.title[lang] } : {});
+      const { path } = await api<{ path: string }>('/api/new', template ? { template: template.id, name: template.title[lang] } : system ? { library: system.id } : {});
       openDocument(path);
     } catch (e) {
       toast((e as Error).message);
@@ -63,6 +65,7 @@ export function Dashboard() {
         <NavItem icon="file" label={t.recents} active={view === 'recents'} onClick={() => setView('recents')} />
         <NavItem icon="note" label={t.drafts} active={view === 'drafts'} onClick={() => setView('drafts')} count={library.drafts.length} />
         <div className="dash-heading">{t.templates}</div>
+        <NavItem icon="palette" label={t.designSystems} active={view === 'systems'} onClick={() => setView('systems')} count={systems.length} />
         {SCENES.map(([id, icon]) => (
           <NavItem key={id} icon={icon} label={t.scenes[id as keyof typeof t.scenes]} active={view === `templates:${id}`} onClick={() => setView(`templates:${id}`)}
             count={id === 'all' ? templates.length : templates.filter((tp) => tp.scene === id).length} />
@@ -74,7 +77,7 @@ export function Dashboard() {
       </aside>
       <main className="dash-main">
         <header className="dash-top">
-          <h1>{view === 'recents' ? t.dashboard : view === 'drafts' ? t.drafts : t.templates}</h1>
+          <h1>{view === 'recents' ? t.dashboard : view === 'drafts' ? t.drafts : view === 'systems' ? t.designSystems : t.templates}</h1>
           <div className="dash-search"><Icon name="search" size={14} /><input value={query} placeholder={t.search} onChange={(e) => setQuery(e.target.value)} /></div>
           <button className="dash-button" onClick={openFile}><Icon name="folder" size={15} />{t.openFile}</button>
           <button className="dash-button primary" onClick={() => create()}><Icon name="plus" size={15} />{t.newFile}</button>
@@ -90,7 +93,22 @@ export function Dashboard() {
             toast((e as Error).message);
           }
         }} />}
-        {scene !== undefined ? (
+        {view === 'systems' ? (
+          <>
+            <p className="dash-hint">{t.designSystemsHint}</p>
+            <section className="dash-grid wide">
+              {systems.filter((l) => match(query, [l.name, l.basedOn, l.summary[lang]])).map((l) => (
+                <button key={l.id} className="dash-card" onClick={() => create(undefined, l)} title={l.summary[lang]}>
+                  <div className="dash-thumb full"><img loading="lazy" src={thumbUrl({ library: l.id, size: '720' })} alt="" /></div>
+                  <div className="dash-card-text">
+                    <span className="dash-card-title"><Icon name="library" size={13} />{l.name}</span>
+                    <span className="dash-card-sub">{t.basedOn} {l.basedOn} · {l.license} · {t.componentCount(l.components)}</span>
+                  </div>
+                </button>
+              ))}
+            </section>
+          </>
+        ) : scene !== undefined ? (
           <section className="dash-grid">
             {shownTemplates.map((tp) => (
               <button key={tp.id} className="dash-card" onClick={() => create(tp)} title={tp.summary[lang]}>

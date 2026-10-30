@@ -1,0 +1,16 @@
+{
+  "name": "@nib/export",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@nib/core": "workspace:*",
+    "@nib/exec": "workspace:*",
+    "@nib/format": "workspace:*",
+    "@nib/layout": "workspace:*",
+    "@nib/render": "workspace:*"
+  }
+}

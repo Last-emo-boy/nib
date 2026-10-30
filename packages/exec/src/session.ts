@@ -32,7 +32,7 @@ export interface ExecuteResult {
 }
 
 /** Writes nodes to pdf or html (image formats are built in). Returns the files written. */
-export type Exporter = (scenes: CapturedScene[], outputPath: string, options: ExportOptions, ctx: { doc: PenDoc; renderer: Renderer; images: ImageLoader }) => Promise<string[]>;
+export type Exporter = (scenes: CapturedScene[], outputPath: string, options: ExportOptions, ctx: { doc: PenDoc; renderer: Renderer; images: ImageLoader; baseDir: string }) => Promise<string[]>;
 
 export interface SessionOptions {
   renderer: Renderer;
@@ -262,7 +262,7 @@ export class ExecSession {
     }
     const exporter = this.opts.exporters?.[format];
     if (!exporter) throw new Error(`${format} export is not available`);
-    return exporter(scenes, target, options, { doc: this.doc, renderer: this.opts.renderer, images: this.opts.images });
+    return exporter(scenes, target, options, { doc: this.doc, renderer: this.opts.renderer, images: this.opts.images, baseDir: this.opts.baseDir });
   }
 }
 

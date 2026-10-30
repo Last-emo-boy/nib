@@ -45,6 +45,24 @@ importers:
         specifier: ^0.32.0
         version: 0.32.0
 
+  packages/export:
+    dependencies:
+      '@nib/core':
+        specifier: workspace:*
+        version: link:../core
+      '@nib/exec':
+        specifier: workspace:*
+        version: link:../exec
+      '@nib/format':
+        specifier: workspace:*
+        version: link:../format
+      '@nib/layout':
+        specifier: workspace:*
+        version: link:../layout
+      '@nib/render':
+        specifier: workspace:*
+        version: link:../render
+
   packages/format: {}
 
   packages/layout:
@@ -64,6 +82,9 @@ importers:
       '@nib/exec':
         specifier: workspace:*
         version: link:../exec
+      '@nib/export':
+        specifier: workspace:*
+        version: link:../export
       '@nib/format':
         specifier: workspace:*
         version: link:../format

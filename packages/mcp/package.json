@@ -12,6 +12,7 @@
   "dependencies": {
     "@nib/core": "workspace:*",
     "@nib/exec": "workspace:*",
+    "@nib/export": "workspace:*",
     "@nib/format": "workspace:*",
     "@nib/render": "workspace:*"
   }

@@ -1,4 +1,4 @@
-import type { Canvas, CanvasKit } from 'canvaskit-wasm';
+import type { Canvas, CanvasKit, Image } from 'canvaskit-wasm';
 import type { SceneNode } from '@nib/core';
 import { layoutScene, type LayoutResult } from '@nib/layout';
 import { drawNode, iconKey, type StrokeAlignment } from './draw.ts';
@@ -153,6 +153,27 @@ export class Renderer {
    */
   async renderNode(root: SceneNode, target: SceneNode, images: ImageLoader, opts: RasterOptions = {}): Promise<Uint8Array> {
     const { ck } = this;
+    return this.rasterize(root, target, images, opts, (img) => {
+      const format = opts.format === 'jpeg' ? ck.ImageFormat.JPEG : opts.format === 'webp' ? ck.ImageFormat.WEBP : ck.ImageFormat.PNG;
+      const bytes = img.encodeToBytes(format, opts.quality ?? 92);
+      if (!bytes) throw new Error(`${opts.format ?? 'png'} encoding failed`);
+      return bytes;
+    });
+  }
+
+  /** Like `renderNode`, as unpremultiplied RGBA pixels. */
+  async renderPixels(root: SceneNode, target: SceneNode, images: ImageLoader, opts: RasterOptions = {}): Promise<{ width: number; height: number; rgba: Uint8Array }> {
+    const { ck } = this;
+    return this.rasterize(root, target, images, opts, (img) => {
+      const width = img.width(), height = img.height();
+      const rgba = img.readPixels(0, 0, { width, height, colorType: ck.ColorType.RGBA_8888, alphaType: ck.AlphaType.Unpremul, colorSpace: ck.ColorSpace.SRGB });
+      if (!rgba) throw new Error('cannot read rendered pixels');
+      return { width, height, rgba: rgba as Uint8Array };
+    });
+  }
+
+  private async rasterize<T>(root: SceneNode, target: SceneNode, images: ImageLoader, opts: RasterOptions, read: (img: Image) => T): Promise<T> {
+    const { ck } = this;
     const scene = await this.prepare(root, images);
     try {
       const box = scene.layout.box(target);
@@ -169,17 +190,22 @@ export class Renderer {
         drawNode(this.drawContext(scene, images), canvas, target);
         surface.flush();
         const img = surface.makeImageSnapshot();
-        const format = opts.format === 'jpeg' ? ck.ImageFormat.JPEG : opts.format === 'webp' ? ck.ImageFormat.WEBP : ck.ImageFormat.PNG;
-        const bytes = img.encodeToBytes(format, opts.quality ?? 92);
-        img.delete();
-        if (!bytes) throw new Error(`${opts.format ?? 'png'} encoding failed`);
-        return bytes;
+        try {
+          return read(img);
+        } finally {
+          img.delete();
+        }
       } finally {
         surface.delete();
       }
     } finally {
       scene.dispose();
     }
+  }
+
+  /** A loaded vector icon's geometry. */
+  icon(library: string, name: string, weight: number | undefined): IconGeometry | undefined {
+    return this.icons.get(iconKey(library, name, weight));
   }
 
   private drawContext(scene: PreparedScene, images: ImageLoader) {

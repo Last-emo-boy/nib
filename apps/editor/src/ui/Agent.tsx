@@ -233,15 +233,7 @@ function Composer({ doc }: { doc: string }) {
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); }
         }} />
       <div className="agent-bar">
-        <select className="agent-model" value={`${provider}|${model}`} onChange={(e) => { const [p, m] = e.target.value.split('|'); choose(p, m ?? ''); }}>
-          {providers.map((p) => (
-            <optgroup key={p.id} label={p.name}>
-              {p.available
-                ? p.models.map((m) => <option key={m.id} value={`${p.id}|${m.id}`}>{p.name} · {m.label}</option>)
-                : <option value={`${p.id}|`} disabled={p.auth === 'app'}>{p.name} · {p.auth === 'key' ? t.needsKey : t.unavailable}</option>}
-            </optgroup>
-          ))}
-        </select>
+        <ModelPicker />
         {selection.length > 0 && <span className="agent-sel static" title={t.selectionContext}><Icon name="diamond" size={11} />{t.selectedCount(selection.length)}</span>}
         <span className="grow" />
         {running && current
@@ -249,6 +241,25 @@ function Composer({ doc }: { doc: string }) {
           : <button className="agent-send" title={t.send} disabled={!text.trim() || sending || !info?.available} onClick={() => void send()}><Icon name="arrowRight" size={15} /></button>}
       </div>
     </div>
+  );
+}
+
+/** Which agent and model to use: the person's Claude or Codex, or an API model. */
+export function ModelPicker() {
+  const t = useT();
+  const providers = useAgent((s) => s.providers);
+  const provider = useAgent((s) => s.provider);
+  const model = useAgent((s) => s.model);
+  return (
+    <select className="agent-model" value={`${provider}|${model}`} onChange={(e) => { const [p, m] = e.target.value.split('|'); choose(p, m ?? ''); }}>
+      {providers.map((p) => (
+        <optgroup key={p.id} label={p.name}>
+          {p.available
+            ? p.models.map((m) => <option key={m.id} value={`${p.id}|${m.id}`}>{p.name} · {m.label}</option>)
+            : <option value={`${p.id}|`} disabled={p.auth === 'app'}>{p.name} · {p.auth === 'key' ? t.needsKey : t.unavailable}</option>}
+        </optgroup>
+      ))}
+    </select>
   );
 }
 

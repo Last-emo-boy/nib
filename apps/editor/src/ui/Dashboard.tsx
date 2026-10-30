@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { authHeaders, token } from '../app/connection.ts';
 import { desktop, openDocument } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
+import { refreshProviders, sendMessage, useAgent } from '../app/agent.ts';
 import { useLibraries, type LibraryInfo } from '../app/libraries.ts';
 import { store, toast, useEditor } from '../app/store.ts';
+import { ModelPicker } from './Agent.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
 
@@ -82,17 +84,7 @@ export function Dashboard() {
           <button className="dash-button" onClick={openFile}><Icon name="folder" size={15} />{t.openFile}</button>
           <button className="dash-button primary" onClick={() => create()}><Icon name="plus" size={15} />{t.newFile}</button>
         </header>
-        {view === 'recents' && <PromptBox onCreate={async (kind, text) => {
-          try {
-            const { path } = await api<{ path: string }>('/api/new', { name: text.slice(0, 40) || 'Untitled' });
-            const request = t.agentRequest(text, t.kinds[kind as keyof typeof t.kinds], path);
-            await navigator.clipboard?.writeText(request).catch(() => {});
-            toast(t.requestCopied);
-            openDocument(path);
-          } catch (e) {
-            toast((e as Error).message);
-          }
-        }} />}
+        {view === 'recents' && <PromptBox systems={systems} />}
         {view === 'systems' ? (
           <>
             <p className="dash-hint">{t.designSystemsHint}</p>
@@ -150,24 +142,60 @@ function NavItem({ icon, label, active, onClick, count }: { icon: IconName; labe
   );
 }
 
-/** Pick a kind, describe the design; nib makes a draft and hands the request to the user's agent. */
-function PromptBox({ onCreate }: { onCreate: (kind: string, text: string) => void }) {
+/**
+ * Pick a kind and optionally a design system, describe the design: nib makes a draft and starts its agent
+ * on it, and the editor opens with the chat. Without an agent that can run, the request is copied for
+ * the person's own agent instead.
+ */
+function PromptBox({ systems }: { systems: LibraryInfo[] }) {
   const t = useT();
-  const [kind, setKind] = useState('landing');
+  const [kind, setKind] = useState('');
   const [text, setText] = useState('');
+  const [system, setSystem] = useState('');
+  const [busy, setBusy] = useState(false);
+  const providers = useAgent((s) => s.providers);
+  const provider = useAgent((s) => s.provider);
+  useEffect(() => { void refreshProviders().catch(() => {}); }, []);
+  const ready = providers.find((p) => p.id === provider)?.available ?? false;
+  const submit = async () => {
+    const request = text.trim();
+    if (!request || busy) return;
+    setBusy(true);
+    try {
+      const { path } = await api<{ path: string }>('/api/new', { name: request.slice(0, 40), ...(system ? { library: system } : {}) });
+      const kindName = kind ? t.kinds[kind as keyof typeof t.kinds] : '';
+      if (ready) {
+        await sendMessage(path, kindName ? t.agentDesignRequest(kindName, request) : request, []);
+        localStorage.setItem('nib-agent-open', '1');
+      } else {
+        await navigator.clipboard?.writeText(t.agentRequest(request, kindName || t.kinds.other, path)).catch(() => {});
+        toast(t.requestCopied);
+      }
+      openDocument(path);
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div className="prompt-box">
       <div className="chips">
         {KINDS.map(([id, icon]) => (
-          <button key={id} className={`chip${kind === id ? ' on' : ''}`} onClick={() => setKind(id)}><Icon name={icon} size={14} />{t.kinds[id as keyof typeof t.kinds]}</button>
+          <button key={id} className={`chip${kind === id ? ' on' : ''}`} onClick={() => setKind(kind === id ? '' : id)}><Icon name={icon} size={14} />{t.kinds[id as keyof typeof t.kinds]}</button>
         ))}
       </div>
       <div className="prompt-field">
         <textarea value={text} placeholder={t.designAnything} rows={3} onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && text.trim()) onCreate(kind, text.trim()); }} />
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void submit(); }} />
         <div className="prompt-bar">
-          <span className="dim">{t.promptHint}</span>
-          <button className="send" disabled={!text.trim()} onClick={() => onCreate(kind, text.trim())}><Icon name="arrowRight" size={15} /></button>
+          <select className="agent-model" value={system} title={t.designSystems} onChange={(e) => setSystem(e.target.value)}>
+            <option value="">{t.noDesignSystem}</option>
+            {systems.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+          <ModelPicker />
+          <span className="dim grow">{ready ? t.promptAgentHint : t.promptHint}</span>
+          <button className="send" disabled={!text.trim() || busy} onClick={() => void submit()}><Icon name="arrowRight" size={15} /></button>
         </div>
       </div>
     </div>

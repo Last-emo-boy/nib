@@ -12,6 +12,7 @@ import { Overlay, type Gesture } from './Overlay.tsx';
 import { presence } from './presence.ts';
 import { SceneCache } from './scenes.ts';
 import { editPath, finishEditing, penDown, penHover } from './pen.tsx';
+import { measure, snap, snapPoint, type Guide, type Lines, type Measure } from './snap.ts';
 
 /** What other parts of the editor need from the canvas. */
 export const canvas = {
@@ -22,7 +23,40 @@ export const canvas = {
   size: { width: 0, height: 0 },
   /** When the person last panned or zoomed (performance.now()); following an agent waits after that. */
   userViewAt: 0,
+  /** Smart guides of the gesture in progress, and distances shown while Alt is held. */
+  guides: [] as Guide[],
+  measures: [] as Measure[],
 };
+
+/** Screen pixels within which edges snap. */
+const SNAP_PX = 5;
+
+/**
+ * Boxes a layer in `parent` (null: the canvas) can snap to: the parent and its other children, or the other
+ * top-level layers near the view.
+ */
+function snapTargets(doc: PenDoc, parent: string | null, exclude: string[]): Box[] {
+  const cache = canvas.cache;
+  if (!cache) return [];
+  const skip = new Set(exclude);
+  const kids = parent ? (doc.get(parent) as { children?: { id: string; enabled?: unknown }[] } | undefined)?.children ?? [] : doc.data.children;
+  const boxes = kids.filter((n) => !skip.has(n.id) && n.enabled !== false).map((n) => cache.box(n.id)).filter((b): b is Box => !!b);
+  const own = parent ? cache.box(parent) : undefined;
+  if (own) boxes.push(own);
+  if (!parent) {
+    // Of many top-level layers, those on screen.
+    const { view } = store.get();
+    const a = visibleArea();
+    const v = { x: (a.x - view.tx) / view.zoom, y: (a.y - view.ty) / view.zoom, width: a.width / view.zoom, height: a.height / view.zoom };
+    return boxes.filter((b) => b.x < v.x + v.width * 2 && b.x + b.width > v.x - v.width && b.y < v.y + v.height * 2 && b.y + b.height > v.y - v.height).slice(0, 400);
+  }
+  return boxes;
+}
+
+function unionOf(boxes: Box[]): Box {
+  const x0 = Math.min(...boxes.map((b) => b.x)), y0 = Math.min(...boxes.map((b) => b.y));
+  return { x: x0, y: y0, width: Math.max(...boxes.map((b) => b.x + b.width)) - x0, height: Math.max(...boxes.map((b) => b.y + b.height)) - y0 };
+}
 
 export const toDoc = (v: View, sx: number, sy: number) => ({ x: (sx - v.tx) / v.zoom, y: (sy - v.ty) / v.zoom });
 
@@ -271,7 +305,10 @@ export function CanvasView() {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => { if (e.code === 'Space' && !isTyping(e)) { space.current = true; host.current?.classList.add('panning'); } };
-    const up = (e: KeyboardEvent) => { if (e.code === 'Space') { space.current = false; host.current?.classList.remove('panning'); } };
+    const up = (e: KeyboardEvent) => {
+      if (e.code === 'Space') { space.current = false; host.current?.classList.remove('panning'); }
+      if (e.key === 'Alt' && canvas.measures.length) { canvas.measures = []; forceOverlay(); }
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
@@ -314,7 +351,9 @@ export function CanvasView() {
     // A press on the canvas (not on a point or handle) ends point editing.
     if (s.pen?.mode === 'edit') finishEditing();
     if (s.tool !== 'move') {
-      gesture.current = { kind: 'create', tool: s.tool, start: p, end: p, parent: containerAt(s.doc, chain) };
+      const parent = containerAt(s.doc, chain);
+      const start = e.metaKey || e.ctrlKey ? p : snapPoint(p, snapTargets(s.doc, parent, []), SNAP_PX / s.view.zoom);
+      gesture.current = { kind: 'create', tool: s.tool, start: { x: start.x, y: start.y }, end: { x: start.x, y: start.y }, parent };
       return;
     }
     const target = pick(s.doc, chain, s.selection, e.metaKey || e.ctrlKey);
@@ -341,6 +380,10 @@ export function CanvasView() {
       if (s.tool === 'move' && !space.current) {
         const hover = pick(s.doc, canvas.cache.hit(p.x, p.y), s.selection, e.metaKey || e.ctrlKey);
         if (hover !== s.hover) store.set({ hover });
+        // Alt: distances from the selection to the layer under the pointer, or to its parent.
+        const before = canvas.measures.length;
+        canvas.measures = e.altKey ? measuresTo(s.doc, s.selection, hover) : [];
+        if (before || canvas.measures.length) forceOverlay();
       }
       return;
     }
@@ -353,20 +396,51 @@ export function CanvasView() {
         gesture.current = { kind: 'drag', start: g.start, end: p, ids: g.ids.filter((id) => s.doc!.has(id)) };
         break;
       case 'drag': {
-        g.end = p;
+        let dx = p.x - g.start.x, dy = p.y - g.start.y;
+        // Shift keeps the move on one axis.
+        if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
+        canvas.guides = [];
+        const free = g.ids.filter((id) => isFree(s.doc!, id));
+        if (free.length && !e.metaKey && !e.ctrlKey) {
+          const boxes = free.map((id) => canvas.cache!.box(id)).filter((b): b is Box => !!b);
+          if (boxes.length) {
+            const u = unionOf(boxes);
+            const parent = s.doc.locate(free[0])?.parent?.id ?? null;
+            const r = snap({ ...u, x: u.x + dx, y: u.y + dy }, snapTargets(s.doc, parent, g.ids), SNAP_PX / s.view.zoom, { x: e.shiftKey && !dx ? [] : ['start', 'center', 'end'], y: e.shiftKey && !dy ? [] : ['start', 'center', 'end'] });
+            dx += r.dx; dy += r.dy;
+            canvas.guides = r.guides;
+          }
+        }
+        g.end = { x: g.start.x + dx, y: g.start.y + dy };
         canvas.shift.clear();
-        for (const id of g.ids) if (!s.doc.locate(id)?.parent) canvas.shift.set(id, { dx: p.x - g.start.x, dy: p.y - g.start.y });
+        for (const id of g.ids) if (!s.doc.locate(id)?.parent) canvas.shift.set(id, { dx, dy });
         canvas.redraw();
         break;
       }
       case 'marquee':
-      case 'create':
         g.end = p;
         break;
-      case 'resize':
+      case 'create': {
+        const r = e.metaKey || e.ctrlKey ? { ...p, guides: [] } : snapPoint(p, snapTargets(s.doc, g.parent, []), SNAP_PX / s.view.zoom);
+        g.end = { x: r.x, y: r.y };
+        canvas.guides = r.guides;
+        break;
+      }
+      case 'resize': {
         g.end = p;
         g.shift = e.shiftKey;
+        canvas.guides = [];
+        const b = resizedBox(g);
+        if (b && !e.metaKey && !e.ctrlKey) {
+          // Only the edges the handle moves snap.
+          const which: Lines = { x: g.handle.includes('w') ? ['start'] : g.handle.includes('e') ? ['end'] : [], y: g.handle.includes('n') ? ['start'] : g.handle.includes('s') ? ['end'] : [] };
+          const parent = s.doc.locate(g.id)?.parent?.id ?? null;
+          const r = snap(b, snapTargets(s.doc, parent, [g.id]), SNAP_PX / s.view.zoom, which);
+          g.end = { x: p.x + r.dx, y: p.y + r.dy };
+          canvas.guides = r.guides;
+        }
         break;
+      }
       case 'rotate': {
         // Screen angles grow clockwise (y points down); .pen rotation is counter-clockwise.
         const c = { x: g.box.x + g.box.width / 2, y: g.box.y + g.box.height / 2 };
@@ -396,6 +470,7 @@ export function CanvasView() {
     else if (g.kind === 'resize') finishResize(s.doc, g);
     else if (g.kind === 'rotate') finishRotate(s.doc, g);
     canvas.shift.clear();
+    canvas.guides = [];
     canvas.redraw();
     forceOverlay();
   };
@@ -553,6 +628,17 @@ export function resizedBox(g: Extract<Gesture, { kind: 'resize' }>): Box | undef
     if (g.handle.includes('n')) y = bottom - height;
   }
   return { x, y, width, height };
+}
+
+/** Distances from the selection to layer `to`, or (pointing at nothing or the selection itself) to its parent. */
+function measuresTo(doc: PenDoc, selection: string[], to: string | undefined): Measure[] {
+  const cache = canvas.cache;
+  if (!cache || !selection.length) return [];
+  const boxes = selection.map((id) => cache.box(id)).filter((b): b is Box => !!b);
+  if (!boxes.length) return [];
+  const target = to && !selection.includes(to) ? to : doc.locate(selection[0])?.parent?.id;
+  const b = target ? cache.box(target) : undefined;
+  return b ? measure(unionOf(boxes), b) : [];
 }
 
 export function rectOf(a: { x: number; y: number }, b: { x: number; y: number }): Box {

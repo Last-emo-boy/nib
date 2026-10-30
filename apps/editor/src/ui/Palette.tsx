@@ -52,6 +52,7 @@ export function Palette() {
       { key: 'frame-selection', label: t.frameSelection, icon: 'frame', hint: '⌥⌘G', run: frameSelection },
       { key: 'fit', label: t.fitAll, icon: 'maximize', hint: '⇧1', run: () => store.set({ view: fitView(boundsOf()) }) },
       { key: 'fit-selection', label: t.fitSelection, icon: 'maximize', hint: '⇧2', run: () => { const b = boundsOf(store.get().selection); if (b) store.set({ view: fitView(b, 4) }); } },
+      { key: 'pixel-grid', label: t.togglePixelGrid, icon: 'grid', hint: '⇧\'', run: () => { const on = !store.get().pixelGrid; localStorage.setItem('nib-pixel-grid', on ? '1' : '0'); store.set({ pixelGrid: on }); } },
       { key: 'panel', label: t.togglePanel, icon: 'panelLeft', hint: '⌘\\', run: () => store.set({ leftOpen: !store.get().leftOpen }) },
       { key: 'activity', label: t.toggleActivity, icon: 'activity', run: () => toggleSide('activityOpen') },
       { key: 'agent', label: t.toggleAgent, icon: 'sparkles', run: () => toggleSide('agentOpen') },

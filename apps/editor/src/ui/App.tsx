@@ -269,6 +269,7 @@ export function runCommand(name: string): void {
     case 'frame-selection': frameSelection(); break;
     case 'make-component': void setProps(s.selection, { reusable: true }, 'Make component'); break;
     case 'copy-png': void copyAsPng(); break;
+    case 'toggle-pixel-grid': { const on = !s.pixelGrid; localStorage.setItem('nib-pixel-grid', on ? '1' : '0'); store.set({ pixelGrid: on }); break; }
   }
 }
 
@@ -290,6 +291,7 @@ function useShortcuts() {
       if (mod && e.shiftKey && key === 's') { e.preventDefault(); runCommand('save-as'); return; }
       if (mod && key === 's') { e.preventDefault(); toast(s.lang === 'zh' ? '已自动保存：每次修改都会立即写入文件。' : 'Saved: nib writes every change to the file right away.'); return; }
       if (mod && chords[key]) { e.preventDefault(); runCommand(chords[key]); return; }
+      if (e.shiftKey && (key === '"' || e.code === 'Quote')) { runCommand('toggle-pixel-grid'); return; }
       if (e.shiftKey && key === '!') { runCommand('zoom-fit'); return; }
       if (e.shiftKey && (key === '1')) { runCommand('zoom-fit'); return; }
       if (e.shiftKey && (key === '2' || key === '@')) { runCommand('zoom-selection'); return; }

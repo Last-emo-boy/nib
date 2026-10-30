@@ -43,6 +43,7 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
   useEditor((s) => s.version);
   const text = useEditor((s) => s.editingText);
   const pen = useEditor((s) => s.pen);
+  const pixelGrid = useEditor((s) => s.pixelGrid);
   // Points being edited take the place of the selection's handles.
   const editing = text ?? (pen ? 'pen' : undefined);
   const cache = canvas.cache;
@@ -58,6 +59,16 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
   return (
     <div className="overlay">
       <svg width="100%" height="100%">
+        {view.zoom >= 8 && pixelGrid && (
+          <>
+            <defs>
+              <pattern id="pixel-grid" width={view.zoom} height={view.zoom} x={view.tx} y={view.ty} patternUnits="userSpaceOnUse">
+                <path d={`M${view.zoom} 0L0 0 0 ${view.zoom}`} className="pixel-grid" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#pixel-grid)" />
+          </>
+        )}
         {doc.data.children.map((n) => {
           // Like Figma, only frames (screens, artboards), instances and browser windows get a name label.
           if (n.type !== 'frame' && n.type !== 'ref' && n.type !== 'browser') return null;
@@ -105,10 +116,37 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
           );
         })()}
         <PenOverlay />
+        {canvas.guides.map((gd, i) => {
+          const a = gd.axis === 'x' ? { x: gd.at, y: gd.from } : { x: gd.from, y: gd.at };
+          const b = gd.axis === 'x' ? { x: gd.at, y: gd.to } : { x: gd.to, y: gd.at };
+          return <line key={`g${i}`} className="guide" x1={a.x * view.zoom + view.tx} y1={a.y * view.zoom + view.ty} x2={b.x * view.zoom + view.tx} y2={b.y * view.zoom + view.ty} />;
+        })}
+        {canvas.measures.map((m, i) => <MeasureLine key={`m${i}`} m={m} view={view} />)}
         {all && !editing && <SizeLabel box={screen(view, g?.kind === 'resize' && resizedBox(g) ? resizedBox(g)! : all)} real={g?.kind === 'resize' && resizedBox(g) ? resizedBox(g)! : all} />}
       </svg>
       {text && <TextEditor id={text} />}
     </div>
+  );
+}
+
+/** A measured distance: a red line, its ends, and its length in a label. */
+function MeasureLine({ m, view }: { m: { x1: number; y1: number; x2: number; y2: number; value: number }; view: View }) {
+  const p = (x: number, y: number) => ({ x: x * view.zoom + view.tx, y: y * view.zoom + view.ty });
+  const a = p(m.x1, m.y1), b = p(m.x2, m.y2);
+  const text = String(round(m.value));
+  const w = text.length * 6.4 + 10;
+  const horizontal = Math.abs(a.y - b.y) < 0.5;
+  const tick = (q: { x: number; y: number }) => (horizontal ? <line className="measure" x1={q.x} y1={q.y - 4} x2={q.x} y2={q.y + 4} /> : <line className="measure" x1={q.x - 4} y1={q.y} x2={q.x + 4} y2={q.y} />);
+  const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+  return (
+    <g>
+      <line className="measure" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
+      {tick(a)}{tick(b)}
+      <g className="measure-label">
+        <rect x={horizontal ? cx - w / 2 : cx + 6} y={horizontal ? cy + 6 : cy - 9} width={w} height={18} rx={4} />
+        <text x={horizontal ? cx : cx + 6 + w / 2} y={horizontal ? cy + 19 : cy + 4}>{text}</text>
+      </g>
+    </g>
   );
 }
 

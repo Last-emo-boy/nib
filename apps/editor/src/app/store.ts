@@ -36,6 +36,8 @@ export interface EditorState {
   /** Width of the agent's chat panel, and whether the canvas follows the agent's cursor. */
   agentWidth: number;
   followAgent: boolean;
+  /** The 1px grid shown at high zoom. */
+  pixelGrid: boolean;
   /** A path being drawn with the pen or having its points edited. */
   pen?: PenSession;
   /** The node whose text is being edited on the canvas. */
@@ -84,6 +86,7 @@ export const store = createStore<EditorState>({
   followAgent: localStorage.getItem('nib-follow-agent') !== '0',
   lang: savedLang,
   paletteOpen: false,
+  pixelGrid: localStorage.getItem('nib-pixel-grid') !== '0',
 });
 
 export function useEditor<T>(select: (s: EditorState) => T): T {

@@ -1,0 +1,274 @@
+{
+  "library": "Radix Themes",
+  "setup": "npm install @radix-ui/themes, import \"@radix-ui/themes/styles.css\" and wrap the app in <Theme accentColor=\"indigo\" grayColor=\"slate\">",
+  "inherited": [
+    "font-sans"
+  ],
+  "tokens": [
+    "gray-1",
+    "gray-2",
+    "gray-3",
+    "gray-4",
+    "gray-5",
+    "gray-6",
+    "gray-7",
+    "gray-8",
+    "gray-9",
+    "gray-10",
+    "gray-11",
+    "gray-12",
+    "accent-1",
+    "accent-2",
+    "accent-3",
+    "accent-4",
+    "accent-5",
+    "accent-6",
+    "accent-7",
+    "accent-8",
+    "accent-9",
+    "accent-10",
+    "accent-11",
+    "accent-12",
+    "green-3",
+    "green-9",
+    "green-11",
+    "red-3",
+    "red-9",
+    "red-11",
+    "background",
+    "panel",
+    "accent-contrast",
+    "shadow-1",
+    "shadow-2"
+  ],
+  "components": {
+    "button": {
+      "template": "<Button{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-soft": {
+      "template": "<Button variant=\"soft\"{class}>{text:button-soft-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-surface": {
+      "template": "<Button variant=\"surface\"{class}>{text:button-surface-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-outline": {
+      "template": "<Button variant=\"outline\"{class}>{text:button-outline-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-ghost": {
+      "template": "<Button variant=\"ghost\"{class}>{text:button-ghost-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-gray": {
+      "template": "<Button color=\"gray\" variant=\"soft\"{class}>{text:button-gray-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-red": {
+      "template": "<Button color=\"red\"{class}>{text:button-red-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-small": {
+      "template": "<Button size=\"1\"{class}>{text:button-small-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "button-large": {
+      "template": "<Button size=\"3\"{class}>{text:button-large-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "icon-button": {
+      "template": "<IconButton variant=\"soft\"{class}>{icon:icon-button-glyph}</IconButton>",
+      "imports": {
+        "IconButton": "@radix-ui/themes"
+      }
+    },
+    "button-with-icon": {
+      "template": "<Button{class}>{icon:button-with-icon-glyph} {text:button-with-icon-label}</Button>",
+      "imports": {
+        "Button": "@radix-ui/themes"
+      }
+    },
+    "text-field": {
+      "template": "<TextField.Root placeholder=\"{attr:text-field-text}\"{class} />",
+      "imports": {
+        "TextField": "@radix-ui/themes"
+      }
+    },
+    "text-field-icon": {
+      "template": "<TextField.Root placeholder=\"{attr:text-field-icon-text}\"{class}>\n  <TextField.Slot>{icon:text-field-icon-glyph}</TextField.Slot>\n</TextField.Root>",
+      "imports": {
+        "TextField": "@radix-ui/themes"
+      }
+    },
+    "text-area": {
+      "template": "<TextArea placeholder=\"{attr:text-area-text}\"{class} />",
+      "imports": {
+        "TextArea": "@radix-ui/themes"
+      }
+    },
+    "select": {
+      "template": "<Select.Root defaultValue=\"{slug:select-text}\">\n  <Select.Trigger{class} />\n  <Select.Content>\n    <Select.Item value=\"{slug:select-text}\">{text:select-text}</Select.Item>\n  </Select.Content>\n</Select.Root>",
+      "imports": {
+        "Select": "@radix-ui/themes"
+      }
+    },
+    "checkbox": {
+      "template": "<Text as=\"label\" size=\"2\"{class}>\n  <Flex gap=\"2\">\n    <Checkbox defaultChecked />\n    {text:checkbox-label}\n  </Flex>\n</Text>",
+      "imports": {
+        "Checkbox": "@radix-ui/themes",
+        "Flex": "@radix-ui/themes",
+        "Text": "@radix-ui/themes"
+      }
+    },
+    "checkbox-off": {
+      "template": "<Text as=\"label\" size=\"2\"{class}>\n  <Flex gap=\"2\">\n    <Checkbox />\n    {text:checkbox-off-label}\n  </Flex>\n</Text>",
+      "imports": {
+        "Checkbox": "@radix-ui/themes",
+        "Flex": "@radix-ui/themes",
+        "Text": "@radix-ui/themes"
+      }
+    },
+    "radio": {
+      "template": "<RadioGroup.Root defaultValue=\"{slug:radio-label}\"{class}>\n  <RadioGroup.Item value=\"{slug:radio-label}\">{text:radio-label}</RadioGroup.Item>\n</RadioGroup.Root>",
+      "imports": {
+        "RadioGroup": "@radix-ui/themes"
+      }
+    },
+    "radio-off": {
+      "template": "<RadioGroup.Root{class}>\n  <RadioGroup.Item value=\"{slug:radio-off-label}\">{text:radio-off-label}</RadioGroup.Item>\n</RadioGroup.Root>",
+      "imports": {
+        "RadioGroup": "@radix-ui/themes"
+      }
+    },
+    "switch": {
+      "template": "<Text as=\"label\" size=\"2\"{class}>\n  <Flex gap=\"2\">\n    <Switch defaultChecked />\n    {text:switch-label}\n  </Flex>\n</Text>",
+      "imports": {
+        "Flex": "@radix-ui/themes",
+        "Switch": "@radix-ui/themes",
+        "Text": "@radix-ui/themes"
+      }
+    },
+    "switch-off": {
+      "template": "<Text as=\"label\" size=\"2\"{class}>\n  <Flex gap=\"2\">\n    <Switch />\n    {text:switch-off-label}\n  </Flex>\n</Text>",
+      "imports": {
+        "Flex": "@radix-ui/themes",
+        "Switch": "@radix-ui/themes",
+        "Text": "@radix-ui/themes"
+      }
+    },
+    "slider": {
+      "template": "<Slider defaultValue={[50]}{class} />",
+      "imports": {
+        "Slider": "@radix-ui/themes"
+      }
+    },
+    "segmented": {
+      "template": "<SegmentedControl.Root defaultValue=\"{slug:segmented-1-label}\"{class}>\n  <SegmentedControl.Item value=\"{slug:segmented-1-label}\">{text:segmented-1-label}</SegmentedControl.Item>\n  <SegmentedControl.Item value=\"{slug:segmented-2-label}\">{text:segmented-2-label}</SegmentedControl.Item>\n  <SegmentedControl.Item value=\"{slug:segmented-3-label}\">{text:segmented-3-label}</SegmentedControl.Item>\n</SegmentedControl.Root>",
+      "imports": {
+        "SegmentedControl": "@radix-ui/themes"
+      }
+    },
+    "badge": {
+      "template": "<Badge{class}>{text:badge-label}</Badge>",
+      "imports": {
+        "Badge": "@radix-ui/themes"
+      }
+    },
+    "badge-green": {
+      "template": "<Badge color=\"green\"{class}>{text:badge-green-label}</Badge>",
+      "imports": {
+        "Badge": "@radix-ui/themes"
+      }
+    },
+    "badge-red": {
+      "template": "<Badge color=\"red\"{class}>{text:badge-red-label}</Badge>",
+      "imports": {
+        "Badge": "@radix-ui/themes"
+      }
+    },
+    "badge-gray": {
+      "template": "<Badge color=\"gray\"{class}>{text:badge-gray-label}</Badge>",
+      "imports": {
+        "Badge": "@radix-ui/themes"
+      }
+    },
+    "avatar": {
+      "template": "<Avatar fallback=\"{attr:avatar-fallback}\"{class} />",
+      "imports": {
+        "Avatar": "@radix-ui/themes"
+      }
+    },
+    "kbd": {
+      "template": "<Kbd{class}>{text:kbd-text}</Kbd>",
+      "imports": {
+        "Kbd": "@radix-ui/themes"
+      }
+    },
+    "code": {
+      "template": "<Code{class}>{text:code-text}</Code>",
+      "imports": {
+        "Code": "@radix-ui/themes"
+      }
+    },
+    "separator": {
+      "template": "<Separator size=\"4\"{class} />",
+      "imports": {
+        "Separator": "@radix-ui/themes"
+      }
+    },
+    "progress": {
+      "template": "<Progress value={60}{class} />",
+      "imports": {
+        "Progress": "@radix-ui/themes"
+      }
+    },
+    "callout": {
+      "template": "<Callout.Root{class}>\n  <Callout.Icon>{icon:callout-icon}</Callout.Icon>\n  <Callout.Text>{text:callout-text}</Callout.Text>\n</Callout.Root>",
+      "imports": {
+        "Callout": "@radix-ui/themes"
+      }
+    },
+    "callout-red": {
+      "template": "<Callout.Root color=\"red\"{class}>\n  <Callout.Icon>{icon:callout-red-icon}</Callout.Icon>\n  <Callout.Text>{text:callout-red-text}</Callout.Text>\n</Callout.Root>",
+      "imports": {
+        "Callout": "@radix-ui/themes"
+      }
+    },
+    "card": {
+      "template": "<Card{class}>\n  <Flex gap=\"3\" align=\"center\">\n    <Avatar size=\"3\" radius=\"full\" fallback=\"{attr:card-avatar/avatar-fallback}\" />\n    <Box>\n      <Text as=\"div\" size=\"2\" weight=\"bold\">{text:card-title}</Text>\n      <Text as=\"div\" size=\"2\" color=\"gray\">{text:card-description}</Text>\n    </Box>\n  </Flex>\n</Card>",
+      "imports": {
+        "Avatar": "@radix-ui/themes",
+        "Box": "@radix-ui/themes",
+        "Card": "@radix-ui/themes",
+        "Flex": "@radix-ui/themes",
+        "Text": "@radix-ui/themes"
+      }
+    },
+    "tabs": {
+      "template": "<Tabs.Root defaultValue=\"{slug:tabs-1-label}\"{class}>\n  <Tabs.List>\n    <Tabs.Trigger value=\"{slug:tabs-1-label}\">{text:tabs-1-label}</Tabs.Trigger>\n    <Tabs.Trigger value=\"{slug:tabs-2-label}\">{text:tabs-2-label}</Tabs.Trigger>\n    <Tabs.Trigger value=\"{slug:tabs-3-label}\">{text:tabs-3-label}</Tabs.Trigger>\n  </Tabs.List>\n</Tabs.Root>",
+      "imports": {
+        "Tabs": "@radix-ui/themes"
+      }
+    }
+  }
+}

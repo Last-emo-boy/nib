@@ -1,0 +1,305 @@
+{
+  "library": "Ant Design",
+  "setup": "npm install antd lucide-react (wrap the app in ConfigProvider for the dark algorithm)",
+  "inherited": [
+    "font-sans"
+  ],
+  "tokens": [
+    "primary",
+    "primary-hover",
+    "primary-bg",
+    "primary-border",
+    "success",
+    "success-bg",
+    "success-border",
+    "warning",
+    "warning-bg",
+    "warning-border",
+    "error",
+    "error-bg",
+    "error-border",
+    "text",
+    "text-secondary",
+    "text-tertiary",
+    "text-quaternary",
+    "text-light",
+    "border",
+    "border-secondary",
+    "fill",
+    "fill-secondary",
+    "fill-tertiary",
+    "fill-quaternary",
+    "bg-container",
+    "bg-elevated",
+    "bg-layout",
+    "bg-spotlight",
+    "table-header",
+    "shadow-1",
+    "shadow-2",
+    "shadow-3",
+    "shadow-button"
+  ],
+  "components": {
+    "button": {
+      "template": "<Button type=\"primary\"{class}>{text:button-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-default": {
+      "template": "<Button{class}>{text:button-default-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-text": {
+      "template": "<Button type=\"text\"{class}>{text:button-text-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-link": {
+      "template": "<Button type=\"link\"{class}>{text:button-link-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-danger": {
+      "template": "<Button type=\"primary\" danger{class}>{text:button-danger-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-danger-default": {
+      "template": "<Button danger{class}>{text:button-danger-default-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-small": {
+      "template": "<Button type=\"primary\" size=\"small\"{class}>{text:button-small-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-large": {
+      "template": "<Button type=\"primary\" size=\"large\"{class}>{text:button-large-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-icon": {
+      "template": "<Button type=\"primary\" icon={ {icon:button-icon-glyph} }{class} />",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "button-with-icon": {
+      "template": "<Button type=\"primary\" icon={ {icon:button-with-icon-glyph} }{class}>{text:button-with-icon-label}</Button>",
+      "imports": {
+        "Button": "antd"
+      }
+    },
+    "input": {
+      "template": "<Input placeholder=\"{attr:input-text}\"{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "input-filled": {
+      "template": "<Input defaultValue=\"{attr:input-filled-text}\"{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "input-prefix": {
+      "template": "<Input prefix={ {icon:input-prefix-icon} } placeholder=\"{attr:input-prefix-text}\"{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "input-search": {
+      "template": "<Input.Search placeholder=\"{attr:input-search-text}\" enterButton{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "textarea": {
+      "template": "<Input.TextArea rows={3} placeholder=\"{attr:textarea-text}\"{class} />",
+      "imports": {
+        "Input": "antd"
+      }
+    },
+    "select": {
+      "template": "<Select placeholder=\"{attr:select-text}\" options={[]}{class} />",
+      "imports": {
+        "Select": "antd"
+      }
+    },
+    "form-item": {
+      "template": "<Form layout=\"vertical\"{class}>\n  <Form.Item label=\"{attr:form-item-label}\" required extra=\"{attr:form-item-help}\">\n    <Input placeholder=\"{attr:form-item-input/input-text}\" />\n  </Form.Item>\n</Form>",
+      "imports": {
+        "Form": "antd",
+        "Input": "antd"
+      }
+    },
+    "checkbox": {
+      "template": "<Checkbox defaultChecked{class}>{text:checkbox-label}</Checkbox>",
+      "imports": {
+        "Checkbox": "antd"
+      }
+    },
+    "checkbox-off": {
+      "template": "<Checkbox{class}>{text:checkbox-off-label}</Checkbox>",
+      "imports": {
+        "Checkbox": "antd"
+      }
+    },
+    "radio": {
+      "template": "<Radio defaultChecked{class}>{text:radio-label}</Radio>",
+      "imports": {
+        "Radio": "antd"
+      }
+    },
+    "radio-off": {
+      "template": "<Radio{class}>{text:radio-off-label}</Radio>",
+      "imports": {
+        "Radio": "antd"
+      }
+    },
+    "switch": {
+      "template": "<Space{class}>\n  <Switch defaultChecked />\n  {text:switch-label}\n</Space>",
+      "imports": {
+        "Space": "antd",
+        "Switch": "antd"
+      }
+    },
+    "switch-off": {
+      "template": "<Space{class}>\n  <Switch />\n  {text:switch-off-label}\n</Space>",
+      "imports": {
+        "Space": "antd",
+        "Switch": "antd"
+      }
+    },
+    "slider": {
+      "template": "<Slider defaultValue={40}{class} />",
+      "imports": {
+        "Slider": "antd"
+      }
+    },
+    "tag": {
+      "template": "<Tag{class}>{text:tag-label}</Tag>",
+      "imports": {
+        "Tag": "antd"
+      }
+    },
+    "tag-success": {
+      "template": "<Tag color=\"success\"{class}>{text:tag-success-label}</Tag>",
+      "imports": {
+        "Tag": "antd"
+      }
+    },
+    "tag-processing": {
+      "template": "<Tag color=\"processing\"{class}>{text:tag-processing-label}</Tag>",
+      "imports": {
+        "Tag": "antd"
+      }
+    },
+    "tag-warning": {
+      "template": "<Tag color=\"warning\"{class}>{text:tag-warning-label}</Tag>",
+      "imports": {
+        "Tag": "antd"
+      }
+    },
+    "tag-error": {
+      "template": "<Tag color=\"error\"{class}>{text:tag-error-label}</Tag>",
+      "imports": {
+        "Tag": "antd"
+      }
+    },
+    "badge": {
+      "template": "<Badge count={ {text:badge-count} }{class} />",
+      "imports": {
+        "Badge": "antd"
+      }
+    },
+    "avatar": {
+      "template": "<Avatar{class}>{text:avatar-text}</Avatar>",
+      "imports": {
+        "Avatar": "antd"
+      }
+    },
+    "alert-success": {
+      "template": "<Alert message=\"{attr:alert-success-message}\" type=\"success\" showIcon{class} />",
+      "imports": {
+        "Alert": "antd"
+      }
+    },
+    "alert-info": {
+      "template": "<Alert message=\"{attr:alert-info-message}\" type=\"info\" showIcon{class} />",
+      "imports": {
+        "Alert": "antd"
+      }
+    },
+    "alert-warning": {
+      "template": "<Alert message=\"{attr:alert-warning-message}\" type=\"warning\" showIcon{class} />",
+      "imports": {
+        "Alert": "antd"
+      }
+    },
+    "alert-error": {
+      "template": "<Alert message=\"{attr:alert-error-message}\" type=\"error\" showIcon{class} />",
+      "imports": {
+        "Alert": "antd"
+      }
+    },
+    "card": {
+      "template": "<Card title=\"{attr:card-title}\" extra={<a href=\"#\">{text:card-extra}</a>}{class}>{children:card-body}</Card>",
+      "imports": {
+        "Card": "antd"
+      }
+    },
+    "statistic": {
+      "template": "<Statistic title=\"{attr:statistic-title}\" value=\"{attr:statistic-value}\"{class} />",
+      "imports": {
+        "Statistic": "antd"
+      }
+    },
+    "progress": {
+      "template": "<Progress percent={60}{class} />",
+      "imports": {
+        "Progress": "antd"
+      }
+    },
+    "divider": {
+      "template": "<Divider{class} />",
+      "imports": {
+        "Divider": "antd"
+      }
+    },
+    "tabs": {
+      "template": "<Tabs defaultActiveKey=\"1\" items={[{ key: \"1\", label: \"{attr:tabs-1-label}\" }, { key: \"2\", label: \"{attr:tabs-2-label}\" }, { key: \"3\", label: \"{attr:tabs-3-label}\" }]}{class} />",
+      "imports": {
+        "Tabs": "antd"
+      }
+    },
+    "breadcrumb": {
+      "template": "<Breadcrumb items={[{ title: \"{attr:breadcrumb-1}\" }, { title: \"{attr:breadcrumb-2}\" }, { title: \"{attr:breadcrumb-3}\" }]}{class} />",
+      "imports": {
+        "Breadcrumb": "antd"
+      }
+    },
+    "pagination": {
+      "template": "<Pagination defaultCurrent={2} total={50}{class} />",
+      "imports": {
+        "Pagination": "antd"
+      }
+    },
+    "steps": {
+      "template": "<Steps current={1} items={[{ title: \"{attr:steps-1-title}\" }, { title: \"{attr:steps-2-title}\" }, { title: \"{attr:steps-3-title}\" }]}{class} />",
+      "imports": {
+        "Steps": "antd"
+      }
+    }
+  }
+}

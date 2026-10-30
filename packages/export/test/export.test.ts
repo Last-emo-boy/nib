@@ -101,6 +101,24 @@ describe('react export', () => {
     expect(out).toContain('<ArrowRight className="flex-none h-[16px] w-[16px] text-[color:#ff0000]" />');
     expect(out).toContain('<Button className="w-full">Go</Button>');
   });
+
+  it('imports a module that registers custom elements for its side effect', async () => {
+    const lib = new PenDoc({ version: '2.20', children: [
+      { type: 'frame', id: 'button', reusable: true, x: 0, y: 0, padding: [8, 16], children: [{ type: 'text', id: 'button-label', content: 'Button' }] },
+    ] } as unknown as PenDocument);
+    const doc = new PenDoc({ version: '2.20', imports: { md: './md.lib.pen' }, children: [
+      { type: 'frame', id: 'page', name: 'Page', x: 0, y: 0, width: 200, layout: 'vertical', children: [{ type: 'ref', id: 'go', ref: 'md:button', descendants: { 'button-label': { content: 'Go' } } }] },
+    ] } as unknown as PenDocument);
+    doc.imports.set('md', lib);
+    const map: CodeMap = { library: 'Material Web', tokens: [], components: {
+      button: { template: '<md-filled-button{class}>{text:button-label}</md-filled-button>', imports: { '@material/web/button/filled-button.js': 'side-effect' } },
+    } };
+    const root = buildScene(doc, doc.data.children[0])!;
+    const out = await exportReact([{ id: root.id, root, target: root }], join(tmpdir(), 'out', 'page.tsx'), {}, { renderer, images, baseDir: tmpdir() }, new Map([['md', map]]));
+    expect(out).toContain('import "@material/web/button/filled-button.js";');
+    expect(out).toContain('// Material Web');
+    expect(out).toContain('>Go</md-filled-button>');
+  });
 });
 
 describe('design tokens', () => {

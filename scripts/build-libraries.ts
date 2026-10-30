@@ -7,10 +7,13 @@ import { buildScene, expandTree, PenDoc, type ExpandIssue } from '@nib/core';
 import { parsePen, serializePen, validateNode, type Issue, type Node, type PenDocument } from '@nib/format';
 import { createNodeRenderer } from '@nib/render/node';
 import type { Library } from './libraries/kit.ts';
+import * as antd from './libraries/antd.ts';
 import * as heroui from './libraries/heroui.ts';
+import * as material from './libraries/material.ts';
+import * as radix from './libraries/radix.ts';
 import * as shadcn from './libraries/shadcn.ts';
 
-const LIBRARIES = [{ meta: shadcn.meta, build: shadcn.shadcn, code: shadcn.codeMeta }, { meta: heroui.meta, build: heroui.heroui, code: heroui.codeMeta }];
+const LIBRARIES = [{ meta: shadcn.meta, build: shadcn.shadcn, code: shadcn.codeMeta }, { meta: heroui.meta, build: heroui.heroui, code: heroui.codeMeta }, { meta: antd.meta, build: antd.antd, code: antd.codeMeta }, { meta: radix.meta, build: radix.radix, code: radix.codeMeta }, { meta: material.meta, build: material.material, code: material.codeMeta }];
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, '..', 'packages', 'daemon', 'libraries');
 const GAP = 160;

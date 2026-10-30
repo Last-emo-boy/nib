@@ -78,8 +78,8 @@ export async function exportReact(scenes: CapturedScene[], outputPath: string, o
     }
   }
   const imports = [...writer.imports].sort(([a], [b]) => (a.startsWith('@/') === b.startsWith('@/') ? a.localeCompare(b) : a.startsWith('@/') ? 1 : -1))
-    .map(([module, set]) => `import { ${[...set].sort().join(', ')} } from "${module}";`);
-  const used = [...maps.values()].filter((m) => [...writer.imports.keys()].some((k) => Object.values(m.components).some((c) => Object.values(c.imports).includes(k))));
+    .map(([module, set]) => (set.size ? `import { ${[...set].sort().join(', ')} } from "${module}";` : `import "${module}";`));
+  const used = [...maps.values()].filter((m) => [...writer.imports.keys()].some((k) => Object.values(m.components).some((c) => Object.values(c.imports).includes(k) || k in c.imports)));
   const header = [`// Exported from nib.`, ...used.map((m) => `// ${m.library}: ${m.setup ?? 'install the library'}.`), ...(writer.imports.has('lucide-react') ? ['// Icons: npm install lucide-react.'] : [])];
   return `${header.join('\n')}\n${imports.length ? `\n${imports.join('\n')}\n` : ''}\n${parts.join('\n\n')}\n`;
 }
@@ -497,7 +497,11 @@ export class HtmlWriter {
     if (!info || colon <= 0) return undefined;
     const spec = this.react?.maps.get(info.ref.slice(0, colon))?.components[info.ref.slice(colon + 1)];
     if (!spec) return undefined;
-    for (const [name, module] of Object.entries(spec.imports)) this.use(module, name);
+    for (const [name, module] of Object.entries(spec.imports)) {
+      // A module imported for what it registers (custom elements): its path is the key.
+      if (module === 'side-effect') this.imports.set(name, this.imports.get(name) ?? new Set());
+      else this.use(module, name);
+    }
     return this.template(spec, n, parent, info, depth);
   }
 

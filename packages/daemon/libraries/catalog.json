@@ -34,5 +34,59 @@
         "Dark"
       ]
     }
+  },
+  {
+    "id": "antd",
+    "name": "Ant Design",
+    "summary": {
+      "en": "Ant Design v5 for dense admin and data apps: buttons, forms, tags, tables, steps, menus and an admin dashboard to start from.",
+      "zh": "适合中后台与数据应用的 Ant Design v5：按钮、表单、标签、表格、步骤条、菜单，以及一个可直接起步的管理后台。"
+    },
+    "basedOn": "Ant Design v5 (default and dark algorithms)",
+    "license": "MIT",
+    "homepage": "https://ant.design",
+    "components": 49,
+    "themes": {
+      "Mode": [
+        "Light",
+        "Dark"
+      ]
+    }
+  },
+  {
+    "id": "radix",
+    "name": "Radix Themes",
+    "summary": {
+      "en": "Radix Themes: calm, accessible components on Radix Colors scales, with buttons, fields, callouts, segmented controls and a workspace screen.",
+      "zh": "Radix Themes：基于 Radix Colors 色阶的沉稳、无障碍组件，包含按钮、输入框、提示、分段控件，以及一个工作区页面。"
+    },
+    "basedOn": "Radix Themes (indigo accent, slate gray)",
+    "license": "MIT",
+    "homepage": "https://www.radix-ui.com/themes",
+    "components": 40,
+    "themes": {
+      "Mode": [
+        "Light",
+        "Dark"
+      ]
+    }
+  },
+  {
+    "id": "material",
+    "name": "Material 3",
+    "summary": {
+      "en": "Material Design 3 for apps: pill buttons, FABs, chips, filled and outlined fields, lists, navigation bar and a phone screen to start from.",
+      "zh": "面向 App 的 Material Design 3：胶囊按钮、悬浮按钮、标签、填充和描边输入框、列表、底部导航，以及一个可直接起步的手机页面。"
+    },
+    "basedOn": "Material Design 3 (baseline scheme)",
+    "license": "Apache-2.0",
+    "homepage": "https://m3.material.io",
+    "components": 37,
+    "themes": {
+      "Mode": [
+        "Light",
+        "Dark"
+      ]
+    }
   }
 ]

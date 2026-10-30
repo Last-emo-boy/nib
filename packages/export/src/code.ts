@@ -29,6 +29,9 @@ export interface CodeMap {
  */
 export interface ComponentCode {
   template: string;
-  /** Names the template uses, and where they come from: { Button: "@/components/ui/button" }. */
+  /**
+   * Names the template uses, and where they come from: { Button: "@/components/ui/button" }. A module that
+   * is imported only for what it registers (custom elements) is a key with the value "side-effect".
+   */
   imports: Record<string, string>;
 }

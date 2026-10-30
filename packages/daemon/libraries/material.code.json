@@ -1,0 +1,208 @@
+{
+  "library": "Material Web",
+  "setup": "npm install @material/web lucide-react (React 19 renders the md-* elements; declare them in JSX.IntrinsicElements for TypeScript)",
+  "inherited": [
+    "font-sans"
+  ],
+  "tokens": [
+    "primary",
+    "on-primary",
+    "primary-container",
+    "on-primary-container",
+    "secondary",
+    "on-secondary",
+    "secondary-container",
+    "on-secondary-container",
+    "tertiary",
+    "tertiary-container",
+    "on-tertiary-container",
+    "error",
+    "on-error",
+    "error-container",
+    "on-error-container",
+    "surface",
+    "on-surface",
+    "on-surface-variant",
+    "surface-container-lowest",
+    "surface-container-low",
+    "surface-container",
+    "surface-container-high",
+    "surface-container-highest",
+    "outline",
+    "outline-variant",
+    "inverse-surface",
+    "inverse-on-surface",
+    "inverse-primary",
+    "shadow-1",
+    "shadow-2"
+  ],
+  "components": {
+    "button-filled": {
+      "template": "<md-filled-button{class}>{text:button-filled-label}</md-filled-button>",
+      "imports": {
+        "@material/web/button/filled-button.js": "side-effect"
+      }
+    },
+    "button-tonal": {
+      "template": "<md-filled-tonal-button{class}>{text:button-tonal-label}</md-filled-tonal-button>",
+      "imports": {
+        "@material/web/button/filled-tonal-button.js": "side-effect"
+      }
+    },
+    "button-outlined": {
+      "template": "<md-outlined-button{class}>{text:button-outlined-label}</md-outlined-button>",
+      "imports": {
+        "@material/web/button/outlined-button.js": "side-effect"
+      }
+    },
+    "button-text": {
+      "template": "<md-text-button{class}>{text:button-text-label}</md-text-button>",
+      "imports": {
+        "@material/web/button/text-button.js": "side-effect"
+      }
+    },
+    "button-elevated": {
+      "template": "<md-elevated-button{class}>{text:button-elevated-label}</md-elevated-button>",
+      "imports": {
+        "@material/web/button/elevated-button.js": "side-effect"
+      }
+    },
+    "button-icon": {
+      "template": "<md-filled-button has-icon{class}>\n  <span slot=\"icon\">{icon:button-icon-glyph}</span>\n  {text:button-icon-label}\n</md-filled-button>",
+      "imports": {
+        "@material/web/button/filled-button.js": "side-effect"
+      }
+    },
+    "fab": {
+      "template": "<md-fab aria-label=\"{attr:fab-icon}\"{class}>\n  <span slot=\"icon\">{icon:fab-icon}</span>\n</md-fab>",
+      "imports": {
+        "@material/web/fab/fab.js": "side-effect"
+      }
+    },
+    "fab-extended": {
+      "template": "<md-fab label=\"{attr:fab-extended-label}\"{class}>\n  <span slot=\"icon\">{icon:fab-extended-icon}</span>\n</md-fab>",
+      "imports": {
+        "@material/web/fab/fab.js": "side-effect"
+      }
+    },
+    "icon-button": {
+      "template": "<md-icon-button aria-label=\"{attr:icon-button-glyph}\"{class}>{icon:icon-button-glyph}</md-icon-button>",
+      "imports": {
+        "@material/web/iconbutton/icon-button.js": "side-effect"
+      }
+    },
+    "icon-button-filled": {
+      "template": "<md-filled-icon-button aria-label=\"{attr:icon-button-filled-glyph}\"{class}>{icon:icon-button-filled-glyph}</md-filled-icon-button>",
+      "imports": {
+        "@material/web/iconbutton/filled-icon-button.js": "side-effect"
+      }
+    },
+    "chip-assist": {
+      "template": "<md-chip-set{class}>\n  <md-assist-chip label=\"{attr:chip-assist-label}\"></md-assist-chip>\n</md-chip-set>",
+      "imports": {
+        "@material/web/chips/chip-set.js": "side-effect",
+        "@material/web/chips/assist-chip.js": "side-effect"
+      }
+    },
+    "chip-filter": {
+      "template": "<md-chip-set{class}>\n  <md-filter-chip label=\"{attr:chip-filter-label}\" selected></md-filter-chip>\n</md-chip-set>",
+      "imports": {
+        "@material/web/chips/chip-set.js": "side-effect",
+        "@material/web/chips/filter-chip.js": "side-effect"
+      }
+    },
+    "chip-filter-off": {
+      "template": "<md-chip-set{class}>\n  <md-filter-chip label=\"{attr:chip-filter-off-label}\"></md-filter-chip>\n</md-chip-set>",
+      "imports": {
+        "@material/web/chips/chip-set.js": "side-effect",
+        "@material/web/chips/filter-chip.js": "side-effect"
+      }
+    },
+    "text-field": {
+      "template": "<md-filled-text-field label=\"{attr:text-field-label}\" value=\"{attr:text-field-value}\"{class}></md-filled-text-field>",
+      "imports": {
+        "@material/web/textfield/filled-text-field.js": "side-effect"
+      }
+    },
+    "text-field-outlined": {
+      "template": "<md-outlined-text-field label=\"{attr:text-field-outlined-label}\" value=\"{attr:text-field-outlined-value}\"{class}></md-outlined-text-field>",
+      "imports": {
+        "@material/web/textfield/outlined-text-field.js": "side-effect"
+      }
+    },
+    "checkbox": {
+      "template": "<label{class:flex items-center gap-3}>\n  <md-checkbox touch-target=\"wrapper\" checked></md-checkbox>\n  {text:checkbox-label}\n</label>",
+      "imports": {
+        "@material/web/checkbox/checkbox.js": "side-effect"
+      }
+    },
+    "checkbox-off": {
+      "template": "<label{class:flex items-center gap-3}>\n  <md-checkbox touch-target=\"wrapper\"></md-checkbox>\n  {text:checkbox-off-label}\n</label>",
+      "imports": {
+        "@material/web/checkbox/checkbox.js": "side-effect"
+      }
+    },
+    "radio": {
+      "template": "<label{class:flex items-center gap-3}>\n  <md-radio name=\"option\" value=\"{slug:radio-label}\" checked></md-radio>\n  {text:radio-label}\n</label>",
+      "imports": {
+        "@material/web/radio/radio.js": "side-effect"
+      }
+    },
+    "radio-off": {
+      "template": "<label{class:flex items-center gap-3}>\n  <md-radio name=\"option\" value=\"{slug:radio-off-label}\"></md-radio>\n  {text:radio-off-label}\n</label>",
+      "imports": {
+        "@material/web/radio/radio.js": "side-effect"
+      }
+    },
+    "switch": {
+      "template": "<label{class:flex items-center gap-3}>\n  <md-switch selected icons></md-switch>\n  {text:switch-label}\n</label>",
+      "imports": {
+        "@material/web/switch/switch.js": "side-effect"
+      }
+    },
+    "switch-off": {
+      "template": "<label{class:flex items-center gap-3}>\n  <md-switch></md-switch>\n  {text:switch-off-label}\n</label>",
+      "imports": {
+        "@material/web/switch/switch.js": "side-effect"
+      }
+    },
+    "slider": {
+      "template": "<md-slider value=\"50\"{class}></md-slider>",
+      "imports": {
+        "@material/web/slider/slider.js": "side-effect"
+      }
+    },
+    "progress": {
+      "template": "<md-linear-progress value=\"0.6\"{class}></md-linear-progress>",
+      "imports": {
+        "@material/web/progress/linear-progress.js": "side-effect"
+      }
+    },
+    "divider": {
+      "template": "<md-divider{class}></md-divider>",
+      "imports": {
+        "@material/web/divider/divider.js": "side-effect"
+      }
+    },
+    "list-item": {
+      "template": "<md-list-item{class}>\n  <div slot=\"headline\">{text:list-item-headline}</div>\n  <div slot=\"supporting-text\">{text:list-item-supporting}</div>\n  <div slot=\"trailing-supporting-text\">{text:list-item-trailing}</div>\n</md-list-item>",
+      "imports": {
+        "@material/web/list/list-item.js": "side-effect"
+      }
+    },
+    "dialog": {
+      "template": "<md-dialog open{class}>\n  <div slot=\"headline\">{text:dialog-headline}</div>\n  <div slot=\"content\">{text:dialog-text}</div>\n  <div slot=\"actions\">\n    <md-text-button>{text:dialog-cancel/button-text-label}</md-text-button>\n    <md-text-button>{text:dialog-accept/button-text-label}</md-text-button>\n  </div>\n</md-dialog>",
+      "imports": {
+        "@material/web/dialog/dialog.js": "side-effect",
+        "@material/web/button/text-button.js": "side-effect"
+      }
+    },
+    "tabs": {
+      "template": "<md-tabs{class}>\n  <md-primary-tab>{text:tabs-1-label}</md-primary-tab>\n  <md-primary-tab>{text:tabs-2-label}</md-primary-tab>\n  <md-primary-tab>{text:tabs-3-label}</md-primary-tab>\n</md-tabs>",
+      "imports": {
+        "@material/web/tabs/tabs.js": "side-effect",
+        "@material/web/tabs/primary-tab.js": "side-effect"
+      }
+    }
+  }
+}

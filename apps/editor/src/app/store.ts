@@ -1,0 +1,78 @@
+import { useSyncExternalStore } from 'react';
+import type { PenDoc } from '@nib/core';
+import type { Change, Connection } from './connection.ts';
+
+export type Tool = 'move' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'text' | 'note';
+export type LeftTab = 'layers' | 'components' | 'variables';
+export type Lang = 'en' | 'zh';
+
+/** Canvas position: a document point (x, y) appears on screen at (x * zoom + tx, y * zoom + ty). */
+export interface View { tx: number; ty: number; zoom: number }
+
+export interface EditorState {
+  conn?: Connection;
+  status: 'connecting' | 'open' | 'closed';
+  doc?: PenDoc;
+  /** Bumps on every document change; components that read `doc` select it. */
+  version: number;
+  /** Bumps when canvas scenes were rebuilt (new layout boxes). */
+  layoutVersion: number;
+  selection: string[];
+  hover?: string;
+  tool: Tool;
+  view: View;
+  leftTab: LeftTab;
+  leftOpen: boolean;
+  history: { undo: string[]; redo: string[] };
+  /** Recent changes, newest last, for the activity feed. */
+  changes: Change[];
+  activityOpen: boolean;
+  /** The node whose text is being edited on the canvas. */
+  editingText?: string;
+  lang: Lang;
+  toast?: { text: string; at: number };
+}
+
+type Listener = () => void;
+
+function createStore<S>(initial: S) {
+  let state = initial;
+  const listeners = new Set<Listener>();
+  return {
+    get: () => state,
+    set(patch: Partial<S> | ((s: S) => Partial<S>)) {
+      const p = typeof patch === 'function' ? (patch as (s: S) => Partial<S>)(state) : patch;
+      state = { ...state, ...p };
+      for (const l of listeners) l();
+    },
+    subscribe(l: Listener) {
+      listeners.add(l);
+      return () => listeners.delete(l);
+    },
+  };
+}
+
+const savedLang = (localStorage.getItem('nib-lang') as Lang | null) ?? (navigator.language.startsWith('zh') ? 'zh' : 'en');
+
+export const store = createStore<EditorState>({
+  status: 'connecting',
+  version: 0,
+  layoutVersion: 0,
+  selection: [],
+  tool: 'move',
+  view: { tx: 80, ty: 80, zoom: 1 },
+  leftTab: 'layers',
+  leftOpen: true,
+  history: { undo: [], redo: [] },
+  changes: [],
+  activityOpen: false,
+  lang: savedLang,
+});
+
+export function useEditor<T>(select: (s: EditorState) => T): T {
+  return useSyncExternalStore(store.subscribe, () => select(store.get()));
+}
+
+export function toast(text: string): void {
+  store.set({ toast: { text, at: Date.now() } });
+}

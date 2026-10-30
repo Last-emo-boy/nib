@@ -71,6 +71,11 @@ export class DocEditor {
     this.open = false;
   }
 
+  /** Copies of the ops applied so far in the open transaction. */
+  pending(): Op[] {
+    return this.forward.slice();
+  }
+
   /** A point in the open transaction that `rollbackTo` can return to. */
   savepoint(): number {
     return this.inverse.length;

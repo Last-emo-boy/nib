@@ -3,7 +3,10 @@
     "target": "es2023",
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "lib": ["es2023", "dom"],
+    "lib": [
+      "es2023",
+      "dom"
+    ],
     "strict": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
@@ -12,7 +15,17 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": false,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["packages/*/src", "packages/*/test", "apps/*/src", "scripts"]
+  "include": [
+    "packages/*/src",
+    "packages/*/test",
+    "apps/*/src",
+    "scripts"
+  ],
+  "exclude": [
+    "apps/editor"
+  ]
 }

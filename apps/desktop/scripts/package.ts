@@ -57,9 +57,10 @@ for (const d of await readdir(store)) {
   if (/^@anthropic-ai\+claude-agent-sdk-[a-z0-9]+-[a-z0-9]+@/.test(d) || /^@openai\+codex@[^-]+-(darwin|linux|win32)-/.test(d)) await rm(join(store, d), { recursive: true, force: true });
 }
 // ...and the links to them, which codesign would refuse.
-for (const d of await readdir(store)) {
+for (const d of ['', ...(await readdir(store))]) {
   for (const scope of ['@anthropic-ai', '@openai']) {
-    const dir = join(store, d, 'node_modules', scope);
+    // Each package's own links, and pnpm's hoisted ones in .pnpm/node_modules.
+    const dir = d ? join(store, d, 'node_modules', scope) : join(store, 'node_modules', scope);
     for (const name of await readdir(dir).catch(() => [] as string[])) {
       if (!(await stat(join(dir, name)).catch(() => undefined))) await rm(join(dir, name), { force: true });
     }

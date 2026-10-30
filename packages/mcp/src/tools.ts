@@ -1,9 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join, normalize, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Node } from '@nib/format';
-import { childrenOf } from '@nib/core';
-import type { DocumentHost, OpenDocument } from './documents.ts';
+import type { McpHost } from './hosts.ts';
 import { getStyle } from './styles.ts';
 
 export type Content = { type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string };
@@ -13,11 +11,10 @@ export interface Tool {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  call(args: Record<string, unknown>, host: DocumentHost): Promise<ToolResult>;
+  call(args: Record<string, unknown>, host: McpHost): Promise<ToolResult>;
 }
 
 export const SKILL_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'skill');
-const LIST_LIMIT = 60;
 
 const text = (t: string, isError = false): ToolResult => ({ content: [{ type: 'text', text: t }], ...(isError ? { isError } : {}) });
 
@@ -30,18 +27,7 @@ export const TOOLS: Tool[] = [
       properties: { filePath: { type: 'string', description: 'A .pen file to open and make active.' } },
     },
     async call(args, host) {
-      const notes: string[] = [];
-      if (typeof args.filePath === 'string') await host.open(args.filePath, notes);
-      const docs = host.list();
-      for (const d of docs) await host.sync(d, notes);
-      const out = ['# nib state', ''];
-      if (!docs.length) {
-        out.push('No document is open. Pass `filePath` (an absolute path to a .pen file) to get_app_state or execute to open one; a missing file is created.');
-      }
-      for (const d of docs) out.push(describe(d, d.path === host.active));
-      out.push('', 'No editor is attached, so nothing is selected. Read the design guide with read_skill() before your first execute call.');
-      if (notes.length) out.push('', ...notes.map((n) => `Note: ${n}`));
-      return text(out.join('\n'));
+      return text(await host.appState(typeof args.filePath === 'string' ? args.filePath : undefined));
     },
   },
   {
@@ -79,7 +65,7 @@ export const TOOLS: Tool[] = [
       });
       const body = r.notes.length ? `${r.text}\n\n${r.notes.map((n) => `Note: ${n}`).join('\n')}` : r.text;
       return {
-        content: [{ type: 'text', text: body }, ...r.images.map((i) => ({ type: 'image' as const, data: Buffer.from(i.data).toString('base64'), mimeType: i.mimeType }))],
+        content: [{ type: 'text', text: body }, ...r.images.map((i) => ({ type: 'image' as const, data: i.data, mimeType: i.mimeType }))],
         ...(r.ok ? {} : { isError: true }),
       };
     },
@@ -118,28 +104,6 @@ export const TOOLS: Tool[] = [
     },
   },
 ];
-
-function describe(d: OpenDocument, active: boolean): string {
-  const doc = d.session.doc;
-  const top = doc.data.children;
-  const lines = [`## ${d.path}${active ? ' (active)' : ''}`, '', `Top-level nodes (${top.length}):`];
-  for (const n of top.slice(0, LIST_LIMIT)) {
-    const b = d.session.box(n.id);
-    const size = b ? ` ${Math.round(b.width)}×${Math.round(b.height)} at (${Math.round(b.x)}, ${Math.round(b.y)})` : n.enabled === false ? ' hidden' : '';
-    lines.push(`- \`${n.id}\` ${n.type}${n.name ? ` "${n.name}"` : ''}${size}${n.reusable ? ' · component' : ''}`);
-  }
-  if (top.length > LIST_LIMIT) lines.push(`- … ${top.length - LIST_LIMIT} more; list them with Get(n => ...)`);
-  const comps: Node[] = [];
-  const visit = (n: Node) => { if (n.reusable) comps.push(n); childrenOf(n)?.forEach(visit); };
-  top.forEach(visit);
-  lines.push('', comps.length ? `Components (${comps.length}):` : 'Components: none');
-  for (const c of comps.slice(0, LIST_LIMIT)) lines.push(`- \`${c.id}\`${c.name ? ` "${c.name}"` : ''} (${c.type})`);
-  if (comps.length > LIST_LIMIT) lines.push(`- … ${comps.length - LIST_LIMIT} more`);
-  const vars = Object.keys(doc.data.variables ?? {});
-  lines.push('', vars.length ? `Variables: ${vars.length}${doc.data.themes ? `; themes: ${Object.entries(doc.data.themes).map(([a, v]) => `${a} = ${v.join(' | ')}`).join(', ')}` : ''} (read them with GetVariables())` : 'Variables: none');
-  if (doc.imports.size) lines.push(`Imports: ${[...doc.imports.keys()].map((a) => `\`${a}\``).join(', ')} (address their nodes and variables as alias:id)`);
-  return lines.join('\n');
-}
 
 async function skillFiles(dir = SKILL_DIR, prefix = ''): Promise<string[]> {
   const out: string[] = [];

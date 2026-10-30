@@ -84,9 +84,12 @@ export class DocEditor {
   }
 
   apply(op: Op): void {
+    // Copied before applying: later ops in the transaction may change an inserted node in place, and the
+    // log must replay exactly on another copy of the document.
+    const logged = this.open ? structuredClone(op) : op;
     const inv = applyOp(this.doc, op);
     if (this.open) {
-      this.forward.push(op);
+      this.forward.push(logged);
       this.inverse.push(inv);
     }
   }

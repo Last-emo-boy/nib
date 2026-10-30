@@ -1,18 +1,18 @@
 import { createInterface } from 'node:readline';
-import type { DocumentHost } from './documents.ts';
+import type { McpHost } from './hosts.ts';
 import { TOOLS } from './tools.ts';
 
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 export const SERVER_VERSION = '0.1.0';
 
-const INSTRUCTIONS = `nib edits .pen design files (the format pen.dev uses) with no usage limits. Workflow: get_app_state to see the open documents, read_skill() for the design guide (once per session), then execute with small snippets, checking your work with TakeScreenshot. Files are read from and saved to disk directly.`;
+const INSTRUCTIONS = `nib edits .pen design files (the format pen.dev uses) with no usage limits. Workflow: get_app_state to see the open documents, read_skill() for the design guide (once per session), then execute with small snippets, checking your work with TakeScreenshot. Files are read from and saved to disk directly, and the user can watch changes live in the nib editor (get_app_state gives its link).`;
 
 interface Request { jsonrpc: '2.0'; id?: string | number | null; method: string; params?: Record<string, unknown> }
 
 type Reply = { jsonrpc: '2.0'; id: string | number | null; result?: unknown; error?: { code: number; message: string } };
 
 /** MCP over newline-delimited JSON-RPC on stdin/stdout. Logs go to stderr. */
-export function serve(host: DocumentHost, input: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout): Promise<void> {
+export function serve(host: McpHost, input: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout): Promise<void> {
   const send = (msg: Reply) => output.write(`${JSON.stringify(msg)}\n`);
   const rl = createInterface({ input, crlfDelay: Infinity });
   const pending = new Set<Promise<void>>();
@@ -32,7 +32,7 @@ export function serve(host: DocumentHost, input: NodeJS.ReadableStream = process
   return new Promise((resolve) => rl.on('close', () => { Promise.all(pending).then(() => resolve()); }));
 }
 
-export async function handle(host: DocumentHost, msg: Request): Promise<Reply | undefined> {
+export async function handle(host: McpHost, msg: Request): Promise<Reply | undefined> {
   const id = msg.id;
   const isNotification = id === undefined;
   const ok = (result: unknown): Reply | undefined => (isNotification ? undefined : { jsonrpc: '2.0', id: id ?? null, result });
@@ -41,6 +41,8 @@ export async function handle(host: DocumentHost, msg: Request): Promise<Reply | 
     switch (msg.method) {
       case 'initialize': {
         const requested = String(msg.params?.protocolVersion ?? '');
+        const client = (msg.params?.clientInfo as { name?: unknown } | undefined)?.name;
+        if (typeof client === 'string' && client) host.agent = client;
         return ok({
           protocolVersion: PROTOCOL_VERSIONS.includes(requested) ? requested : PROTOCOL_VERSIONS[0],
           capabilities: { tools: { listChanged: false } },

@@ -1,0 +1,23 @@
+{
+  "name": "@nib/daemon",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "nib-daemon": "./src/main.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@nib/core": "workspace:*",
+    "@nib/exec": "workspace:*",
+    "@nib/export": "workspace:*",
+    "@nib/format": "workspace:*",
+    "@nib/render": "workspace:*",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2"
+  }
+}

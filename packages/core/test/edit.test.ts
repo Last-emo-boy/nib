@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PenDocument } from '@nib/format';
+import type { Node, PenDocument } from '@nib/format';
 import { serializePen } from '@nib/format';
 import { applyOp, DocEditor, newId, PenDoc, reassignIds } from '../src/index.ts';
 
@@ -72,5 +72,20 @@ describe('ids', () => {
     const map = reassignIds(doc, copy);
     expect([...map.keys()]).toEqual(['root', 't1']);
     expect(doc.has(map.get('root')!)).toBe(false);
+  });
+});
+
+describe('transaction log', () => {
+  it('replays on a copy even when a later op changes an inserted node in place', () => {
+    const doc = new PenDoc({ version: '2.20', children: [] } as unknown as PenDocument);
+    const copy = new PenDoc(structuredClone(doc.data));
+    const ed = new DocEditor(doc);
+    ed.begin();
+    ed.insert(null, { type: 'frame', id: 'f', children: [{ type: 'rectangle', id: 'a' }, { type: 'rectangle', id: 'b' }] } as unknown as Node);
+    ed.remove('a');
+    ed.set('f', { width: 10 });
+    const { ops } = ed.commit();
+    for (const op of JSON.parse(JSON.stringify(ops))) applyOp(copy, op);
+    expect(serializePen(copy.data)).toBe(serializePen(doc.data));
   });
 });

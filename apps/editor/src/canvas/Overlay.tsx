@@ -110,23 +110,27 @@ function TextEditor({ id }: { id: string }) {
   const view = useEditor((s) => s.view);
   const ref = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState(String(node?.content ?? ''));
+  const latest = useRef(value);
+  latest.current = value;
   const done = useRef(false);
+  // Commits once: on blur, Escape, Cmd+Enter, or when the editor closes for another reason (a click on the
+  // canvas closes it before the text area loses focus).
+  const finish = () => {
+    if (done.current) return;
+    done.current = true;
+    if (node && latest.current !== String(node.content ?? '')) void setProps([id], { content: latest.current }, 'Edit text');
+    if (store.get().editingText === id) store.set({ editingText: undefined });
+  };
   useEffect(() => {
     canvas.cache?.setHidden(id);
     ref.current?.focus();
     ref.current?.select();
     if (node) void loadWebFont(String(node.fontFamily ?? 'Inter'), fontWeight(node.fontWeight), isItalic(node.fontStyle));
-    return () => canvas.cache?.setHidden(undefined);
+    return () => { finish(); canvas.cache?.setHidden(undefined); };
   }, [id]);
   const box = canvas.cache?.box(id);
   if (!node || !box) return null;
   const s = screen(view, box);
-  const finish = () => {
-    if (done.current) return;
-    done.current = true;
-    if (value !== String(node.content ?? '')) void setProps([id], { content: value }, 'Edit text');
-    store.set({ editingText: undefined });
-  };
   const fill = typeof node.fill === 'string' && node.fill.startsWith('#') ? node.fill : '#000000';
   const growth = node.textGrowth ?? 'auto';
   return (

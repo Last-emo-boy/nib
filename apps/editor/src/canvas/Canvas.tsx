@@ -38,6 +38,18 @@ export function fitView(box: Box | undefined, maxZoom = 1): View {
   return { zoom, tx: a.x + a.width / 2 - (box.x + box.width / 2) * zoom, ty: a.y + a.height / 2 - (box.y + box.height / 2) * zoom };
 }
 
+/** Bounding box of top-level nodes from their stored position and fixed sizes, before layout. */
+function storedBounds(doc: PenDoc): Box | undefined {
+  const boxes = doc.data.children.filter((n) => n.enabled !== false).map((n) => {
+    const w = (n as { width?: unknown }).width, h = (n as { height?: unknown }).height;
+    return { x: n.x ?? 0, y: n.y ?? 0, width: typeof w === 'number' ? w : 0, height: typeof h === 'number' ? h : 0 };
+  });
+  if (!boxes.length) return undefined;
+  const x0 = Math.min(...boxes.map((b) => b.x)), y0 = Math.min(...boxes.map((b) => b.y));
+  const x1 = Math.max(...boxes.map((b) => b.x + b.width)), y1 = Math.max(...boxes.map((b) => b.y + b.height));
+  return { x: x0, y: y0, width: Math.max(1, x1 - x0), height: Math.max(1, y1 - y0) };
+}
+
 /** Bounding box of top-level nodes, or of the given ids. */
 export function boundsOf(ids?: string[]): Box | undefined {
   const { doc } = store.get();
@@ -122,13 +134,17 @@ export function CanvasView() {
       const { conn } = store.get();
       const cache = new SceneCache(engine, doc, imagesFor(conn!.path));
       canvas.cache = cache;
-      let framed = !first;
       cache.onUpdate = () => {
         store.set((s) => ({ layoutVersion: s.layoutVersion + 1 }));
-        if (!framed && boundsOf()) { framed = true; store.set({ view: fitView(boundsOf()) }); }
         canvas.redraw();
       };
-      void cache.rebuild();
+      // Frame the whole document at once from its stored sizes, then again with the laid-out boxes,
+      // unless the view was moved meanwhile.
+      let auto: View | undefined;
+      if (first) { auto = fitView(storedBounds(doc)); store.set({ view: auto }); }
+      void cache.rebuild().then(() => {
+        if (auto && store.get().view === auto) store.set({ view: fitView(boundsOf()) });
+      });
     };
 
     (async () => {

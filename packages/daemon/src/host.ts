@@ -152,7 +152,7 @@ export class DocumentHost {
   }
 
   /** Markdown summary of the open documents for `get_app_state`. */
-  async appState(filePath?: string, editorUrl?: string): Promise<string> {
+  async appState(filePath?: string, editorUrl?: (file?: string) => string): Promise<string> {
     const notes: string[] = [];
     if (filePath) await this.open(filePath, notes);
     const docs = this.list();
@@ -165,7 +165,7 @@ export class DocumentHost {
       out.push('No document is open. Pass `filePath` (an absolute path to a .pen file) to get_app_state or execute to open one; a missing file is created.');
     }
     for (const d of docs) out.push(describe(d, d.path === this.active), '');
-    if (editorUrl) out.push(`The user can watch and edit these documents live in the nib editor: ${editorUrl}`);
+    if (editorUrl && docs.length) out.push(`The user can watch and edit ${this.active ? 'this document' : 'these documents'} live in the nib editor: ${editorUrl(this.active)}`);
     out.push('Read the design guide with read_skill() before your first execute call.');
     if (notes.length) out.push('', ...notes.map((n) => `Note: ${n}`));
     return out.join('\n');

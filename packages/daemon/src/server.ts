@@ -94,7 +94,7 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
     switch (`${req.method} ${url.pathname}`) {
       case 'POST /api/state': {
         const body = await readJson(req);
-        const text = await host.appState(typeof body.filePath === 'string' ? body.filePath : undefined, editorUrl());
+        const text = await host.appState(typeof body.filePath === 'string' ? body.filePath : undefined, editorUrl);
         return send(res, 200, { text });
       }
       case 'POST /api/execute': {

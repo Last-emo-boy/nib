@@ -31,6 +31,9 @@ export interface EditorState {
   agentOpen: boolean;
   /** The web page panel, for importing from sites. */
   browserOpen: boolean;
+  /** Width of the agent's chat panel, and whether the canvas follows the agent's cursor. */
+  agentWidth: number;
+  followAgent: boolean;
   /** The node whose text is being edited on the canvas. */
   editingText?: string;
   lang: Lang;
@@ -73,6 +76,8 @@ export const store = createStore<EditorState>({
   activityOpen: false,
   agentOpen: localStorage.getItem('nib-agent-open') === '1',
   browserOpen: false,
+  agentWidth: Number(localStorage.getItem('nib-agent-width')) || 384,
+  followAgent: localStorage.getItem('nib-follow-agent') !== '0',
   lang: savedLang,
   paletteOpen: false,
 });

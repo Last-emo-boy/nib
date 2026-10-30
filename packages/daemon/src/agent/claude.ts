@@ -1,7 +1,9 @@
+import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { dirname } from 'node:path';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import { findExecutable, textOf } from './util.ts';
+import { findExecutable, signedIn, textOf } from './util.ts';
 import type { Provider, ProviderInfo, RunRequest } from './types.ts';
 
 /** nib's tools as Claude Code names them. */
@@ -19,6 +21,24 @@ function bundledBinary(): boolean {
 }
 
 /**
+ * The environment Claude Code runs with: this process's, plus the `env` block of the person's Claude Code
+ * settings (where a sign-in through a gateway lives: ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL). The run
+ * itself loads no settings, so their CLAUDE.md, hooks and other MCP servers stay out of nib's agent.
+ */
+async function claudeEnv(): Promise<Record<string, string | undefined>> {
+  const dir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
+  let fromSettings: Record<string, string> = {};
+  try {
+    const env = (JSON.parse(await readFile(join(dir, 'settings.json'), 'utf8')) as { env?: Record<string, unknown> }).env ?? {};
+    fromSettings = Object.fromEntries(Object.entries(env).filter((e): e is [string, string] => typeof e[1] === 'string'));
+  } catch {
+    // No settings: the sign-in is in the keychain or the environment.
+  }
+  // A daemon started from inside Claude Code must not look like a nested session to the one it starts.
+  return { ...process.env, ...fromSettings, CLAUDECODE: undefined, CLAUDE_CODE_ENTRYPOINT: undefined };
+}
+
+/**
  * Claude through the Claude Agent SDK: the person's Claude subscription (their Claude Code sign-in), or
  * ANTHROPIC_API_KEY. The agent gets nib's MCP tools and nothing else: no shell, no file access.
  */
@@ -33,10 +53,14 @@ export class ClaudeProvider implements Provider {
 
   async info(): Promise<ProviderInfo> {
     const bin = await this.binary();
+    // The sign-in check needs a claude command; with only the SDK's own binary, trust it.
+    const cli = bin || (await findExecutable('claude'));
+    const ok = bin !== undefined && (!cli || (await signedIn(cli, ['auth', 'status'], await claudeEnv(), (out) => /"loggedIn":\s*true/.test(out))));
     return {
       id: this.id, name: 'Claude', auth: 'app', vision: true,
-      available: bin !== undefined,
-      note: bin === undefined ? 'Install Claude Code and sign in to use your Claude subscription.' : 'Uses your Claude Code sign-in (or ANTHROPIC_API_KEY).',
+      available: ok,
+      note: bin === undefined ? 'Install Claude Code and sign in to use your Claude subscription.' : ok ? 'Uses your Claude Code sign-in (or ANTHROPIC_API_KEY).' : 'Sign in to Claude Code to use your Claude subscription.',
+      signIn: bin === undefined ? undefined : 'claude',
       models: [{ id: '', label: 'Default' }, { id: 'opus', label: 'Opus' }, { id: 'sonnet', label: 'Sonnet' }, { id: 'haiku', label: 'Haiku' }],
     };
   }
@@ -48,8 +72,7 @@ export class ClaudeProvider implements Provider {
     const { query } = await import('@anthropic-ai/claude-agent-sdk');
     const abort = new AbortController();
     req.signal.addEventListener('abort', () => abort.abort(), { once: true });
-    // A daemon started from inside Claude Code must not look like a nested session to the one it starts.
-    const env: Record<string, string | undefined> = { ...process.env, CLAUDECODE: undefined, CLAUDE_CODE_ENTRYPOINT: undefined };
+    const env = await claudeEnv();
     const q = query({
       prompt: req.prompt,
       options: {
@@ -66,9 +89,19 @@ export class ClaudeProvider implements Provider {
         abortController: abort,
         env,
         ...(bin ? { pathToClaudeCodeExecutable: bin } : {}),
+        ...(req.budgetUsd ? { maxBudgetUsd: req.budgetUsd } : {}),
       },
     });
-    for await (const m of q) this.handle(m, req);
+    const seen = new Map<string, number>();
+    for await (const m of q) {
+      // Each model call's usage, once per message (streamed blocks of one message repeat it).
+      if (m.type === 'assistant' && m.parent_tool_use_id === null && m.message.usage) {
+        const u = m.message.usage;
+        seen.set(m.message.id, u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + u.output_tokens);
+        req.emit({ t: 'spent', tokens: [...seen.values()].reduce((a, b) => a + b, 0) });
+      }
+      this.handle(m, req);
+    }
   }
 
   private handle(m: SDKMessage, req: RunRequest): void {

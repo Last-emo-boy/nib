@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve as resolvePath } from 'node:path';
@@ -7,13 +8,20 @@ import { CodexProvider } from './codex.ts';
 import { Keys } from './keys.ts';
 import { CompatibleProvider, PRESETS } from './openai.ts';
 import { systemPrompt } from './prompt.ts';
-import type { AgentSession, ChatItem, McpLaunch, Provider, ProviderInfo, RunEvent, SessionSummary } from './types.ts';
+import { forgetSignIns } from './util.ts';
+import type { PenDocument } from '@nib/format';
+import type { AgentSession, AgentSettings, ChatItem, McpLaunch, Provider, ProviderInfo, RunEvent, SessionSummary, UsageTotals } from './types.ts';
 
 /** nib's MCP server, which the agent's runtime starts to get nib's tools. */
 const MCP_MAIN = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'mcp', 'src', 'main.ts');
 
 /** What editors of a document hear about its agent sessions. */
 export type AgentEvent = { t: 'agent'; session: SessionSummary; item?: ChatItem; removed?: boolean };
+
+export interface DocumentAccess {
+  read(doc: string): Promise<PenDocument>;
+  restore(doc: string, data: PenDocument, label: string): Promise<void>;
+}
 
 export interface SendRequest {
   /** Continue this session; without it a new one starts. */
@@ -48,16 +56,30 @@ export class AgentService {
 
   /** The document's state for the first message of a session (get_app_state's description of it). */
   private describe: ((doc: string) => Promise<string>) | undefined;
+  /** The document's data now, and putting it back: checkpoints per message. */
+  private document: DocumentAccess | undefined;
 
-  constructor(opts: { home: string; providers?: Provider[]; describe?: (doc: string) => Promise<string> }) {
+  constructor(opts: { home: string; providers?: Provider[]; describe?: (doc: string) => Promise<string>; document?: DocumentAccess }) {
     this.home = opts.home;
     this.describe = opts.describe;
+    this.document = opts.document;
     this.dir = join(opts.home, 'agent', 'sessions');
     this.keys = new Keys(opts.home);
     this.providers = opts.providers ?? [new ClaudeProvider(), new CodexProvider(), ...PRESETS.map((p) => new CompatibleProvider(p, this.keys))];
   }
 
-  providerInfo(): Promise<ProviderInfo[]> {
+  /** Open Terminal running a provider's sign-in command (macOS); answers whether it could. */
+  async signIn(id: string): Promise<boolean> {
+    const info = await this.providers.find((p) => p.id === id)?.info();
+    if (!info?.signIn || process.platform !== 'darwin') return false;
+    const script = `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(info.signIn)}\nend tell`;
+    await new Promise<void>((resolve, reject) => execFile('osascript', ['-e', script], (e) => (e ? reject(e) : resolve())));
+    return true;
+  }
+
+  /** The providers, asking again whether their apps are signed in when `fresh`. */
+  providerInfo(fresh = false): Promise<ProviderInfo[]> {
+    if (fresh) forgetSignIns();
     return Promise.all(this.providers.map((p) => p.info().catch((e: Error) => ({ id: p.id, name: p.id, auth: 'none' as const, available: false, note: e.message, models: [], vision: false }))));
   }
 
@@ -90,12 +112,69 @@ export class AgentService {
     s.model = req.model ?? s.model;
     const first = !s.items.some((i) => i.kind === 'user');
     const user: ChatItem = { kind: 'user', id: newId(), at: now, text: req.text, ...(req.selection?.length ? { selection: req.selection } : {}) };
+    const before = await this.document?.read(s.doc).catch(() => undefined);
+    if (before) {
+      await mkdir(join(this.checkpoints, s.id), { recursive: true });
+      await writeFile(join(this.checkpoints, s.id, `${user.id}.json`), JSON.stringify(before));
+      user.checkpoint = true;
+    }
     this.push(s, user);
     const abort = new AbortController();
     this.running.set(s.id, abort);
     this.changed(s);
-    void this.run(s, provider, req, first, abort);
+    void this.run(s, provider, req, first, abort, before);
     return summary(s, true);
+  }
+
+  /** Put the session's document back to how it was before message `itemId`. */
+  async restore(id: string, itemId: string): Promise<void> {
+    await this.load();
+    const s = this.sessions.get(id);
+    if (!s || !this.document) throw new Error('no such session');
+    if (this.running.has(id)) throw new Error('stop the agent first');
+    const data = JSON.parse(await readFile(join(this.checkpoints, id, `${itemId}.json`), 'utf8')) as PenDocument;
+    await this.document.restore(s.doc, data, 'Restore before agent message');
+  }
+
+  private get checkpoints(): string {
+    return join(this.home, 'agent', 'checkpoints');
+  }
+
+  async settings(): Promise<AgentSettings> {
+    try {
+      return JSON.parse(await readFile(join(this.home, 'agent', 'settings.json'), 'utf8')) as AgentSettings;
+    } catch {
+      return {};
+    }
+  }
+
+  async saveSettings(next: AgentSettings): Promise<AgentSettings> {
+    const clean: AgentSettings = {};
+    if (Number.isFinite(next.tokensPerMessage) && next.tokensPerMessage! > 0) clean.tokensPerMessage = Math.round(next.tokensPerMessage!);
+    if (Number.isFinite(next.usdPerMessage) && next.usdPerMessage! > 0) clean.usdPerMessage = next.usdPerMessage;
+    await mkdir(join(this.home, 'agent'), { recursive: true });
+    await writeFile(join(this.home, 'agent', 'settings.json'), `${JSON.stringify(clean, null, 2)}\n`);
+    return clean;
+  }
+
+  /** Tokens and cost of every message since the start of this month, in all sessions. */
+  async usage(): Promise<UsageTotals> {
+    await this.load();
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    const out: UsageTotals = { messages: 0, inputTokens: 0, cachedTokens: 0, outputTokens: 0, costUsd: 0 };
+    for (const s of this.sessions.values()) {
+      for (const i of s.items) {
+        if (i.kind !== 'usage' || i.at < start.getTime()) continue;
+        out.messages++;
+        out.inputTokens += i.inputTokens ?? 0;
+        out.cachedTokens += i.cachedTokens ?? 0;
+        out.outputTokens += i.outputTokens ?? 0;
+        out.costUsd += i.costUsd ?? 0;
+      }
+    }
+    return out;
   }
 
   stop(id: string): void {
@@ -109,6 +188,7 @@ export class AgentService {
     this.stop(id);
     this.sessions.delete(id);
     await rm(join(this.dir, `${id}.json`), { force: true });
+    await rm(join(this.checkpoints, id), { recursive: true, force: true });
     this.emit(s.doc, { t: 'agent', session: summary(s, false), removed: true });
   }
 
@@ -138,10 +218,12 @@ export class AgentService {
     };
   }
 
-  private async run(s: AgentSession, provider: Provider, req: SendRequest, first: boolean, abort: AbortController): Promise<void> {
+  private async run(s: AgentSession, provider: Provider, req: SendRequest, first: boolean, abort: AbortController, before?: PenDocument): Promise<void> {
     const started = Date.now();
     let current: Extract<ChatItem, { kind: 'assistant' }> | undefined;
     let usage: { costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number } = {};
+    const budget = await this.settings();
+    let overBudget = false;
     const close = () => { if (current) { current.streaming = false; this.update(s, current); current = undefined; } };
     const emit = (e: RunEvent) => {
       switch (e.t) {
@@ -169,6 +251,12 @@ export class AgentService {
           close();
           this.push(s, { kind: 'error', id: newId(), at: Date.now(), text: e.text });
           break;
+        case 'spent':
+          if (budget.tokensPerMessage && e.tokens > budget.tokensPerMessage && !abort.signal.aborted) {
+            overBudget = true;
+            abort.abort();
+          }
+          break;
         case 'usage': {
           const { t: _, ...counts } = e;
           usage = { ...usage, ...counts };
@@ -185,15 +273,20 @@ export class AgentService {
       // The system prompt stays the same through a session (provider caches key on it).
       const libraries = Object.keys(await this.imports(s.doc)).length > 0;
       if (abort.signal.aborted) return;
-      await provider.run({ session: s, prompt, system: systemPrompt(s.doc, info.vision, libraries), first, mcp: this.mcp(info.name), signal: abort.signal, emit });
+      const rules = before ? contextNotes(before) : [];
+      await provider.run({ session: s, prompt, system: systemPrompt(s.doc, info.vision, libraries, rules), first, mcp: this.mcp(info.name), signal: abort.signal, emit, budgetUsd: budget.usdPerMessage });
     } catch (e) {
       close();
       if (!abort.signal.aborted) this.push(s, { kind: 'error', id: newId(), at: Date.now(), text: (e as Error).message || String(e) });
+
     } finally {
       close();
       // Tools still marked running when the run ends did not finish.
       for (const i of s.items) if (i.kind === 'tool' && i.status === 'running') { i.status = 'error'; i.output = abort.signal.aborted ? 'Stopped.' : i.output; this.update(s, i); }
-      this.push(s, { kind: 'usage', id: newId(), at: Date.now(), durationMs: Date.now() - started, ...usage });
+      if (overBudget) this.push(s, { kind: 'error', id: newId(), at: Date.now(), text: `Stopped: this message used more than its budget of ${budget.tokensPerMessage} tokens.` });
+      const after = before && (await this.document?.read(s.doc).catch(() => undefined));
+      const changed = before && after ? changedFrames(before, after) : undefined;
+      this.push(s, { kind: 'usage', id: newId(), at: Date.now(), durationMs: Date.now() - started, ...usage, ...(changed?.length ? { changed } : {}) });
       this.running.delete(s.id);
       this.changed(s);
       this.save(s, 0);
@@ -243,4 +336,26 @@ export class AgentService {
       }
     })());
   }
+}
+
+/** Names of the top-level frames that differ between two versions of a document (added, changed, removed). */
+function changedFrames(before: PenDocument, after: PenDocument): string[] {
+  const was = new Map(before.children.map((n) => [n.id, JSON.stringify(n)]));
+  const is = new Map(after.children.map((n) => [n.id, JSON.stringify(n)]));
+  const name = (n: { id: string; name?: string }) => n.name ?? n.id;
+  const out: string[] = [];
+  for (const n of after.children) if (was.get(n.id) !== is.get(n.id)) out.push(name(n));
+  for (const n of before.children) if (!is.has(n.id)) out.push(name(n));
+  return out.slice(0, 20);
+}
+
+/** The text of the document's context nodes: rules people leave for agents on the canvas. */
+function contextNotes(doc: PenDocument): string[] {
+  const out: string[] = [];
+  const visit = (n: { type?: string; content?: unknown; enabled?: unknown; children?: unknown[] }) => {
+    if (n.type === 'context' && n.enabled !== false && typeof n.content === 'string' && n.content.trim()) out.push(n.content.trim());
+    for (const c of (n.children ?? []) as typeof n[]) visit(c);
+  };
+  for (const n of doc.children) visit(n as never);
+  return out.slice(0, 20);
 }

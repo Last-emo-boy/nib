@@ -87,6 +87,18 @@ describe('daemon', () => {
     ed.close();
   });
 
+  it('restores a document to an earlier snapshot as one undoable change', async () => {
+    const file = join(dir, 'restore.pen');
+    await writeFile(file, serializePen({ version: '2.20', variables: { a: { type: 'color', value: '#000000' } }, children: [{ type: 'frame', id: 'one', x: 0, y: 0, width: 10, height: 10 }, { type: 'frame', id: 'two', x: 20, y: 0, width: 10, height: 10 }] } as PenDocument));
+    const open = await host.open(file);
+    const before = structuredClone(open.session.doc.data);
+    await host.execute(file, { input: 'Update("one", {width: 50}); Delete("two"); Insert(document, {type: "rectangle", width: 5, height: 5, fill: "#ff0000"}); SetVariables({b: {type: "number", value: 2}})' }, 'agent');
+    await host.restore(file, before, { kind: 'user' }, 'Restore');
+    expect(parsePen(await readFile(file, 'utf8'))).toEqual(before);
+    await host.undo(file);
+    expect(parsePen(await readFile(file, 'utf8')).children.map((n) => n.id)).not.toEqual(['one', 'two']);
+  });
+
   it('reloads a document that changed on disk and tells editors', async () => {
     const file = join(dir, 'b.pen');
     await writeFile(file, serializePen({ version: '2.20', children: [] } as unknown as PenDocument));

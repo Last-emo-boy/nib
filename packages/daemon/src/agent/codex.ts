@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { ThreadItem } from '@openai/codex-sdk';
-import { findExecutable, textOf } from './util.ts';
+import { findExecutable, signedIn, textOf } from './util.ts';
 import type { Provider, ProviderInfo, RunRequest } from './types.ts';
 
 /** Codex's own binary from the SDK's dependency, when it is installed. */
@@ -33,10 +33,13 @@ export class CodexProvider implements Provider {
 
   async info(): Promise<ProviderInfo> {
     const bin = await this.binary();
+    const cli = bin || (await findExecutable('codex'));
+    const ok = bin !== undefined && (!cli || process.env.OPENAI_API_KEY !== undefined || (await signedIn(cli, ['login', 'status'], process.env, () => true)));
     return {
       id: this.id, name: 'Codex', auth: 'app', vision: true,
-      available: bin !== undefined,
-      note: bin === undefined ? 'Install Codex and sign in to use your ChatGPT subscription.' : 'Uses your Codex sign-in (or OPENAI_API_KEY).',
+      available: ok,
+      note: bin === undefined ? 'Install Codex and sign in to use your ChatGPT subscription.' : ok ? 'Uses your Codex sign-in (or OPENAI_API_KEY).' : 'Sign in to Codex to use your ChatGPT subscription.',
+      signIn: bin === undefined ? undefined : 'codex login',
       models: [{ id: '', label: 'Default' }, { id: 'gpt-5.5', label: 'GPT-5.5' }],
     };
   }

@@ -113,6 +113,7 @@ export class CompatibleProvider implements Provider {
           }
         }
         if (text) req.emit({ t: 'text-end', text });
+        req.emit({ t: 'spent', tokens: input + output });
         // Thinking models need their reasoning back while they are still calling tools.
         transcript.push({
           role: 'assistant', content: text || null,

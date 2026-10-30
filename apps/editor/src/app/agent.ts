@@ -4,15 +4,15 @@ import { post } from './libraries.ts';
 
 // The daemon's agent types, as the editor receives them (see packages/daemon/src/agent/types.ts).
 export type ChatItem =
-  | { kind: 'user'; id: string; at: number; text: string; selection?: string[] }
+  | { kind: 'user'; id: string; at: number; text: string; selection?: string[]; checkpoint?: boolean }
   | { kind: 'assistant'; id: string; at: number; text: string; streaming?: boolean }
   | { kind: 'tool'; id: string; at: number; name: string; input?: string; status: 'running' | 'done' | 'error'; output?: string }
   | { kind: 'error'; id: string; at: number; text: string }
-  | { kind: 'usage'; id: string; at: number; costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number; durationMs: number };
+  | { kind: 'usage'; id: string; at: number; costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number; durationMs: number; changed?: string[] };
 
 export interface SessionSummary { id: string; title: string; doc: string; provider: string; model: string; created: number; updated: number; running: boolean }
 export interface ModelChoice { id: string; label: string; vision?: boolean }
-export interface ProviderInfo { id: string; name: string; auth: 'app' | 'key' | 'none'; available: boolean; note?: string; models: ModelChoice[]; vision: boolean }
+export interface ProviderInfo { id: string; name: string; auth: 'app' | 'key' | 'none'; available: boolean; note?: string; models: ModelChoice[]; vision: boolean; signIn?: string }
 export type AgentEvent = { t: 'agent'; session: SessionSummary; item?: ChatItem; removed?: boolean };
 
 interface AgentState {
@@ -62,8 +62,14 @@ export async function loadAgent(doc: string): Promise<void> {
   if (state.current === undefined && sessions[0]) await openSession(sessions[0].id);
 }
 
-export async function refreshProviders(): Promise<void> {
-  set({ providers: (await get<{ providers: ProviderInfo[] }>('/api/agent/providers')).providers });
+/** `fresh`: ask the apps again whether they are signed in. */
+export async function refreshProviders(fresh = false): Promise<void> {
+  set({ providers: (await get<{ providers: ProviderInfo[] }>(`/api/agent/providers${fresh ? '?fresh=1' : ''}`)).providers });
+}
+
+/** Open Terminal with the provider's sign-in command; false when this computer cannot. */
+export async function signIn(provider: string): Promise<boolean> {
+  return (await post<{ ok: boolean }>('/api/agent/signin', { provider })).ok;
 }
 
 export async function openSession(id: string | undefined): Promise<void> {
@@ -89,6 +95,11 @@ export async function sendMessage(doc: string, text: string, selection: string[]
   if (!state.items[session.id]) set({ items: { ...state.items, [session.id]: [] } });
   upsert(session);
   set({ current: session.id });
+}
+
+/** Put the design back to how it was before a message of the current session. */
+export async function restoreBefore(item: string): Promise<void> {
+  if (state.current) await post('/api/agent/restore', { session: state.current, item });
 }
 
 export function stopSession(id: string): void {

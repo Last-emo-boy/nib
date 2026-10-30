@@ -31,7 +31,14 @@ const images = (file: string) => {
 };
 const host = new DocumentHost({ renderer, images, exporters: EXPORTERS });
 browser = new BrowserService({ host, home: NIB_HOME, fonts });
-const agent = new AgentService({ home: NIB_HOME, describe: (doc) => host.describeDocument(doc) });
+const agent = new AgentService({
+  home: NIB_HOME,
+  describe: (doc) => host.describeDocument(doc),
+  document: {
+    read: async (doc) => structuredClone((await host.open(doc)).session.doc.data),
+    restore: async (doc, data, label) => { await host.restore(doc, data, { kind: 'user' }, label); },
+  },
+});
 const editorDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'editor', 'dist');
 
 let timer: ReturnType<typeof setTimeout> | undefined;

@@ -19,6 +19,8 @@ export const canvas = {
   shift: new Map<string, { dx: number; dy: number }>(),
   redraw: () => {},
   size: { width: 0, height: 0 },
+  /** When the person last panned or zoomed (performance.now()); following an agent waits after that. */
+  userViewAt: 0,
 };
 
 export const toDoc = (v: View, sx: number, sy: number) => ({ x: (sx - v.tx) / v.zoom, y: (sy - v.ty) / v.zoom });
@@ -27,12 +29,13 @@ const BACKGROUND = [0.075, 0.075, 0.08, 1] as const;
 const DRAG_THRESHOLD = 3;
 
 /** The part of the canvas not covered by panels, in screen pixels. */
-function visibleArea() {
+export function visibleArea() {
   const { width, height } = canvas.size;
   const left = store.get().leftOpen ? 338 : 66;
   const { agentOpen, activityOpen, browserOpen } = store.get();
   // The properties panel, and the agent's chat, the browser or the activity feed beside it.
-  const right = (width > 900 ? 288 : 10) + (agentOpen || browserOpen ? 394 : activityOpen ? 340 : 0);
+  const side = agentOpen ? store.get().agentWidth + 10 : browserOpen ? 394 : activityOpen ? 340 : 0;
+  const right = (width > 900 ? 288 : 10) + side;
   return { x: left, y: 60, width: Math.max(100, width - left - right), height: Math.max(100, height - 120) };
 }
 
@@ -240,6 +243,7 @@ export function CanvasView() {
   };
 
   const onWheel = (e: React.WheelEvent) => {
+    canvas.userViewAt = performance.now();
     const { view } = store.get();
     const { sx, sy } = local(e);
     if (e.ctrlKey || e.metaKey) {
@@ -261,6 +265,7 @@ export function CanvasView() {
     const p = toDoc(s.view, sx, sy);
     if (e.button === 1 || space.current || s.tool === 'hand') {
       gesture.current = { kind: 'pan', sx, sy, view: s.view };
+      canvas.userViewAt = performance.now();
       return;
     }
     if (e.button !== 0) return;

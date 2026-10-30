@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AgentService, type AgentEvent } from '../src/agent/service.ts';
+import type { PenDocument } from '@nib/format';
 import type { Provider, RunRequest } from '../src/agent/types.ts';
 
 /** A provider that plays a fixed run, or waits until it is stopped. */
@@ -73,5 +74,21 @@ describe('agent', () => {
     const items = (await agent.get(s.id))!.items;
     // A stopped run is not an error.
     expect(items.map((i) => i.kind)).toEqual(['user', 'usage']);
+  });
+
+  it('keeps a checkpoint per message, names the frames a run changed, and restores the document', async () => {
+    let doc = { version: '2.20', children: [{ type: 'frame', id: 'a', name: 'Home', x: 0, y: 0, width: 10, height: 10 }] } as unknown as PenDocument;
+    const restored: PenDocument[] = [];
+    const provider = fake();
+    const run = provider.run.bind(provider);
+    provider.run = async (req) => { doc = { ...doc, children: [...doc.children, { type: 'frame', id: 'b', name: 'Pricing', x: 20, y: 0, width: 10, height: 10 }] } as PenDocument; await run(req); };
+    const agent = new AgentService({ home: await mkdtemp(join(tmpdir(), 'nib-agent-')), providers: [provider], document: { read: async () => structuredClone(doc), restore: async (_d, data) => { restored.push(data); } } });
+    const s = await agent.send({ doc: '/tmp/c.pen', provider: 'fake', text: 'Add pricing' });
+    await settle(agent, s.id);
+    const items = (await agent.get(s.id))!.items;
+    expect(items[0]).toMatchObject({ kind: 'user', checkpoint: true });
+    expect(items.at(-1)).toMatchObject({ kind: 'usage', changed: ['Pricing'] });
+    await agent.restore(s.id, items[0].id);
+    expect(restored[0].children.map((n) => n.id)).toEqual(['a']);
   });
 });

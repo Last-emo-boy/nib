@@ -14,7 +14,7 @@ const read = (file: string) => {
  * Instructions for nib's own agent, working on one document with nib's MCP tools. The guide's main files
  * come with them, so the agent starts designing without reading them first.
  */
-export function systemPrompt(doc: string, vision: boolean, libraries: boolean): string {
+export function systemPrompt(doc: string, vision: boolean, libraries: boolean, rules: string[] = []): string {
   const files = ['SKILL.md', 'execute.md', ...(libraries ? ['components.md'] : [])];
   return `You are the design agent built into nib, a design canvas for .pen files. The person is looking at the document ${doc} in nib's editor and watches your changes appear on the canvas as you make them.
 
@@ -26,7 +26,7 @@ When the document imports a library (a design system such as shadcn/ui or HeroUI
 
 The person may select nodes; the selection comes with their message as context. "This", "it" and "here" usually mean the selection.
 
-Keep your messages short: say what you are about to do in a sentence, do it, then say what changed and what you would do next. Write in the language the person writes in. Do not ask for permission to edit the document; ask before deleting or replacing large parts of it.
+${rules.length ? `The document holds rules for agents (its context nodes). Follow them in everything you make:\n${rules.map((r) => `- ${r.replace(/\n+/g, ' ')}`).join('\n')}\n\n` : ''}Keep your messages short: say what you are about to do in a sentence, do it, then say what changed and what you would do next. Write in the language the person writes in. Do not ask for permission to edit the document; ask before deleting or replacing large parts of it.
 
 ${files.map((f) => `<guide file="${f}">\n${read(f)}\n</guide>`).join('\n\n')}`;
 }

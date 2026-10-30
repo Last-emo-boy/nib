@@ -1,7 +1,7 @@
 import { useEffect, useReducer, type CSSProperties } from 'react';
 import type { Box } from '@nib/layout';
-import { useEditor } from '../app/store.ts';
-import { canvas } from './Canvas.tsx';
+import { store, useEditor } from '../app/store.ts';
+import { canvas, visibleArea } from './Canvas.tsx';
 import { cursorAlpha, ease, FLASH_MS, MOVE_MS, presence, type AgentTrack, type Beat } from './presence.ts';
 
 interface Point { x: number; y: number }
@@ -33,6 +33,37 @@ function cursorAt(t: AgentTrack, now: number): Point | undefined {
   return lerp(a.p, b.p, ease(clamp01((now - start) / Math.max(1, b.at - start))));
 }
 
+/** A camera move in progress: from one view to another over FOLLOW_MS. */
+let glide: { from: { tx: number; ty: number }; to: { tx: number; ty: number }; start: number } | undefined;
+const FOLLOW_MS = 450;
+/** After the person pans or zooms, the camera leaves the view to them for this long. */
+const HANDS_OFF_MS = 4000;
+
+/**
+ * Keep the busiest agent's cursor in view: when it heads off screen, glide the canvas so it is centered.
+ * Never while the person is moving the canvas themselves.
+ */
+function follow(now: number): void {
+  const s = store.get();
+  if (glide) {
+    const t = Math.min(1, (now - glide.start) / FOLLOW_MS), k = 1 - (1 - t) ** 3;
+    store.set({ view: { ...s.view, tx: glide.from.tx + (glide.to.tx - glide.from.tx) * k, ty: glide.from.ty + (glide.to.ty - glide.from.ty) * k } });
+    if (t >= 1) glide = undefined;
+    return;
+  }
+  if (!s.followAgent || now - canvas.userViewAt < HANDS_OFF_MS) return;
+  const track = [...presence.agents.values()].sort((a, b) => lastAt(b, now) - lastAt(a, now))[0];
+  const p = track && cursorAt(track, now);
+  if (!p) return;
+  const a = visibleArea(), m = 60;
+  const sx = p.x * s.view.zoom + s.view.tx, sy = p.y * s.view.zoom + s.view.ty;
+  if (sx > a.x + m && sx < a.x + a.width - m && sy > a.y + m && sy < a.y + a.height - m) return;
+  glide = { from: { tx: s.view.tx, ty: s.view.ty }, to: { tx: a.x + a.width / 2 - p.x * s.view.zoom, ty: a.y + a.height / 2 - p.y * s.view.zoom }, start: now };
+}
+
+/** When an agent's latest beat that has started played. */
+const lastAt = (t: AgentTrack, now: number) => Math.max(-Infinity, ...t.beats.filter((b) => b.at <= now).map((b) => b.at));
+
 /**
  * Agents at work on the canvas: each one's cursor, with its name, moves to every node it inserts or
  * changes, and those nodes flash an outline in the agent's color.
@@ -47,6 +78,7 @@ export function AgentCursors() {
       frame = 0;
       const now = performance.now();
       presence.prune(now);
+      follow(now);
       tick();
       if (presence.active(now)) frame = requestAnimationFrame(loop);
     };

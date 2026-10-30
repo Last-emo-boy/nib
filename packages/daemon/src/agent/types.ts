@@ -1,10 +1,12 @@
 /** What a chat with nib's agent shows, item by item. */
 export type ChatItem =
-  | { kind: 'user'; id: string; at: number; text: string; selection?: string[] }
+  /** `checkpoint`: the document as it was before this message is saved, so the design can go back to it. */
+  | { kind: 'user'; id: string; at: number; text: string; selection?: string[]; checkpoint?: boolean }
   | { kind: 'assistant'; id: string; at: number; text: string; streaming?: boolean }
   | { kind: 'tool'; id: string; at: number; name: string; input?: string; status: 'running' | 'done' | 'error'; output?: string }
   | { kind: 'error'; id: string; at: number; text: string }
-  | { kind: 'usage'; id: string; at: number; costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number; durationMs: number };
+  /** `changed`: names of the top-level frames the run added, changed or removed. */
+  | { kind: 'usage'; id: string; at: number; costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number; durationMs: number; changed?: string[] };
 
 export interface AgentSession {
   id: string;
@@ -41,6 +43,8 @@ export type RunEvent =
   | { t: 'resume'; id: string }
   /** Something went wrong that does not stop the run. */
   | { t: 'warning'; text: string }
+  /** Tokens used so far in this run (input and output), for the budget. */
+  | { t: 'spent'; tokens: number }
   /** Input tokens include the cached ones (read from the provider's prompt cache, billed far lower). */
   | { t: 'usage'; costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number };
 
@@ -55,7 +59,18 @@ export interface RunRequest {
   mcp: McpLaunch;
   signal: AbortSignal;
   emit: (e: RunEvent) => void;
+  /** At most this many dollars for this message, where the provider can hold to it (Claude). */
+  budgetUsd?: number;
 }
+
+/** What the person set for the agent: budgets per message. */
+export interface AgentSettings {
+  tokensPerMessage?: number;
+  usdPerMessage?: number;
+}
+
+/** Usage over a period (this month), across sessions. */
+export interface UsageTotals { messages: number; inputTokens: number; cachedTokens: number; outputTokens: number; costUsd: number }
 
 export interface ModelChoice { id: string; label: string }
 
@@ -70,6 +85,8 @@ export interface ProviderInfo {
   models: ModelChoice[];
   /** Whether it can look at screenshots. */
   vision: boolean;
+  /** The command that signs in, run in Terminal for the person (providers that use their app's sign-in). */
+  signIn?: string;
 }
 
 export interface Provider {

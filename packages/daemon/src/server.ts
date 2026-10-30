@@ -149,7 +149,7 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         return send(res, 200, await opts.browser.run(filePath, args as never, typeof agent === 'string' ? agent : undefined) as unknown as Json);
       }
       case 'GET /api/agent/providers':
-        return send(res, 200, { providers: opts.agent ? await opts.agent.providerInfo() : [] });
+        return send(res, 200, { providers: opts.agent ? await opts.agent.providerInfo(q.get('fresh') === '1') : [] });
       case 'GET /api/agent/sessions':
         return send(res, 200, { sessions: opts.agent ? await opts.agent.list(q.get('doc') ?? undefined) : [] });
       case 'GET /api/agent/session': {
@@ -168,6 +168,28 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
             model: typeof body.model === 'string' ? body.model : undefined, text: body.text, selection, context: describeSelection(open, selection),
           });
           return send(res, 200, { session: session as unknown as Json });
+        } catch (e) {
+          return send(res, 409, { error: (e as Error).message });
+        }
+      }
+      case 'GET /api/agent/usage':
+        return send(res, 200, opts.agent ? { usage: await opts.agent.usage() as unknown as Json, settings: await opts.agent.settings() as unknown as Json } : { usage: {}, settings: {} });
+      case 'POST /api/agent/settings': {
+        const body = await readJson(req);
+        return send(res, 200, { settings: opts.agent ? await opts.agent.saveSettings(body as never) as unknown as Json : {} });
+      }
+      case 'POST /api/agent/signin': {
+        // Terminal opens with the provider's sign-in command (claude, codex login); the person signs in there.
+        const body = await readJson(req);
+        const ok = typeof body.provider === 'string' && !!opts.agent && (await opts.agent.signIn(body.provider).catch(() => false));
+        return send(res, 200, { ok });
+      }
+      case 'POST /api/agent/restore': {
+        const body = await readJson(req);
+        if (!opts.agent || typeof body.session !== 'string' || typeof body.item !== 'string') return send(res, 400, { error: 'session and item are required' });
+        try {
+          await opts.agent.restore(body.session, body.item);
+          return send(res, 200, { ok: true });
         } catch (e) {
           return send(res, 409, { error: (e as Error).message });
         }

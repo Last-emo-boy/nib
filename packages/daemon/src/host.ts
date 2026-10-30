@@ -139,6 +139,36 @@ export class DocumentHost {
     });
   }
 
+  /**
+   * Put the document back to `data` (a snapshot taken earlier) as one undoable change: top-level nodes
+   * that differ are replaced, and variables, themes and imports set as they were.
+   */
+  async restore(path: string, data: PenDocument, source: Source, label: string): Promise<number> {
+    const open = this.require(path);
+    const now = open.session.doc.data;
+    const ops: Op[] = [];
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    const ids = (list: Node[]) => list.map((n) => n.id).join('|');
+    if (ids(now.children) === ids(data.children)) {
+      data.children.forEach((n, i) => {
+        if (same(n, now.children[i])) return;
+        ops.push({ op: 'remove', parent: null, index: i }, { op: 'insert', parent: null, index: i, node: structuredClone(n) });
+      });
+    } else {
+      for (let i = now.children.length - 1; i >= 0; i--) ops.push({ op: 'remove', parent: null, index: i });
+      data.children.forEach((n, i) => ops.push({ op: 'insert', parent: null, index: i, node: structuredClone(n) }));
+    }
+    const props: Record<string, unknown> = {};
+    const unset: string[] = [];
+    for (const k of ['variables', 'themes', 'imports'] as const) {
+      if (same(now[k], data[k])) continue;
+      if (data[k] === undefined) unset.push(k); else props[k] = structuredClone(data[k]);
+    }
+    if (Object.keys(props).length || unset.length) ops.push({ op: 'document', props, ...(unset.length ? { unset } : {}) });
+    if (!ops.length) return open.version;
+    return this.edit(path, ops, source, label);
+  }
+
   /** Undo the latest change to the document, whoever made it. */
   undo(path: string): Promise<boolean> {
     return this.step(path, 'undo');

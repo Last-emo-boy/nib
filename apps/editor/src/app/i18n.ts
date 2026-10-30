@@ -28,7 +28,7 @@ const en = {
   kinds: { landing: 'Landing page', mobile: 'Mobile app', webapp: 'Web app', slides: 'Slides', dashboard: 'Dashboard', other: 'Something else' },
   dashboardButton: 'Dashboard',
   languageTitle: 'Language', agentsTitle: 'Agents', agentsHint: 'Let your coding agents design with nib: this adds nib\'s MCP server to their settings. Your existing settings are kept, and the original file is backed up once.',
-  notInstalled: 'Not found on this computer', connected: 'Added', addNib: 'Add nib', aboutTitle: 'About',
+  notInstalled: 'Not found on this computer', connected: 'Added', addNib: 'Add nib', updateNib: 'Use this app', runsElsewhere: 'Now runs', aboutTitle: 'About',
   aboutText: 'open-source design canvas for .pen files. Everything stays on this computer.',
   credits: 'Includes scene templates and style guides from ZSeven-W/openpencil (MIT) and icons from lucide (ISC).',
 };
@@ -60,7 +60,7 @@ const zh: typeof en = {
   kinds: { landing: '落地页', mobile: '移动应用', webapp: 'Web 应用', slides: '幻灯片', dashboard: '仪表盘', other: '其他' },
   dashboardButton: '首页',
   languageTitle: '语言', agentsTitle: '智能体', agentsHint: '让编程智能体用 nib 做设计：把 nib 的 MCP 服务器加进它们的设置。原有设置会保留，原文件会先备份一次。',
-  notInstalled: '这台电脑上没有找到', connected: '已添加', addNib: '添加 nib', aboutTitle: '关于',
+  notInstalled: '这台电脑上没有找到', connected: '已添加', addNib: '添加 nib', updateNib: '改用此应用', runsElsewhere: '当前运行', aboutTitle: '关于',
   aboutText: '开源的 .pen 设计画布，所有内容都留在这台电脑上。',
   credits: '包含来自 ZSeven-W/openpencil（MIT）的场景模板和风格指南，以及 lucide（ISC）的图标。',
 };

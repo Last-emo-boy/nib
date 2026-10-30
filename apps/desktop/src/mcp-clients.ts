@@ -18,6 +18,8 @@ export interface ClientStatus {
   name: string;
   found: boolean;
   configured: boolean;
+  /** The command its nib entry runs, when that is not this app (an older install, a source checkout). */
+  elsewhere?: string;
   where: string;
   error?: string;
 }
@@ -30,6 +32,12 @@ interface Client {
 }
 
 const home = homedir();
+
+/** `elsewhere` for an entry that runs `command args`: undefined when it is this app's command. */
+function elsewhere(cmd: ServerCommand, command: unknown, args: unknown): string | undefined {
+  const line = [command, ...(Array.isArray(args) ? args : [])].filter((x) => typeof x === 'string').join(' ');
+  return line === [cmd.command, ...cmd.args].join(' ') ? undefined : line || '?';
+}
 const exists = (p: string) => stat(p).then(() => true, () => false);
 
 /** A command found through the user's login shell: GUI apps start with a minimal PATH. */
@@ -72,9 +80,9 @@ async function readJson(file: string): Promise<Record<string, any> | undefined> 
 function jsonClient(id: string, name: string, file: string, dir: string, extra: Record<string, unknown> = {}): Client {
   return {
     id, name,
-    async status() {
-      const config = await readJson(file);
-      return { found: await exists(dir), configured: !!config?.mcpServers?.nib, where: file };
+    async status(cmd) {
+      const entry = (await readJson(file))?.mcpServers?.nib;
+      return { found: await exists(dir), configured: !!entry, elsewhere: entry ? elsewhere(cmd, entry.command, entry.args) : undefined, where: file };
     },
     async configure(cmd) {
       await editJson(file, (c) => { c.mcpServers = { ...(c.mcpServers ?? {}), nib: { command: cmd.command, args: cmd.args, env: cmd.env, ...extra } }; });
@@ -87,11 +95,13 @@ const appSupport = process.platform === 'darwin' ? join(home, 'Library', 'Applic
 export const CLIENTS: Client[] = [
   {
     id: 'claude-code', name: 'Claude Code',
-    async status() {
+    async status(cmd) {
       const claude = await which('claude');
       if (!claude) return { found: false, configured: false, where: 'claude mcp add' };
-      const configured = await run(claude, ['mcp', 'get', 'nib'], { timeout: 20000 }).then(() => true, () => false);
-      return { found: true, configured, where: 'claude mcp add nib -s user' };
+      const out = await run(claude, ['mcp', 'get', 'nib'], { timeout: 20000 }).then((r) => r.stdout, () => undefined);
+      const field = (name: string) => new RegExp(`^\\s*${name}:[ \\t]*(.*)$`, 'm').exec(out ?? '')?.[1].trim();
+      const args = field('Args');
+      return { found: true, configured: out !== undefined, elsewhere: out === undefined ? undefined : elsewhere(cmd, field('Command'), args ? args.split(' ') : []), where: 'claude mcp add nib -s user' };
     },
     async configure(cmd) {
       const claude = await which('claude');
@@ -107,10 +117,11 @@ export const CLIENTS: Client[] = [
   jsonClient('kiro', 'Kiro', join(home, '.kiro', 'settings', 'mcp.json'), join(home, '.kiro'), { disabled: false }),
   {
     id: 'opencode', name: 'OpenCode',
-    async status() {
+    async status(cmd) {
       const file = join(home, '.config', 'opencode', 'opencode.json');
-      const config = await readJson(file);
-      return { found: await exists(join(home, '.config', 'opencode')) || !!(await which('opencode')), configured: !!config?.mcp?.nib, where: file };
+      const entry = (await readJson(file))?.mcp?.nib;
+      const [command, ...args] = Array.isArray(entry?.command) ? entry.command : [];
+      return { found: await exists(join(home, '.config', 'opencode')) || !!(await which('opencode')), configured: !!entry, elsewhere: entry ? elsewhere(cmd, command, args) : undefined, where: file };
     },
     async configure(cmd) {
       await editJson(join(home, '.config', 'opencode', 'opencode.json'), (c) => {
@@ -121,10 +132,13 @@ export const CLIENTS: Client[] = [
   },
   {
     id: 'codex', name: 'Codex CLI',
-    async status() {
+    async status(cmd) {
       const file = join(home, '.codex', 'config.toml');
       const text = await readFile(file, 'utf8').catch(() => '');
-      return { found: await exists(join(home, '.codex')) || !!(await which('codex')), configured: /^\[mcp_servers\.nib\]/m.test(text), where: file };
+      const section = /^\[mcp_servers\.nib\]([\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(text)?.[1];
+      // Simple TOML strings and string arrays read as JSON.
+      const value = (key: string) => { const v = section && new RegExp(`^${key}\\s*=\\s*(.*)$`, 'm').exec(section)?.[1]; try { return v ? JSON.parse(v) : undefined; } catch { return v; } };
+      return { found: await exists(join(home, '.codex')) || !!(await which('codex')), configured: section !== undefined, elsewhere: section !== undefined ? elsewhere(cmd, value('command'), value('args')) : undefined, where: file };
     },
     async configure(cmd) {
       const file = join(home, '.codex', 'config.toml');

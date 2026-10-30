@@ -36,16 +36,16 @@ export function Settings() {
           <div key={c.id} className="client-row">
             <div className="client-name">
               <span>{c.name}</span>
-              <span className="dim">{c.error ?? (c.found ? c.where : t.notInstalled)}</span>
+              <span className="dim">{c.error ?? (!c.found ? t.notInstalled : c.elsewhere ? `${t.runsElsewhere} ${c.elsewhere}` : c.where)}</span>
             </div>
-            {c.configured
+            {c.configured && !c.elsewhere
               ? <span className="client-ok"><Icon name="check" size={14} />{t.connected}</span>
               : <button className="dash-button" disabled={!c.found || busy === c.id} onClick={async () => {
                   setBusy(c.id);
                   const next = await desktop!.configureMcp(c.id);
                   setClients((list) => list?.map((x) => (x.id === c.id ? next : x)));
                   setBusy(undefined);
-                }}>{busy === c.id ? t.loading : t.addNib}</button>}
+                }}>{busy === c.id ? t.loading : c.configured ? t.updateNib : t.addNib}</button>}
           </div>
         ))}
       </section>

@@ -20,6 +20,8 @@ export interface McpClientStatus {
   found: boolean;
   /** Whether its config already lists nib. */
   configured: boolean;
+  /** The command its nib entry runs, when that is not this app. */
+  elsewhere?: string;
   /** Where the config lives, or the command that changes it. */
   where: string;
   error?: string;

@@ -21,6 +21,7 @@ export function typeIcon(n: Node): IconName {
     case 'ref': return 'diamond';
     case 'path': case 'polygon': return 'penTool';
     case 'note': case 'context': case 'prompt': return 'note';
+    case 'browser': return 'globe';
     default: return 'box';
   }
 }

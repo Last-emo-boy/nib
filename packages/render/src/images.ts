@@ -47,6 +47,14 @@ export class ImageStore {
     return this.ready.get(url);
   }
 
+  /** Drop `url` so the next `ensure` loads it again (its bytes changed). */
+  forget(url: string): void {
+    this.ready.get(url)?.delete();
+    this.ready.delete(url);
+    this.images.delete(url);
+    this.failed.delete(url);
+  }
+
   /** Urls that could not be loaded, with the reason. */
   failures(): [string, string][] {
     return [...this.failed];

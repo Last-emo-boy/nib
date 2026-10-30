@@ -12,11 +12,14 @@ let daemon: Daemon;
 let host: DocumentHost;
 let dir: string;
 const none = { load: async () => undefined };
+/** Image urls the host's renders asked for, in order. */
+const loads: string[] = [];
+const counting = { load: async (url: string) => { loads.push(url); return undefined; } };
 
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'nib-daemon-'));
   const renderer = await createNodeRenderer();
-  host = new DocumentHost({ renderer, images: () => none });
+  host = new DocumentHost({ renderer, images: () => counting });
   daemon = await startDaemon({ host, renderer, fonts: none, icons: new PackageIconSource(), images: () => none, fallbacks: renderer.fallbacks, port: 0 });
 });
 afterAll(async () => {
@@ -109,6 +112,24 @@ describe('daemon', () => {
       ws.onopen = () => resolve('open');
       ws.onerror = () => reject(new Error('refused'));
     })).rejects.toThrow('refused');
+  });
+
+  it('reloads an image whose bytes changed and tells editors', async () => {
+    const file = join(dir, 'snap.pen');
+    await writeFile(file, serializePen({ version: '2.20', children: [{ type: 'browser', id: 'web', x: 0, y: 0, width: 320, height: 200, url: 'https://example.com/' }] } as unknown as PenDocument));
+    const ed = await editor(file);
+    const url = 'nib-browser:web@https://example.com/';
+    const shoot = () => host.execute(file, { input: 'TakeScreenshot(["web"])' });
+    await shoot();
+    const loaded = loads.filter((u) => u === url).length;
+    expect(loaded).toBe(1);
+    await shoot();
+    expect(loads.filter((u) => u === url).length).toBe(1);
+    host.assetChanged(file, url);
+    expect(await ed.next((m) => m.t === 'asset')).toMatchObject({ url });
+    await shoot();
+    expect(loads.filter((u) => u === url).length).toBe(2);
+    ed.close();
   });
 
   it('serves icons and says which fallback fonts to use', async () => {

@@ -20,6 +20,8 @@ export type ConnectionEvent =
   | { t: 'doc'; doc: PenDoc; version: number }
   | { t: 'change'; change: Change }
   | { t: 'history'; undo: string[]; redo: string[] }
+  /** An image changed without its url changing (a browser node's page snapshot). */
+  | { t: 'asset'; url: string }
   | { t: 'status'; status: 'connecting' | 'open' | 'closed'; error?: string };
 
 /** The token comes in the link's hash (`#t=...`), which never reaches a server, and is kept for the tab. */
@@ -137,6 +139,9 @@ export class Connection {
       }
       case 'history':
         this.emit({ t: 'history', undo: m.undo, redo: m.redo });
+        break;
+      case 'asset':
+        this.emit({ t: 'asset', url: m.url });
         break;
       case 'ack': {
         const p = this.pending.get(m.seq);

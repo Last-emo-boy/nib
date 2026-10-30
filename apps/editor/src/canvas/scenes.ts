@@ -2,7 +2,7 @@ import type { Canvas, SkPicture as Picture } from 'canvaskit-wasm';
 import { buildScene, type Op, type PenDoc, type SceneNode } from '@nib/core';
 import type { Node } from '@nib/format';
 import type { Box } from '@nib/layout';
-import type { ImageLoader } from '@nib/render';
+import { browserSnapshotUrl, type ImageLoader } from '@nib/render';
 import type { Engine } from './engine.ts';
 
 /** A drawn node with its box on the canvas (document coordinates, rotation ignored). */
@@ -59,6 +59,18 @@ export class SceneCache {
     const ids = new Set(this.doc.data.children.map((n) => n.id));
     for (const id of this.entries.keys()) if (!ids.has(id)) { this.entries.get(id)?.picture?.delete(); this.entries.delete(id); }
     this.rebuild();
+  }
+
+  /** Load `url` again and redraw the browser nodes showing it. */
+  refreshImage(url: string): void {
+    this.engine.renderer.images(this.images).forget(url);
+    let everything = false;
+    for (const id of this.doc.ids()) {
+      const n = this.doc.get(id);
+      if (n?.type === 'browser' && browserSnapshotUrl(n) === url) everything ||= this.touchesComponent(id) || this.mark(id);
+    }
+    if (everything) for (const n of this.doc.data.children) this.dirty.add(n.id);
+    void this.rebuild();
   }
 
   /** Rebuild dirty entries; calls `onUpdate` as they finish. */

@@ -169,6 +169,7 @@ export function CanvasView() {
           canvas.cache.invalidate(e.change.ops);
           pruneSelection(store.get().doc!);
         }
+        if (e.t === 'asset') canvas.cache?.refreshImage(e.url);
       });
     };
     follow(store.get().conn);

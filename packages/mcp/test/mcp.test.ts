@@ -37,7 +37,7 @@ describe.each([['through the daemon', false], ['headless', true]])('nib-mcp %s',
       expect(init.result.serverInfo.name).toBe('nib');
       expect(init.result.protocolVersion).toBe('2025-06-18');
       const tools = (await c.request('tools/list')).result.tools.map((t: { name: string }) => t.name);
-      expect(tools).toEqual(['get_app_state', 'execute', 'read_skill', 'get_style']);
+      expect(tools).toEqual(['get_app_state', 'execute', 'browser', 'read_skill', 'get_style']);
 
       const run = await c.call('execute', { filePath: file, input: 'card = Insert(document, {type: "frame", name: "Card", x: 0, y: 0, width: 200, height: 120, fill: "#3355ff"})\nTakeScreenshot([card])' });
       expect(run.isError).toBeUndefined();

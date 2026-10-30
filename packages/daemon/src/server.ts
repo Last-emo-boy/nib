@@ -183,7 +183,8 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const doc = q.get('doc') ?? '';
         if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
         const bytes = await opts.images(doc).load(q.get('url') ?? '');
-        return bytes ? sendBytes(res, bytes, 'application/octet-stream') : send(res, 404, { error: 'image not found' });
+        // Not cached: a browser node's snapshot changes under the same url.
+        return bytes ? sendBytes(res, bytes, 'application/octet-stream', 'no-cache') : send(res, 404, { error: 'image not found' });
       }
       default:
         return send(res, 404, { error: 'no such endpoint' });
@@ -312,8 +313,8 @@ function send(res: ServerResponse, status: number, body: Json): void {
   res.end(text);
 }
 
-function sendBytes(res: ServerResponse, bytes: Uint8Array, type: string): void {
-  res.writeHead(200, { 'content-type': type, 'cache-control': 'max-age=86400' });
+function sendBytes(res: ServerResponse, bytes: Uint8Array, type: string, cache = 'max-age=86400'): void {
+  res.writeHead(200, { 'content-type': type, 'cache-control': cache });
   res.end(bytes);
 }
 

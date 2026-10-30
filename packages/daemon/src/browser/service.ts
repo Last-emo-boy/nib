@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve as resolvePath } from 'node:path';
 import { validateNode, type Node } from '@nib/format';
-import type { FontLoader } from '@nib/render';
+import { browserSnapshotUrl, type FontLoader } from '@nib/render';
 import type { DocumentHost } from '../host.ts';
 import { Cdp } from './cdp.ts';
 import { launchChrome, type Chrome } from './chrome.ts';
@@ -40,7 +40,7 @@ const DEVICES: Record<string, Viewport> = {
   android: { width: 412, height: 915, mobile: true, dpr: 2.625 },
 };
 
-interface Page { key: string; sessionId: string; targetId: string; url?: string; viewport: Viewport }
+interface Page { key: string; sessionId: string; targetId: string; url?: string; viewport: Viewport; node?: { doc: string; id: string } }
 
 /** CDP domains the `cdp` action may use: enough to act in a page, nothing that reaches the browser or its data. */
 const CDP_DOMAINS = new Set(['DOM', 'Input', 'Page', 'Runtime', 'Emulation', 'CSS', 'Accessibility']);
@@ -129,7 +129,7 @@ export class BrowserService {
       const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
       for (const domain of ['Page', 'Runtime', 'DOM']) await cdp.send(`${domain}.enable`, {}, sessionId);
       await cdp.send('Page.setLifecycleEventsEnabled', { enabled: true }, sessionId);
-      page = { key, sessionId, targetId, viewport: { ...viewport, width: 0 } };
+      page = { key, sessionId, targetId, viewport: { ...viewport, width: 0 }, ...(nodeId ? { node: { doc: resolvePath(filePath), id: nodeId } } : {}) };
       this.pages.set(key, page);
     }
     if (page.viewport.width !== viewport.width || page.viewport.height !== viewport.height || page.viewport.mobile !== viewport.mobile) {
@@ -329,6 +329,9 @@ export class BrowserService {
     const shot = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 85 }, page.sessionId);
     await mkdir(this.snapshotDir, { recursive: true });
     await writeFile(this.snapshotFile(page.key), Buffer.from(shot.data, 'base64'));
+    if (!page.node) return;
+    const node = (await this.host.open(page.node.doc)).session.doc.get(page.node.id);
+    if (node) this.host.assetChanged(page.node.doc, browserSnapshotUrl(node as { id: string; url?: unknown }));
   }
 
   private snapshotFile(key: string): string {

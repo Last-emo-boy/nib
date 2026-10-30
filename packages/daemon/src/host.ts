@@ -17,7 +17,9 @@ export type Source = { kind: 'user'; client?: string } | { kind: 'agent'; name: 
 export type DocEvent =
   | { t: 'ops'; path: string; version: number; ops: Op[]; source: Source; label: string }
   | { t: 'reload'; path: string; version: number; data: PenDocument }
-  | { t: 'history'; path: string; undo: string[]; redo: string[] };
+  | { t: 'history'; path: string; undo: string[]; redo: string[] }
+  /** An image the document uses changed without its url changing (a browser node's page snapshot). */
+  | { t: 'asset'; path: string; url: string };
 
 export type Listener = (event: DocEvent) => void;
 
@@ -26,6 +28,7 @@ interface Entry { ops: Op[]; undo: Op[]; source: Source; label: string }
 export interface OpenDocument {
   path: string;
   session: ExecSession;
+  images: ImageLoader;
   /** File text as last read or written by us. */
   text: string;
   mtimeMs: number;
@@ -82,14 +85,15 @@ export class DocumentHost {
       const { text, mtimeMs, created } = await readOrCreate(path);
       if (created) notes.push(`Created a new empty document at ${path}.`);
       const doc = await this.load(path, text, notes);
+      const images = this.opts.images(path);
       const session = await ExecSession.open(doc, {
         renderer: this.opts.renderer,
-        images: this.opts.images(path),
+        images,
         baseDir: dirname(path),
         exporters: this.opts.exporters,
         timeoutMs: this.opts.timeoutMs,
       });
-      open = { path, session, text, mtimeMs, queue: Promise.resolve(), version: 0, undo: [], redo: [], listeners: new Set(), pending: [] };
+      open = { path, session, images, text, mtimeMs, queue: Promise.resolve(), version: 0, undo: [], redo: [], listeners: new Set(), pending: [] };
       this.docs.set(path, open);
       if (this.opts.watch !== false) this.watchFile(open);
     }
@@ -177,6 +181,14 @@ export class DocumentHost {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  }
+
+  /** The image at `url` has new bytes: renders load it again and editors are told to. */
+  assetChanged(filePath: string, url: string): void {
+    const open = this.docs.get(resolvePath(filePath));
+    if (!open) return;
+    this.opts.renderer.images(open.images).forget(url);
+    this.emit(open, { t: 'asset', path: open.path, url });
   }
 
   subscribe(path: string, listener: Listener): () => void {

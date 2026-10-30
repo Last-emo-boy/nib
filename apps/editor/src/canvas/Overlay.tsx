@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useState, type RefObject } from 'react';
 import type { Box } from '@nib/layout';
+import type { Node } from '@nib/format';
 import { fontWeight, isItalic } from '@nib/render';
 import { setProps } from '../app/actions.ts';
 import { authHeaders } from '../app/connection.ts';
@@ -54,8 +55,8 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
     <div className="overlay">
       <svg width="100%" height="100%">
         {doc.data.children.map((n) => {
-          // Like Figma, only frames (screens, artboards) and instances get a name label.
-          if (n.type !== 'frame' && n.type !== 'ref') return null;
+          // Like Figma, only frames (screens, artboards), instances and browser windows get a name label.
+          if (n.type !== 'frame' && n.type !== 'ref' && n.type !== 'browser') return null;
           const b = cache.box(n.id);
           if (!b) return null;
           const s = screen(view, b);
@@ -64,7 +65,7 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
           return (
             <text key={n.id} x={x} y={y - 6} className={`frame-label${selection.includes(n.id) ? ' selected' : ''}`}
               onPointerDown={(e) => { e.stopPropagation(); store.set({ selection: e.shiftKey ? [...selection, n.id] : [n.id] }); }}>
-              {clip(n.name ?? n.type, s.width / 6.5)}{n.reusable ? ' ◇' : ''}
+              {clip(n.name ?? pageHost(n) ?? n.type, s.width / 6.5)}{n.reusable ? ' ◇' : ''}
             </text>
           );
         })}
@@ -185,3 +186,10 @@ function union(boxes: Box[]): Box {
 
 const round = (v: number) => Math.round(v * 10) / 10;
 const clip = (s: string, chars: number) => (s.length > chars ? `${s.slice(0, Math.max(1, Math.floor(chars) - 1))}…` : s);
+
+/** A browser node's page host, for its label when it has no name. */
+function pageHost(n: Node): string | undefined {
+  const url = (n as { url?: unknown }).url;
+  if (n.type !== 'browser' || typeof url !== 'string') return undefined;
+  try { return new URL(url).host || url; } catch { return url; }
+}

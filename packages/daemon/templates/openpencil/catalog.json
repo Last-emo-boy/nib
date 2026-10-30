@@ -1,0 +1,2559 @@
+[
+ {
+  "id": "journal-checklist-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Checklist Card · Knowledge Base",
+   "zh": "清单卡 · 知识库风"
+  },
+  "summary": {
+   "en": "A white checklist card on a soft grey ground: five tickable to-dos, a tag and a pull quote. Built for weekly plans and habit posts.",
+   "zh": "4:5 浅灰底上一张白色清单卡，五条可勾的待办、标签与引用块，适合周计划与打卡。"
+  },
+  "tags": [
+   "卡片",
+   "清单",
+   "待办",
+   "计划",
+   "知识库",
+   "小红书",
+   "card",
+   "checklist",
+   "todo",
+   "notion"
+  ]
+ },
+ {
+  "id": "data-report-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 2684,
+  "title": {
+   "en": "Data Report Infographic",
+   "zh": "数据结论长图"
+  },
+  "summary": {
+   "en": "A tall scrolling graphic: dark masthead, three headline numbers, a ranked bar comparison, a share breakdown and three takeaways. Swap the numbers and post it.",
+   "zh": "竖版信息长图：深色页头、三个大数、横向对比条、构成占比和三条结论，换掉数字就能发。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "数据",
+   "图表",
+   "报告",
+   "复盘",
+   "infographic",
+   "data",
+   "chart",
+   "report"
+  ]
+ },
+ {
+  "id": "steps-flow-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 3085,
+  "title": {
+   "en": "Step-by-Step Infographic",
+   "zh": "流程步骤长图"
+  },
+  "summary": {
+   "en": "A tall scrolling graphic: five numbered step cards strung into one flow, each with a time estimate, plus two closing tips. Built for tutorials and how-to guides.",
+   "zh": "竖版信息长图：五个带序号的步骤卡串成一条流程，配时长标签与两句提示，适合教程与攻略。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "流程",
+   "步骤",
+   "教程",
+   "攻略",
+   "infographic",
+   "steps",
+   "flow",
+   "guide"
+  ]
+ },
+ {
+  "id": "event-poster-deck",
+  "scene": "slides",
+  "frames": 6,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "bauhaus-geometric-light",
+  "title": {
+   "en": "Event Deck · Poster",
+   "zh": "活动策划 deck · 公告海报"
+  },
+  "summary": {
+   "en": "A cover, highlights, a schedule, directions, ticket tiers and a sign-off. Gallery-white ground with decisive red and blue blocks, no rounded corners and no gradients — built for markets, club events and openings.",
+   "zh": "封面、亮点、日程、场地交通、票种和结尾，近白展墙底配红蓝色块，零圆角零渐变，适合市集、社团活动与开业招商。"
+  },
+  "tags": [
+   "活动",
+   "策划",
+   "市集",
+   "报名",
+   "日程",
+   "PPT",
+   "event",
+   "deck",
+   "poster",
+   "slides"
+  ]
+ },
+ {
+  "id": "pitfall-list-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 3226,
+  "title": {
+   "en": "Pitfall Checklist Infographic",
+   "zh": "避坑清单长图"
+  },
+  "summary": {
+   "en": "A tall scrolling graphic: six mistakes ranked by how often people make them, each with what goes wrong and what to do instead, plus a four-line pre-publish check. Black, white and grey only.",
+   "zh": "竖版信息长图：六条按频率排序的避坑项，每条给「错在哪」和「改成这样」，末尾附四行自检表，全篇无彩色。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "清单",
+   "避坑",
+   "排行",
+   "干货",
+   "infographic",
+   "list",
+   "checklist",
+   "pitfalls"
+  ]
+ },
+ {
+  "id": "spine-culture-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Vertical Spine Card · Mineral Pigment",
+   "zh": "竖排书脊卡 · 鸣沙矿彩"
+  },
+  "summary": {
+   "en": "A 3:4 card on ochre-clay dark ground with a vertical Chinese title, flaking plaster and pigment grains. For culture, long reads and personal-brand covers.",
+   "zh": "3:4 赭泥暗底上的竖排大标，配剥落壁面与矿彩颗粒，适合文化、长文与个人 IP 封面。"
+  },
+  "tags": [
+   "卡片",
+   "竖排",
+   "文化",
+   "封面",
+   "深色",
+   "小红书",
+   "card",
+   "vertical",
+   "culture",
+   "cover"
+  ]
+ },
+ {
+  "id": "metric-single-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1080,
+  "title": {
+   "en": "Single Metric Card · Grid Hanzi",
+   "zh": "数据单值卡 · 网格汉字"
+  },
+  "summary": {
+   "en": "A 1:1 card: one huge number on pure white, a strict Swiss grid and a single red signal square. For conclusions and results.",
+   "zh": "1:1 纯白底上一个巨大的数，瑞士国际主义的严格网格加一枚信号红方块，适合结论与成绩。"
+  },
+  "tags": [
+   "卡片",
+   "数据",
+   "数字",
+   "结论",
+   "极简",
+   "方形",
+   "card",
+   "metric",
+   "swiss",
+   "data"
+  ]
+ },
+ {
+  "id": "quote-frame-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Quote Frame Card · Silk Blue-Green",
+   "zh": "引用书摘卡 · 绢本青绿"
+  },
+  "summary": {
+   "en": "A 4:5 card on aged silk yellow: one framed sentence, with an azurite-and-malachite mountain along the foot. For excerpts, interviews and quotations.",
+   "zh": "4:5 绢黄底上一句框起来的话，底部是石青石绿的双色山形，适合书摘、访谈与引用。"
+  },
+  "tags": [
+   "卡片",
+   "引用",
+   "书摘",
+   "金句",
+   "青绿",
+   "小红书",
+   "card",
+   "quote",
+   "excerpt",
+   "silk"
+  ]
+ },
+ {
+  "id": "daily-sign-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Daily Card · Garden Frame",
+   "zh": "日签卡 · 园林框景"
+  },
+  "summary": {
+   "en": "A 3:4 card on lime-washed wall with a hexagonal lattice window; date and one line sit inside it. Whitespace is the decoration. For daily posts and brand lines.",
+   "zh": "3:4 粉墙底上一扇六角漏窗，窗内是日期与一句话，留白即装饰，适合日签与品牌短语。"
+  },
+  "tags": [
+   "卡片",
+   "日签",
+   "一句话",
+   "留白",
+   "园林",
+   "品牌",
+   "card",
+   "daily",
+   "quote",
+   "minimal"
+  ]
+ },
+ {
+  "id": "price-tier-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1080,
+  "title": {
+   "en": "Price Tier Card · Arcade Neon",
+   "zh": "促销价格卡 · 霓虹骑楼"
+  },
+  "summary": {
+   "en": "A 1:1 card on ink-blue night with a three-tier price table, neon tube outlines and their scatter. For shops, events and package pricing.",
+   "zh": "1:1 墨蓝夜色底上的三档价目表，配霓虹灯管描边与外散射，适合门店、活动与套餐报价。"
+  },
+  "tags": [
+   "卡片",
+   "价格",
+   "价目",
+   "促销",
+   "门店",
+   "霓虹",
+   "深色",
+   "card",
+   "price",
+   "menu",
+   "neon"
+  ]
+ },
+ {
+  "id": "notice-board-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Notice Card · Lead Type Press",
+   "zh": "公告通知卡 · 铅字报刊"
+  },
+  "summary": {
+   "en": "A 4:5 card on newsprint: masthead rules with a misregistered red plate, numbered clauses and a serial stamp. For notices, rules and house guidelines.",
+   "zh": "4:5 新闻纸底上的报头双线与编号条款，含套印错位与骑缝编号，适合通知、须知与规则说明。"
+  },
+  "tags": [
+   "卡片",
+   "公告",
+   "通知",
+   "须知",
+   "报刊",
+   "编号",
+   "card",
+   "notice",
+   "announcement",
+   "newsprint"
+  ]
+ },
+ {
+  "id": "milestone-timeline-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 3018,
+  "title": {
+   "en": "Milestone Timeline Infographic",
+   "zh": "时间线大事记长图"
+  },
+  "summary": {
+   "en": "A tall scrolling graphic: one axis running the whole height, year ticks beside milestone cards, closing on what comes next. For retrospectives, brand history and project journeys.",
+   "zh": "竖版信息长图：一条贯穿全图的时间轴，年份刻度配大事记卡，末尾收在下一步，适合复盘、品牌史与项目历程。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "时间线",
+   "历程",
+   "复盘",
+   "大事记",
+   "infographic",
+   "timeline",
+   "milestone",
+   "history"
+  ]
+ },
+ {
+  "id": "concept-contrast-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 3060,
+  "title": {
+   "en": "Concept Contrast Infographic",
+   "zh": "概念对比科普长图"
+  },
+  "summary": {
+   "en": "A tall scrolling graphic: the verdict first, then a definition card for each concept, a two-column breakdown by dimension, and finally how to choose.",
+   "zh": "竖版信息长图：先给结论，再给两个概念各自的定义卡，然后逐维度拆成两栏表，最后给选择判据。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "对比",
+   "概念",
+   "科普",
+   "辨析",
+   "infographic",
+   "contrast",
+   "concept",
+   "explainer"
+  ]
+ },
+ {
+  "id": "ranking-board-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 3154,
+  "title": {
+   "en": "Top-N Ranking Infographic",
+   "zh": "榜单 TOP N 长图"
+  },
+  "summary": {
+   "en": "A tall scrolling graphic: a gold-on-ink recommendation board — large badges for the top three, outlined ones for four through eight, each with when to use it and how often.",
+   "zh": "竖版信息长图：墨底黑金的推荐榜，前三名大徽章、四到八名小描边，每条给使用场景与频次。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "榜单",
+   "推荐",
+   "排行",
+   "测评",
+   "infographic",
+   "ranking",
+   "top",
+   "list"
+  ]
+ },
+ {
+  "id": "faq-thread-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 2789,
+  "title": {
+   "en": "FAQ Thread Infographic",
+   "zh": "问答 FAQ 长图"
+  },
+  "summary": {
+   "en": "A tall scrolling graphic: six question-and-answer pairs, Q solid and A outlined. No numbering, no order — any single pair stands on its own.",
+   "zh": "竖版信息长图：六组一问一答，Q 实心 A 描边，不编号不排序，读者只读其中一条也成立。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "问答",
+   "FAQ",
+   "答疑",
+   "常见问题",
+   "infographic",
+   "faq",
+   "qa",
+   "questions"
+  ]
+ },
+ {
+  "id": "data-story-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 2711,
+  "title": {
+   "en": "Data Story Infographic",
+   "zh": "数据故事长图"
+  },
+  "summary": {
+   "en": "A tall scrolling graphic: four numbers strung into one causal line, each stage shown as a ten-block array, closing on a conclusion you can act on.",
+   "zh": "竖版信息长图：四个数字串成一条因果线，每段用十格方块阵表示比例，末尾收到一句能改做法的结论。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "数据",
+   "故事",
+   "因果",
+   "转化",
+   "infographic",
+   "data",
+   "story",
+   "funnel"
+  ]
+ },
+ {
+  "id": "challenge-tracker-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 2692,
+  "title": {
+   "en": "30-Day Challenge Infographic",
+   "zh": "30 天打卡挑战长图"
+  },
+  "summary": {
+   "en": "A tall scrolling graphic: a thirty-box grid, six by five, with milestones only on days 7, 15 and 30. Save it and cross off one box a day.",
+   "zh": "竖版信息长图：六列五行的三十格打卡阵，只在第 7、15、30 天给里程碑，存进相册每天划掉一格。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "打卡",
+   "挑战",
+   "习惯",
+   "三十天",
+   "infographic",
+   "challenge",
+   "tracker",
+   "habit"
+  ]
+ },
+ {
+  "id": "ecosystem-map-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 2206,
+  "title": {
+   "en": "Ecosystem Map Infographic",
+   "zh": "行业地图长图"
+  },
+  "summary": {
+   "en": "A tall scrolling graphic: a two-by-two array of four positions along one chain, three players in each, with the gaps called out. White cards floating on slate.",
+   "zh": "竖版信息长图：二乘二的四区生态位阵列，每格挂三个位点并标出空位，石板灰底上浮白卡。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "地图",
+   "生态",
+   "行业",
+   "分区",
+   "infographic",
+   "ecosystem",
+   "map",
+   "landscape"
+  ]
+ },
+ {
+  "id": "do-dont-comparison",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Do / Don't Two-Column",
+   "zh": "好坏示范双栏"
+  },
+  "summary": {
+   "en": "A 3:4 card: two ways of doing the same thing side by side, told apart by material and icon rather than red-versus-green, so colour-blind readers can read it too.",
+   "zh": "3:4 单卡：同一件事的两种做法左右并排，不靠红绿而靠材质与图标区分对错，色觉障碍读者也读得出来。"
+  },
+  "tags": [
+   "对比",
+   "示范",
+   "正误",
+   "双栏",
+   "小红书",
+   "comparison",
+   "do",
+   "dont",
+   "howto"
+  ]
+ },
+ {
+  "id": "myth-truth-comparison",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1080,
+  "height": 2593,
+  "title": {
+   "en": "Myth vs Truth Infographic",
+   "zh": "误区与真相长图"
+  },
+  "summary": {
+   "en": "A tall graphic: five pairs of “what people say / what is actually true”, myth narrow and pale on the left, truth wide and dark on the right, one pair at a time.",
+   "zh": "竖版长图：五组「大家都这么说 / 其实是这样」交错排开，误区偏窄浅底、真相偏宽深底，一次只处理一组。"
+  },
+  "tags": [
+   "对比",
+   "误区",
+   "真相",
+   "辟谣",
+   "长图",
+   "comparison",
+   "myth",
+   "truth",
+   "debunk"
+  ]
+ },
+ {
+  "id": "pricing-tiers-comparison",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Pricing Tiers Comparison",
+   "zh": "价格档位对比"
+  },
+  "summary": {
+   "en": "A 3:4 card: Free, Pro and Team side by side, price as the anchor, each column containing the one before it. For pricing pages and plan explainers.",
+   "zh": "3:4 单卡：免费 / Pro / 团队三档并排，价格当锚点往下读，右列包含左列，适合定价页与套餐说明。"
+  },
+  "tags": [
+   "对比",
+   "价格",
+   "定价",
+   "套餐",
+   "档位",
+   "comparison",
+   "pricing",
+   "tiers",
+   "plans"
+  ]
+ },
+ {
+  "id": "scenario-guide-comparison",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1080,
+  "height": 2723,
+  "title": {
+   "en": "Scenario Guide Infographic",
+   "zh": "场景选择指南长图"
+  },
+  "summary": {
+   "en": "A tall graphic: no specs, just seven situations, each tagged with a verdict. The reader only has to find their own row.",
+   "zh": "竖版长图：不摆参数，直接给七种处境，每种后面挂一个判定标签，读者只要找到自己那一行。"
+  },
+  "tags": [
+   "对比",
+   "选择",
+   "场景",
+   "决策",
+   "指南",
+   "comparison",
+   "scenario",
+   "guide",
+   "choose"
+  ]
+ },
+ {
+  "id": "spec-table-comparison",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1080,
+  "height": 2405,
+  "title": {
+   "en": "Spec Table Infographic",
+   "zh": "参数表对比长图"
+  },
+  "summary": {
+   "en": "A tall graphic: two candidates in one real table, row by row, the winning cell lifted with a dark fill so you can see at a glance who wins where.",
+   "zh": "竖版长图：两个候选放进一张真表逐行比，赢的一格用深底反白顶起来，一眼扫下来就知道各自赢在哪。"
+  },
+  "tags": [
+   "对比",
+   "参数",
+   "表格",
+   "规格",
+   "测评",
+   "comparison",
+   "spec",
+   "table",
+   "versus"
+  ]
+ },
+ {
+  "id": "three-way-comparison",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1080,
+  "height": 1886,
+  "title": {
+   "en": "Three-Way Comparison Infographic",
+   "zh": "三方案横评长图"
+  },
+  "summary": {
+   "en": "A tall graphic: three options side by side with the recommendation in the middle; each column opens with a situation rather than a name, because readers are looking for themselves.",
+   "zh": "竖版长图：三个方案并排，中间一列是推荐项，每列第一行不是名字而是一句处境——读者在找哪一列是自己。"
+  },
+  "tags": [
+   "对比",
+   "三方",
+   "横评",
+   "方案",
+   "选型",
+   "comparison",
+   "three",
+   "options",
+   "matrix"
+  ]
+ },
+ {
+  "id": "time-shift-comparison",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Time Shift · A Year Ago and Now",
+   "zh": "时间对比 · 一年前与现在"
+  },
+  "summary": {
+   "en": "A 3:4 card: a centred spine of labels, a year ago on the left and now on the right, both values of each item landing on the same row.",
+   "zh": "3:4 单卡：一条居中的标签脊柱，左边一年前、右边现在，同一项的两个取值落在同一行上。"
+  },
+  "tags": [
+   "对比",
+   "时间",
+   "前后",
+   "成长",
+   "复盘",
+   "comparison",
+   "before",
+   "after",
+   "timeshift"
+  ]
+ },
+ {
+  "id": "tradeoff-scale-comparison",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1080,
+  "height": 1080,
+  "title": {
+   "en": "Trade-off Scale",
+   "zh": "优缺点天平"
+  },
+  "summary": {
+   "en": "A 1:1 card: one beam, two pans — worth it on the left, what it costs on the right, an empty checkbox before every line. The card lists both sides and hands you the pen.",
+   "zh": "1:1 方卡：一根横梁两个托盘，左盘装值得、右盘装代价，每条前面留一个空方框——结论交给读者自己称。"
+  },
+  "tags": [
+   "对比",
+   "优缺点",
+   "权衡",
+   "天平",
+   "方形",
+   "comparison",
+   "tradeoff",
+   "pros",
+   "cons"
+  ]
+ },
+ {
+  "id": "version-diff-comparison",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1080,
+  "height": 1080,
+  "title": {
+   "en": "Version Diff",
+   "zh": "新旧版本变化"
+  },
+  "summary": {
+   "en": "A 1:1 card: no left-right split — every row completes its own “old → new”, so you just scroll and read.",
+   "zh": "1:1 方卡：不分左右两栏，每一行自己完成一次「旧 → 新」，顺着往下滑即可读完全部改动。"
+  },
+  "tags": [
+   "对比",
+   "版本",
+   "更新",
+   "变更",
+   "日志",
+   "comparison",
+   "version",
+   "diff",
+   "changelog"
+  ]
+ },
+ {
+  "id": "app-onboarding-triptych",
+  "scene": "tutorial",
+  "frames": 1,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "App Onboarding Triptych",
+   "zh": "App 新手引导三屏"
+  },
+  "summary": {
+   "en": "A 3:4 card: three phones side by side with empty image wells. Drop in your own three onboarding screens, add the copy, and it is ready for review or posting.",
+   "zh": "3:4 单卡：三台并排的手机与空图位，把自己的三张引导图拖进去配上文案，一张就能拿去评审或发布。"
+  },
+  "tags": [
+   "教程",
+   "引导",
+   "App",
+   "产品",
+   "三屏",
+   "tutorial",
+   "onboarding",
+   "app",
+   "mockup"
+  ]
+ },
+ {
+  "id": "diy-blueprint-guide",
+  "scene": "tutorial",
+  "frames": 1,
+  "width": 1080,
+  "height": 4016,
+  "title": {
+   "en": "DIY Blueprint Guide",
+   "zh": "手工 DIY 图解长图"
+  },
+  "summary": {
+   "en": "A tall graphic where the materials-and-specs table takes as much room as the steps — DIY usually fails in the preparation, not in the hands.",
+   "zh": "竖版长图：材料规格表与步骤各占一半篇幅——手工翻车多在准备而不在手上，所以先把材料写清楚。"
+  },
+  "tags": [
+   "教程",
+   "手工",
+   "DIY",
+   "图解",
+   "材料",
+   "tutorial",
+   "diy",
+   "craft",
+   "blueprint"
+  ]
+ },
+ {
+  "id": "photo-composition-tutorial",
+  "scene": "tutorial",
+  "frames": 5,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Phone Photography Composition",
+   "zh": "手机摄影构图教学"
+  },
+  "summary": {
+   "en": "3:4, five frames: each one a dark viewfinder with bright guide lines over the photo well, because composition can only be explained on the frame itself.",
+   "zh": "3:4 五帧：每帧一个深色取景框，荧光参考线压在图位之上——构图必须画在取景框上才说得清。"
+  },
+  "tags": [
+   "教程",
+   "摄影",
+   "构图",
+   "取景",
+   "五帧",
+   "tutorial",
+   "photo",
+   "composition",
+   "camera"
+  ]
+ },
+ {
+  "id": "recipe-four-step",
+  "scene": "tutorial",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Four-Step Recipe Card",
+   "zh": "菜谱四步卡"
+  },
+  "summary": {
+   "en": "A 4:5 card, 2×2: all four steps on one card. Screenshot it and cook from it — nobody wants to swipe pages at the stove.",
+   "zh": "4:5 单卡 2×2 四宫格：四步全放在一张卡上，截图存相册就能照着做，站在灶台前不用翻页。"
+  },
+  "tags": [
+   "教程",
+   "菜谱",
+   "做饭",
+   "四宫格",
+   "美食",
+   "tutorial",
+   "recipe",
+   "cooking",
+   "steps"
+  ]
+ },
+ {
+  "id": "skincare-routine-cards",
+  "scene": "tutorial",
+  "frames": 6,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Skincare Routine Cards",
+   "zh": "护肤步骤卡"
+  },
+  "summary": {
+   "en": "4:5, six frames: every step fixes three numbers — how much, how long to wait, morning or night. Skincare goes wrong on dose and interval, not on order.",
+   "zh": "4:5 六帧：每步固定给用量、停留时长与早晚场次三个数——护肤翻车多在用量和间隔上。"
+  },
+  "tags": [
+   "教程",
+   "护肤",
+   "步骤",
+   "用量",
+   "六帧",
+   "tutorial",
+   "skincare",
+   "routine",
+   "beauty"
+  ]
+ },
+ {
+  "id": "software-step-tutorial",
+  "scene": "tutorial",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Software Step Tutorial",
+   "zh": "软件操作步骤卡"
+  },
+  "summary": {
+   "en": "A 4:5 card, the only dark one in the tutorial set: screenshot wells with numbered instructions, for tools and feature walkthroughs.",
+   "zh": "4:5 单卡：教程档唯一一张深色，界面截图位配编号操作说明，适合工具与软件的功能讲解。"
+  },
+  "tags": [
+   "教程",
+   "软件",
+   "操作",
+   "截图",
+   "深色",
+   "tutorial",
+   "software",
+   "steps",
+   "app"
+  ]
+ },
+ {
+  "id": "storage-makeover-steps",
+  "scene": "tutorial",
+  "frames": 6,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Storage Makeover Steps",
+   "zh": "家居收纳改造步骤"
+  },
+  "summary": {
+   "en": "3:4, six frames: besides the action and the image well, each step fixes a done-condition and a time budget — you are finished when it looks like that.",
+   "zh": "3:4 六帧：每步除了动作与图位，固定给一条完成判定和一个耗时预算——做到那个状态才算做完。"
+  },
+  "tags": [
+   "教程",
+   "收纳",
+   "家居",
+   "整理",
+   "改造",
+   "tutorial",
+   "storage",
+   "home",
+   "makeover"
+  ]
+ },
+ {
+  "id": "weekly-report-lesson",
+  "scene": "tutorial",
+  "frames": 1,
+  "width": 1080,
+  "height": 3116,
+  "title": {
+   "en": "Weekly Report Lesson",
+   "zh": "职场周报小课长图"
+  },
+  "summary": {
+   "en": "A tall graphic: after the four-part structure it hands you a skeleton with underlined blanks — screenshot it and fill it in.",
+   "zh": "竖版长图：讲完四段结构之后直接给一张带下划线空格的周报骨架，截图就能照着往里填。"
+  },
+  "tags": [
+   "教程",
+   "周报",
+   "职场",
+   "写作",
+   "模板",
+   "tutorial",
+   "report",
+   "workplace",
+   "writing"
+  ]
+ },
+ {
+  "id": "workout-breakdown-guide",
+  "scene": "tutorial",
+  "frames": 1,
+  "width": 1080,
+  "height": 4589,
+  "title": {
+   "en": "Workout Breakdown Guide",
+   "zh": "健身动作分解长图"
+  },
+  "summary": {
+   "en": "A tall graphic: every movement carries a fixed sets / reps / rest bar alongside the image well and the cues, because people save this to train by the numbers.",
+   "zh": "竖版长图：每个动作除图位与要点外，还有一条固定格式的组数 / 次数 / 休息参数条，存图照着数做。"
+  },
+  "tags": [
+   "教程",
+   "健身",
+   "训练",
+   "动作",
+   "参数",
+   "tutorial",
+   "workout",
+   "fitness",
+   "exercise"
+  ]
+ },
+ {
+  "id": "bookreview-silk-carousel",
+  "scene": "carousel",
+  "frames": 5,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Book / Film Review Carousel",
+   "zh": "书影评拆解轮播"
+  },
+  "summary": {
+   "en": "3:4, five boards: hook, an annotated excerpt, three insights, one quotable line, close. It takes a work apart into pieces you can carry away instead of retelling the plot.",
+   "zh": "3:4 五板：钩子、带注解的原文、三个洞见、一句书摘、收束——把一部作品拆成能拿走的零件，不是复述剧情。"
+  },
+  "tags": [
+   "轮播",
+   "书评",
+   "影评",
+   "拆解",
+   "读书",
+   "carousel",
+   "bookreview",
+   "film",
+   "insight"
+  ]
+ },
+ {
+  "id": "cityguide-film-carousel",
+  "scene": "carousel",
+  "frames": 7,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "City Guide Carousel",
+   "zh": "城市指南轮播"
+  },
+  "summary": {
+   "en": "3:4, seven boards: places and routes alternate — the place boards feed the dreamers, the day route and the eat-and-stay table feed the planners.",
+   "zh": "3:4 七板：照片与动线交替——地点板给做梦的读者，一日动线与吃住对照给做计划的读者。"
+  },
+  "tags": [
+   "轮播",
+   "旅行",
+   "城市",
+   "攻略",
+   "指南",
+   "carousel",
+   "travel",
+   "cityguide",
+   "itinerary"
+  ]
+ },
+ {
+  "id": "datareport-grid-carousel",
+  "scene": "carousel",
+  "frames": 6,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Data Report Carousel",
+   "zh": "数据报告轮播"
+  },
+  "summary": {
+   "en": "3:4, six boards: every data board is followed by a non-data one, so nobody swipes past the third chart. For quarterly reviews and industry notes.",
+   "zh": "3:4 六板：数据页之间强制夹入非数据页，避免读者划到第三张图表就跳过，适合季报与行业观察。"
+  },
+  "tags": [
+   "轮播",
+   "数据",
+   "报告",
+   "图表",
+   "季报",
+   "carousel",
+   "data",
+   "report",
+   "chart"
+  ]
+ },
+ {
+  "id": "opinion-longform-carousel",
+  "scene": "carousel",
+  "frames": 6,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Long-Form Opinion Carousel",
+   "zh": "观点长文轮播"
+  },
+  "summary": {
+   "en": "3:4, six boards: one strict visual master throughout — page number and title never move. On a carousel the previous board is gone, so consistency is not decoration.",
+   "zh": "3:4 六板：一套严格的视觉母版贯穿全程，页码与标题永远在同一个位置——轮播划走就回不去，一致性是刚需。"
+  },
+  "tags": [
+   "轮播",
+   "观点",
+   "长文",
+   "评论",
+   "立场",
+   "carousel",
+   "opinion",
+   "essay",
+   "longform"
+  ]
+ },
+ {
+  "id": "qa-chalkboard-carousel",
+  "scene": "carousel",
+  "frames": 6,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Q&A Carousel",
+   "zh": "问答体轮播"
+  },
+  "summary": {
+   "en": "3:4, six boards: one question per board, each with a hand-drawn question number in the corner. The question itself is the reason to swipe on.",
+   "zh": "3:4 六板：一问一板，每板左上角一个手写问号编号——问题本身就是往下划的理由，不需要留悬念。"
+  },
+  "tags": [
+   "轮播",
+   "问答",
+   "答疑",
+   "黑板",
+   "科普",
+   "carousel",
+   "qa",
+   "questions",
+   "chalkboard"
+  ]
+ },
+ {
+  "id": "story-night-carousel",
+  "scene": "carousel",
+  "frames": 7,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Story Carousel",
+   "zh": "故事叙事轮播"
+  },
+  "summary": {
+   "en": "3:4, seven boards: a personal retrospective built on time — the timeline on board five is the load-bearing wall, and the first four boards are each one of its marks.",
+   "zh": "3:4 七板：以时间为骨架的个人经历复盘，第五板那条时间轴是全套的承重墙，前四板都是它的一个刻度。"
+  },
+  "tags": [
+   "轮播",
+   "故事",
+   "经历",
+   "复盘",
+   "叙事",
+   "carousel",
+   "story",
+   "narrative",
+   "personal"
+  ]
+ },
+ {
+  "id": "toolkit-notebook-carousel",
+  "scene": "carousel",
+  "frames": 6,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Toolkit Collection Carousel",
+   "zh": "干货合集轮播"
+  },
+  "summary": {
+   "en": "3:4, six boards: six tools unfolded one per board, with the last board listing them all with page numbers — the collection reader is here to save it.",
+   "zh": "3:4 六板：六个工具逐板展开，最后一板连页码一起列成目录——合集档的读者目的只有一个，收藏。"
+  },
+  "tags": [
+   "轮播",
+   "干货",
+   "合集",
+   "工具",
+   "清单",
+   "carousel",
+   "toolkit",
+   "collection",
+   "resources"
+  ]
+ },
+ {
+  "id": "tutorial-journal-carousel",
+  "scene": "carousel",
+  "frames": 6,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Tutorial Carousel",
+   "zh": "教程轮播"
+  },
+  "summary": {
+   "en": "3:4, six boards: one step per board, the finger is the progress bar. For crafts, software and everyday how-tos.",
+   "zh": "3:4 六板：一板一步，手指就是进度条，划一次等于做完一步，适合手作、软件与生活教程。"
+  },
+  "tags": [
+   "轮播",
+   "教程",
+   "步骤",
+   "手作",
+   "操作",
+   "carousel",
+   "tutorial",
+   "steps",
+   "howto"
+  ]
+ },
+ {
+  "id": "yearreview-mineral-carousel",
+  "scene": "carousel",
+  "frames": 8,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Year in Review Carousel",
+   "zh": "年度总结复盘轮播"
+  },
+  "summary": {
+   "en": "3:4, eight boards: number boards run cold and reflection boards run warm, alternating. For year-end summaries and personal retrospectives.",
+   "zh": "3:4 八板：数字页冷、感受页热，两种温度交替推进，适合年终总结与个人年度复盘。"
+  },
+  "tags": [
+   "轮播",
+   "年度",
+   "总结",
+   "复盘",
+   "年终",
+   "carousel",
+   "yearreview",
+   "annual",
+   "recap"
+  ]
+ },
+ {
+  "id": "sounding-navy-deck",
+  "scene": "slides",
+  "frames": 7,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "sounding-navy",
+  "title": {
+   "en": "Sounding Chart · Strategy Deck",
+   "zh": "测深海图 · 咨询策略档"
+  },
+  "summary": {
+   "en": "Chart-paper white against steel and ink blue: every slide leads with a conclusion and backs it with one sourced reading. Depth-profile bars and a sounding-track agenda carry all seven pages, for consulting deliverables and strategy reviews.",
+   "zh": "海图暖白配钢蓝墨蓝，结论式标题加一条带来源的读数，深度剖面条与航迹目录贯穿七页，适合咨询交付与策略汇报。"
+  },
+  "tags": [
+   "策略",
+   "咨询",
+   "汇报",
+   "结论",
+   "数据",
+   "PPT",
+   "slides",
+   "deck",
+   "consulting",
+   "strategy"
+  ]
+ },
+ {
+  "id": "tidemark-slate-deck",
+  "scene": "slides",
+  "frames": 7,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "tidemark-slate",
+  "title": {
+   "en": "Tidemark Slate · Data Review Deck",
+   "zh": "潮痕石板 · 数据评审档"
+  },
+  "summary": {
+   "en": "Overview tiles, a trend line, a detail table, a risk list and a swimlane roadmap on slate grey — seven pages that walk one full data review, for quarterly retrospectives and metric meetings.",
+   "zh": "石板灰底上的全景磁贴、趋势线、明细表、风险清单和泳道路线，七页走完一次数据评审，适合季度复盘与指标例会。"
+  },
+  "tags": [
+   "数据",
+   "评审",
+   "指标",
+   "复盘",
+   "看板",
+   "PPT",
+   "slides",
+   "deck",
+   "review",
+   "metrics"
+  ]
+ },
+ {
+  "id": "banxin-rule-deck",
+  "scene": "slides",
+  "frames": 7,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "banxin-rule",
+  "title": {
+   "en": "Banxin Rule · Chinese Typography Deck",
+   "zh": "版心界行 · 中文排版档"
+  },
+  "summary": {
+   "en": "Built on the classical Chinese page: type block, column rules, marginal notes and a fishtail folio. Body lines stay under thirty characters, with facing columns and a quotation page that reward reading, for lectures and seminars.",
+   "zh": "以版心、界行、天头批注和鱼尾页码立身的中文原生排版，正文每行不超三十字，双栏对读与引文页耐读，适合讲稿与研讨。"
+  },
+  "tags": [
+   "中文",
+   "排版",
+   "版心",
+   "讲稿",
+   "研讨",
+   "PPT",
+   "slides",
+   "deck",
+   "typography",
+   "chinese"
+  ]
+ },
+ {
+  "id": "gridpaper-graphite-deck",
+  "scene": "slides",
+  "frames": 8,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "gridpaper-graphite",
+  "title": {
+   "en": "Graphite Grid · Academic Defence Deck",
+   "zh": "方格石墨 · 学术答辩档"
+  },
+  "summary": {
+   "en": "Graphite type on grid paper: problem and gap, method, two pages of results, limitations, conclusion and references — eight pages in defence order, for proposals and thesis defences.",
+   "zh": "方格纸底配石墨灰字，问题与缺口、方法、图表两页结果、局限、结论到引用，八页照答辩顺序排好，适合开题与论文答辩。"
+  },
+  "tags": [
+   "学术",
+   "答辩",
+   "论文",
+   "研究",
+   "开题",
+   "PPT",
+   "slides",
+   "deck",
+   "academic",
+   "thesis"
+  ]
+ },
+ {
+  "id": "dossier-linen-deck",
+  "scene": "slides",
+  "frames": 8,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "dossier-linen",
+  "title": {
+   "en": "Linen Dossier · Memo Deck",
+   "zh": "卷宗亚麻 · 文档备忘档"
+  },
+  "summary": {
+   "en": "A linen-paper dossier from cover sheet through background, current data, analysis and option comparison to the resolution — eight pages that read as a standalone memo, for decision reviews.",
+   "zh": "亚麻纸卷宗质感，从文件首页、背景、现状数据到方案对比与决议，八页写成一份能独立读完的备忘录，适合决策评审。"
+  },
+  "tags": [
+   "备忘录",
+   "决策",
+   "评审",
+   "文档",
+   "方案",
+   "PPT",
+   "slides",
+   "deck",
+   "memo",
+   "decision"
+  ]
+ },
+ {
+  "id": "ledger-tick-deck",
+  "scene": "slides",
+  "frames": 7,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "ledger-tick",
+  "title": {
+   "en": "Ledger Tick · Competitive Matrix Deck",
+   "zh": "账簿勾格 · 竞品矩阵档"
+  },
+  "summary": {
+   "en": "Scoring criteria, the main matrix, quantile scales and a gap-versus-strength read-out on ledger ruling — seven pages that tell a competitive comparison like a balanced account, for vendor selection and market analysis.",
+   "zh": "账簿格线上的评估口径、主矩阵、分位刻度与差距优势对照，七页把竞品比较讲成一笔可核对的账，适合选型与市场分析。"
+  },
+  "tags": [
+   "竞品",
+   "矩阵",
+   "对比",
+   "选型",
+   "市场",
+   "PPT",
+   "slides",
+   "deck",
+   "matrix",
+   "competitive"
+  ]
+ },
+ {
+  "id": "ai-support-pitch-deck",
+  "scene": "slides",
+  "frames": 10,
+  "width": 1920,
+  "height": 1080,
+  "title": {
+   "en": "AI Support Pitch Deck",
+   "zh": "智能客服路演档"
+  },
+  "summary": {
+   "en": "A ten-slide startup pitch deck in deep blue and white: a theme cover, big cost-comparison figures, a three-curve conclusion, a five-step loop and three metrics for the first 90 days, for SaaS fundraising pitches and product launches.",
+   "zh": "深蓝底白字的创业路演十页：主题封面、成本对比大数字、三条曲线结论、五步闭环、上线九十天三指标，适合 SaaS 融资路演与产品发布。"
+  },
+  "tags": [
+   "路演",
+   "融资",
+   "创业",
+   "SaaS",
+   "客服",
+   "PPT",
+   "slides",
+   "deck",
+   "pitch",
+   "startup"
+  ]
+ },
+ {
+  "id": "quarterly-review-deck",
+  "scene": "slides",
+  "frames": 11,
+  "width": 1920,
+  "height": 1080,
+  "title": {
+   "en": "Quarterly Business Review Deck",
+   "zh": "季度业务复盘档"
+  },
+  "summary": {
+   "en": "An eleven-slide light, blue-toned review: an agenda, one KPI trio card for each of four business lines plus a growth engine and improvements, ending with next-quarter goals, for operating reviews and quarterly reporting.",
+   "zh": "浅底蓝调的复盘十一页：议程页、四条业务线各一页 KPI 三联卡加增长引擎与待改进，结尾下季目标，适合经营复盘与季度汇报。"
+  },
+  "tags": [
+   "复盘",
+   "季度",
+   "汇报",
+   "KPI",
+   "经营",
+   "PPT",
+   "slides",
+   "deck",
+   "review",
+   "business"
+  ]
+ },
+ {
+  "id": "quicksort-lecture-deck",
+  "scene": "slides",
+  "frames": 7,
+  "width": 1920,
+  "height": 1080,
+  "title": {
+   "en": "Quicksort Lecture Deck",
+   "zh": "算法讲解课件档"
+  },
+  "summary": {
+   "en": "A seven-slide off-white lesson in ink green: learning goals, two steps for partitioning and recursion, two partition demos with array cells and pivot highlights, and a complexity comparison table, for algorithms and programming teaching.",
+   "zh": "米白纸感配墨绿的七页课件：学习目标、分区与递归两步、分区演示上下两页带数组格与基准高亮、复杂度对照表，适合算法与编程教学。"
+  },
+  "tags": [
+   "课件",
+   "教学",
+   "算法",
+   "排序",
+   "讲解",
+   "PPT",
+   "slides",
+   "deck",
+   "lecture",
+   "education"
+  ]
+ },
+ {
+  "id": "brand-concept-sheet",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1600,
+  "height": 1000,
+  "title": {
+   "en": "Brand Concept Sheet",
+   "zh": "品牌概念板"
+  },
+  "summary": {
+   "en": "One horizontal review board for the primary lockup, construction rationale, monochrome reversals and minimum-size survival — built for first-round concept handoff.",
+   "zh": "横向品牌评审板：展示主锁定组合、构成逻辑、黑白反转与最小尺寸，适合首轮概念交付。"
+  },
+  "tags": [
+   "品牌",
+   "标志",
+   "字标",
+   "概念",
+   "评审",
+   "brand",
+   "logo",
+   "wordmark",
+   "concept",
+   "handoff"
+  ]
+ },
+ {
+  "id": "logo-qa-board",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1600,
+  "height": 1000,
+  "title": {
+   "en": "Logo Fusion QA Board",
+   "zh": "LOGO 融合验收板"
+  },
+  "summary": {
+   "en": "Four review cells check shared semantic load, structural dependence, silhouette unity and whether the secondary reading feels discovered rather than attached.",
+   "zh": "四格逐项检查共享承义、结构依存、轮廓统一与次级意象的自然出现，适合概念筛选和评审留痕。"
+  },
+  "tags": [
+   "标志",
+   "评审",
+   "验收",
+   "融合",
+   "四格",
+   "logo",
+   "qa",
+   "review",
+   "fusion",
+   "checklist"
+  ]
+ },
+ {
+  "id": "event-invitation-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Tech Salon Invitation",
+   "zh": "技术沙龙邀请函"
+  },
+  "summary": {
+   "en": "A 4:5 event invitation with a large topic title, paired time-and-place cards, three guests, a registration QR code and a host-logo row in deep blue-violet.",
+   "zh": "4:5 活动邀请卡：主题大字、时间地点双卡、三位嘉宾、报名二维码和主办方 logo 行，深蓝紫调适合活动预热。"
+  },
+  "tags": [
+   "卡片",
+   "邀请函",
+   "活动",
+   "沙龙",
+   "二维码",
+   "card",
+   "invitation",
+   "event",
+   "meetup"
+  ]
+ },
+ {
+  "id": "livestream-teaser-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Livestream Teaser",
+   "zh": "直播预告卡"
+  },
+  "summary": {
+   "en": "A 4:5 livestream announcement with a bold topic, three countdown tiles, two speakers, a platform pill and a reservation QR card over a dark gradient.",
+   "zh": "4:5 直播预告：主题大字配倒计时三格、两位主讲、平台胶囊和预约二维码卡，深色渐变带出开播提醒。"
+  },
+  "tags": [
+   "卡片",
+   "直播",
+   "预告",
+   "倒计时",
+   "预约",
+   "card",
+   "livestream",
+   "teaser",
+   "countdown"
+  ]
+ },
+ {
+  "id": "hiring-poster-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Hiring Poster",
+   "zh": "招聘海报"
+  },
+  "summary": {
+   "en": "A 4:5 hiring poster with an oversized role title, team-photo placeholder, requirements, salary and an application QR code on a light canvas.",
+   "zh": "4:5 招聘海报：岗位大字、团队照片占位、编号要求、薪资与投递二维码，浅色版面方便替换职位信息。"
+  },
+  "tags": [
+   "卡片",
+   "招聘",
+   "海报",
+   "岗位",
+   "团队",
+   "card",
+   "hiring",
+   "poster",
+   "recruiting"
+  ]
+ },
+ {
+  "id": "course-enroll-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Course Enrollment",
+   "zh": "课程招募卡"
+  },
+  "summary": {
+   "en": "A warm 4:5 course recruitment card with a course title, launch-info bar, four highlight tiles, instructor, early-bird price and registration QR code.",
+   "zh": "4:5 课程招募：课程名、开课信息条、四格亮点、讲师、早鸟价和报名二维码，暖色调适合招生发布。"
+  },
+  "tags": [
+   "卡片",
+   "课程",
+   "招募",
+   "学习",
+   "报名",
+   "card",
+   "course",
+   "enrollment",
+   "education"
+  ]
+ },
+ {
+  "id": "conference-agenda-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Conference Agenda",
+   "zh": "大会议程卡"
+  },
+  "summary": {
+   "en": "A 4:5 conference agenda with the event name, five-stop timeline, coffee break and sponsor-logo row in orange on black.",
+   "zh": "4:5 大会议程：大会名、五场时间轴、茶歇和赞助 logo 行，黑底橙字适合会议日程发布。"
+  },
+  "tags": [
+   "卡片",
+   "大会",
+   "议程",
+   "会议",
+   "时间轴",
+   "card",
+   "conference",
+   "agenda",
+   "schedule"
+  ]
+ },
+ {
+  "id": "product-launch-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Product Launch",
+   "zh": "新品上市卡"
+  },
+  "summary": {
+   "en": "A minimal white 4:5 launch card with a product placeholder, three selling points, price, launch offer and purchase QR code.",
+   "zh": "4:5 新品上市卡：产品占位、三条卖点、价格与首发优惠，再接购买二维码，极简白底突出产品。"
+  },
+  "tags": [
+   "卡片",
+   "新品",
+   "上市",
+   "产品",
+   "优惠",
+   "card",
+   "product",
+   "launch",
+   "offer"
+  ]
+ },
+ {
+  "id": "annual-report-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Annual Data Report",
+   "zh": "年度数据报告卡"
+  },
+  "summary": {
+   "en": "A 4:5 annual report card with four headline numbers, a yearly takeaway, a Top 3 ranking and a QR code on a purple gradient.",
+   "zh": "4:5 年度数据报告：四大数字、年度一句话、Top3 榜单和二维码，渐变紫底适合年终复盘。"
+  },
+  "tags": [
+   "卡片",
+   "年度",
+   "报告",
+   "数据",
+   "榜单",
+   "card",
+   "annual",
+   "report",
+   "metrics"
+  ]
+ },
+ {
+  "id": "music-fest-poster-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Music Festival Poster",
+   "zh": "音乐节海报"
+  },
+  "summary": {
+   "en": "A 3:4 festival poster with a bold headline, date and venue, three-stage line-up, three ticket tiers, ticket QR code and special support in neon contrast.",
+   "zh": "3:4 音乐节海报：主标题、日期场地、三舞台阵容、三档票价、购票二维码和特别支持，荧光撞色适合演出预热。"
+  },
+  "tags": [
+   "卡片",
+   "音乐节",
+   "海报",
+   "演出",
+   "票务",
+   "card",
+   "music",
+   "festival",
+   "poster",
+   "concert"
+  ]
+ },
+ {
+  "id": "book-club-invite-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Book Club Invitation",
+   "zh": "读书会邀请卡"
+  },
+  "summary": {
+   "en": "A paper-toned 4:5 book-club invite with title and author, cover placeholder, host, time and place, three discussion topics and a registration QR code.",
+   "zh": "4:5 读书会邀请：书名作者、封面占位、领读人、时间地点、三话题和报名二维码，纸色底适合线下活动。"
+  },
+  "tags": [
+   "卡片",
+   "读书会",
+   "阅读",
+   "书籍",
+   "邀请",
+   "card",
+   "book",
+   "club",
+   "reading",
+   "invitation"
+  ]
+ },
+ {
+  "id": "compound-effect-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1350,
+  "title": {
+   "en": "Compound Effect Knowledge Card",
+   "zh": "思维模型知识卡"
+  },
+  "summary": {
+   "en": "A warm-orange 4:5 knowledge card with a numbered eyebrow, oversized title, definition, three numbered points and an account-and-QR footer, for a knowledge creator's series.",
+   "zh": "暖橙纸感 4:5 知识卡：编号眉标、大字标题、一段定义、三条要点各带序号圆标，底部账号与二维码，适合知识类账号的系列卡片。"
+  },
+  "tags": [
+   "卡片",
+   "知识",
+   "思维模型",
+   "干货",
+   "二维码",
+   "card",
+   "knowledge",
+   "insight"
+  ]
+ },
+ {
+  "id": "analytics-metric-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1200,
+  "height": 630,
+  "title": {
+   "en": "Analytics Metric Sharing Card",
+   "zh": "数据看板分享卡"
+  },
+  "summary": {
+   "en": "A dark 1200×630 data card with a large headline metric and month-over-month badge, horizontal bars on the right and three secondary metrics along the bottom, for social sharing and weekly reports.",
+   "zh": "深色 1200×630 数据卡：主指标大数字与环比徽标、右侧横向条形图、底部三格次要指标，适合社交分享与周报配图。"
+  },
+  "tags": [
+   "卡片",
+   "数据",
+   "指标",
+   "看板",
+   "分享",
+   "card",
+   "metric",
+   "analytics",
+   "dark"
+  ]
+ },
+ {
+  "id": "coffee-order-app",
+  "scene": "app",
+  "frames": 3,
+  "width": 375,
+  "height": 812,
+  "styleGuide": "warm-food-mobile-light",
+  "title": {
+   "en": "Coffee Ordering App",
+   "zh": "咖啡点单 App"
+  },
+  "summary": {
+   "en": "A warm ivory three-screen ordering flow: a featured drink photo with categories, a menu with a category rail and cart bar, and an order page with a pickup code and progress, for food and retail apps.",
+   "zh": "暖象牙底的三屏点单流程：主推新品大图与分类、左栏分类加购物车条的菜单、取餐码与制作进度的订单页，适合餐饮与零售小程序。"
+  },
+  "tags": [
+   "App",
+   "手机",
+   "咖啡",
+   "点单",
+   "菜单",
+   "订单",
+   "餐饮",
+   "app",
+   "mobile",
+   "coffee",
+   "order"
+  ]
+ },
+ {
+  "id": "budget-ledger-app",
+  "scene": "app",
+  "frames": 3,
+  "width": 375,
+  "height": 812,
+  "styleGuide": "finance-clean-mobile-light",
+  "title": {
+   "en": "Budget Ledger App",
+   "zh": "记账 App"
+  },
+  "summary": {
+   "en": "Three cool-white, trust-teal screens: monthly balance and budget progress, a six-month spending chart with category shares, and an add-expense page with a category grid and keypad, for personal finance apps.",
+   "zh": "冷白底信任青的三屏记账：本月结余与预算进度、近六个月支出柱图与分类占比、分类网格加数字键盘的记一笔页，适合个人理财类产品。"
+  },
+  "tags": [
+   "App",
+   "手机",
+   "记账",
+   "理财",
+   "预算",
+   "图表",
+   "app",
+   "mobile",
+   "finance",
+   "budget"
+  ]
+ },
+ {
+  "id": "habit-fitness-app",
+  "scene": "app",
+  "frames": 3,
+  "width": 375,
+  "height": 812,
+  "styleGuide": "health-minimal-mobile-dark",
+  "title": {
+   "en": "Habit & Fitness App",
+   "zh": "习惯健身 App"
+  },
+  "summary": {
+   "en": "Three charcoal screens with vital green: today's steps, streak and habit list, a workout detail with a cover image slot, and weekly activity bars with sleep and heart rate, for health and habit apps.",
+   "zh": "深炭底活力绿的三屏：今日步数、连续打卡与习惯清单，带封面图位的课程详情，本周运动柱图与睡眠心率，适合健康与习惯养成产品。"
+  },
+  "tags": [
+   "App",
+   "手机",
+   "健身",
+   "习惯",
+   "打卡",
+   "深色",
+   "app",
+   "mobile",
+   "fitness",
+   "habit",
+   "dark"
+  ]
+ },
+ {
+  "id": "coffee-counter-desktop",
+  "scene": "app",
+  "frames": 1,
+  "width": 1440,
+  "height": 900,
+  "styleGuide": "corporate-blue-light",
+  "title": {
+   "en": "Store Order Console · Desktop",
+   "zh": "门店订单台 · 桌面"
+  },
+  "summary": {
+   "en": "A 1440×900 store console: four business-overview numbers, an order list split by status and an order detail with notes and actions, with blue reserved for pending orders, for POS and kitchen systems.",
+   "zh": "1440×900 门店桌面端：营业概览四数、按状态分栏的订单列表、带备注与操作键的订单详情，蓝色只标待处理，适合收银与后厨系统。"
+  },
+  "tags": [
+   "App",
+   "桌面",
+   "订单",
+   "门店",
+   "后台",
+   "咖啡",
+   "app",
+   "desktop",
+   "orders",
+   "pos"
+  ]
+ },
+ {
+  "id": "sales-dashboard-web",
+  "scene": "app",
+  "frames": 1,
+  "width": 1440,
+  "height": 900,
+  "styleGuide": "saas-clean-light",
+  "title": {
+   "en": "Business Dashboard · Desktop",
+   "zh": "经营数据看板 · 桌面"
+  },
+  "summary": {
+   "en": "A 1440×900 admin overview: sidebar navigation, four KPI cards, a two-year revenue bar chart, channel shares and a recent-orders table, for e-commerce and SaaS back offices.",
+   "zh": "1440×900 后台概览：侧栏导航、四张指标卡、两年对比收入柱图、渠道占比与最近订单表，适合电商与 SaaS 管理后台。"
+  },
+  "tags": [
+   "App",
+   "桌面",
+   "看板",
+   "后台",
+   "数据",
+   "表格",
+   "app",
+   "desktop",
+   "dashboard",
+   "admin"
+  ]
+ },
+ {
+  "id": "onboarding-training-deck",
+  "scene": "slides",
+  "frames": 6,
+  "width": 1024,
+  "height": 768,
+  "title": {
+   "en": "Onboarding Training Deck · 4:3",
+   "zh": "入职培训档 · 4:3"
+  },
+  "summary": {
+   "en": "A six-slide 4:3 course on warm paper with terracotta: cover, four-part agenda, three working principles, a first-week timeline, a who-to-ask grid and a dark closing checklist, for training and printed handouts.",
+   "zh": "暖白纸感配陶土色的 4:3 六页课件：封面、四件事议程、三条做事原则、第一周时间轴、找谁帮忙四宫格、深色结尾清单，适合培训与打印讲义。"
+  },
+  "tags": [
+   "PPT",
+   "4:3",
+   "培训",
+   "入职",
+   "课件",
+   "讲义",
+   "slides",
+   "training",
+   "onboarding"
+  ]
+ },
+ {
+  "id": "research-findings-deck",
+  "scene": "slides",
+  "frames": 6,
+  "width": 1024,
+  "height": 768,
+  "title": {
+   "en": "Research Findings Deck · 4:3",
+   "zh": "研究报告档 · 4:3"
+  },
+  "summary": {
+   "en": "A six-slide 4:3 research readout in deep indigo and mint: three method numbers, three key findings, a pain-point bar ranking, a five-stage emotion curve and prioritized recommendations, for user research reports.",
+   "zh": "深靛底薄荷色的 4:3 六页研究汇报：方法三数字、三个关键发现、痛点横条排行、五阶段情绪曲线、分级产品建议，适合用户研究与调研汇报。"
+  },
+  "tags": [
+   "PPT",
+   "4:3",
+   "研究",
+   "调研",
+   "报告",
+   "深色",
+   "slides",
+   "research",
+   "report",
+   "dark"
+  ]
+ },
+ {
+  "id": "daybreak-coffee-site",
+  "scene": "web",
+  "frames": 1,
+  "width": 1200,
+  "height": 3161,
+  "styleGuide": "wellness-organic-light",
+  "title": {
+   "en": "Coffee Brand Site · Forest Green",
+   "zh": "咖啡品牌官网 · 森林绿"
+  },
+  "summary": {
+   "en": "A warm-white and forest-green coffee brand page: a photo hero with three key numbers, four signature drink cards, a deep-green brand story band and three store cards with addresses and hours, for café, food and lifestyle brand sites.",
+   "zh": "暖白配森林绿的咖啡品牌长页：带实拍主视觉与三组数字的首屏、四张招牌饮品卡、深绿品牌故事带、三家门店的地址与营业时间，适合餐饮与生活方式品牌官网。"
+  },
+  "tags": [
+   "官网",
+   "品牌",
+   "咖啡",
+   "餐饮",
+   "门店",
+   "长页",
+   "森林绿",
+   "web",
+   "website",
+   "brand",
+   "coffee",
+   "cafe",
+   "landing"
+  ]
+ },
+ {
+  "id": "openpencil-intro-deck",
+  "scene": "slides",
+  "frames": 5,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "corporate-blue-light",
+  "title": {
+   "en": "Product Intro · Blue & Neon",
+   "zh": "产品介绍 · 蓝配荧光黄"
+  },
+  "summary": {
+   "en": "A five-slide 16:9 product intro in cobalt blue with a neon-yellow highlight: a full-bleed blue cover with a product UI mock, three values as a title-and-list spread, four workflow step cards, four use-case formats and a closing slide with a \"start designing\" prompt card, for product launches and tool introductions.",
+   "zh": "钴蓝配荧光黄的 16:9 五页产品介绍：整页蓝底封面配产品界面示意、左标题右清单的三条价值、四步流程卡、四种成品场景、带「开始设计」输入卡的结束页，适合产品发布与创作工具介绍。"
+  },
+  "tags": [
+   "PPT",
+   "演示",
+   "产品介绍",
+   "发布会",
+   "蓝色",
+   "荧光黄",
+   "slides",
+   "deck",
+   "product",
+   "launch",
+   "blue"
+  ]
+ },
+ {
+  "id": "openpencil-intro-deck-43",
+  "scene": "slides",
+  "frames": 5,
+  "width": 1024,
+  "height": 768,
+  "title": {
+   "en": "Product Intro Deck · 4:3",
+   "zh": "产品介绍 · 4:3"
+  },
+  "summary": {
+   "en": "A five-slide 4:3 product intro in cobalt blue with a neon-yellow highlight: a stacked blue cover with a product UI strip, three values in a vertical list, a 2×2 grid of workflow steps, a 2×2 grid of use cases and a closing slide with a \"start designing\" prompt card, for meeting-room projectors and printed handouts.",
+   "zh": "钴蓝配荧光黄的 4:3 五页产品介绍：上下构图的蓝底封面配产品界面条、纵排三条价值、2×2 流程卡、2×2 成品场景、带「开始设计」输入卡的结束页，适合会议室投影与打印讲义。"
+  },
+  "tags": [
+   "PPT",
+   "4:3",
+   "演示",
+   "产品介绍",
+   "蓝色",
+   "荧光黄",
+   "slides",
+   "deck",
+   "product",
+   "blue"
+  ]
+ },
+ {
+  "id": "coffee-world-carousel",
+  "scene": "carousel",
+  "frames": 5,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "World of Coffee · Knowledge Carousel",
+   "zh": "咖啡的世界 · 知识轮播"
+  },
+  "summary": {
+   "en": "A five-card warm-apricot magazine carousel: a cover photo with contents, arabica vs robusta side by side, the coffee belt's three growing regions, three roast-level swatches, and four flavour dimensions with tasting notes, for explainers and category guides.",
+   "zh": "暖杏色杂志排版的五页知识卡：封面主图与目录、阿拉比卡与罗布斯塔对照、咖啡带三大产区、三档烘焙色块、风味四维度与风味词，适合科普与品类知识分享。"
+  },
+  "tags": [
+   "轮播",
+   "知识卡片",
+   "咖啡",
+   "杂志",
+   "科普",
+   "暖杏色",
+   "carousel",
+   "coffee",
+   "magazine",
+   "knowledge"
+  ]
+ },
+ {
+  "id": "focus-mode-tutorial",
+  "scene": "tutorial",
+  "frames": 3,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Focus Mode · 3-Step Tutorial",
+   "zh": "专注模式三步教程"
+  },
+  "summary": {
+   "en": "Three screenshot cards with blue highlights, one per step: a series tag, a STEP number and action title, a mock screen you replace by dropping in your own screenshot, a blue ring and “Tap” label on the one thing to tap, plus a tip bar and next-step cue, for phone and software how-tos.",
+   "zh": "蓝色标注重点的三张截图教程：一步一张，顶栏系列标签、STEP 序号与动作标题、可拖入真截图替换的示意界面、蓝圈加「轻点」标出要点的那一处、提示条与下一步引导，适合手机与软件操作教学。"
+  },
+  "tags": [
+   "教程",
+   "截图",
+   "步骤",
+   "手机",
+   "设置",
+   "蓝色",
+   "tutorial",
+   "screenshot",
+   "steps",
+   "how-to"
+  ]
+ },
+ {
+  "id": "weekly-review-infographic",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 3539,
+  "title": {
+   "en": "Weekly Review Infographic",
+   "zh": "一周创作复盘长图"
+  },
+  "summary": {
+   "en": "A long indigo data graphic: three big numbers for posts, reads and followers, this-week-versus-last paired bars, a seven-day reading chart and three takeaways, all clearly marked as sample data.",
+   "zh": "靛蓝深色页头的一周数据长图：发布、阅读、关注三个大数，本周对上周的成对对比条，七天阅读柱图与三条结论，全图标明示例数据。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "数据",
+   "复盘",
+   "周报",
+   "对比",
+   "infographic",
+   "data",
+   "weekly",
+   "review"
+  ]
+ },
+ {
+  "id": "idea-to-publish-flow",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 2551,
+  "title": {
+   "en": "Idea-to-Publish Flow",
+   "zh": "从灵感到发布流程长图"
+  },
+  "summary": {
+   "en": "A pine-green five-step flow: capture ideas, outline, first draft, polish visuals and check and publish, with numbered circles joined by a line and one how-to sentence and one output per step, for tutorials and workflow tips.",
+   "zh": "松绿色的五步流程长图：记录想法、整理结构、完成初稿、打磨视觉、检查发布，编号圆用连线串起，每步一句做法和一项产出，适合教程与工作方法分享。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "流程",
+   "步骤",
+   "创作",
+   "教程",
+   "infographic",
+   "flow",
+   "steps",
+   "workflow"
+  ]
+ },
+ {
+  "id": "blank-vs-example-contrast",
+  "scene": "infographic",
+  "frames": 1,
+  "width": 1080,
+  "height": 3370,
+  "title": {
+   "en": "Starting-Point Comparison",
+   "zh": "创作起点对比长图"
+  },
+  "summary": {
+   "en": "A slate-and-amber comparison that favours neither side: definition cards for starting blank and starting from an example, a four-row table (starting point, editing, freedom, best for) and who each suits, with no efficiency claims.",
+   "zh": "石板灰与琥珀两侧同权的对比长图：「从空白开始」与「从示例开始」两张定义卡，起点、修改方式、自由度、适用场景四行对照表，最后写清各自适合谁，不含任何效率数据。"
+  },
+  "tags": [
+   "信息图",
+   "长图",
+   "对比",
+   "对照表",
+   "选择",
+   "创作",
+   "infographic",
+   "comparison",
+   "table",
+   "choice"
+  ]
+ },
+ {
+  "id": "city-music-fest-poster",
+  "scene": "card",
+  "frames": 2,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "City Music Festival Poster · 2 Formats",
+   "zh": "城市音乐节海报 · 两种版式"
+  },
+  "summary": {
+   "en": "A black and neon-green event set: a 3:4 main poster (giant title, sound-wave bars, date and venue, line-up and ticket bar) plus a 1:1 social square with a neon date band, for music festivals, gigs and city events.",
+   "zh": "黑底荧光绿的一套活动视觉：3:4 主海报（超大标题、声浪柱、日期地点、演出阵容与购票条）加 1:1 社交方图（荧光绿日期条），适合音乐节、演出与城市活动。"
+  },
+  "tags": [
+   "卡片",
+   "海报",
+   "音乐节",
+   "活动",
+   "演出",
+   "社交",
+   "荧光绿",
+   "深色",
+   "card",
+   "poster",
+   "music",
+   "festival",
+   "event",
+   "social",
+   "neon",
+   "dark"
+  ]
+ },
+ {
+  "id": "screenshot-tutorial",
+  "scene": "tutorial",
+  "frames": 5,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Three-Step Screenshot Tutorial Cards",
+   "zh": "三步截图教程卡"
+  },
+  "summary": {
+   "en": "封面、三个操作步骤和结尾行动号召，替换截图与说明即可发布。",
+   "zh": "封面、三个操作步骤和结尾行动号召，替换截图与说明即可发布。"
+  },
+  "tags": [
+   "教程",
+   "步骤",
+   "小红书",
+   "tutorial",
+   "howto"
+  ]
+ },
+ {
+  "id": "knowledge-carousel",
+  "scene": "carousel",
+  "frames": 5,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Knowledge and Insights Carousel",
+   "zh": "知识观点轮播"
+  },
+  "summary": {
+   "en": "封面、三个论点和总结页，适合把一个观点拆成可滑动的连续卡片。",
+   "zh": "封面、三个论点和总结页，适合把一个观点拆成可滑动的连续卡片。"
+  },
+  "tags": [
+   "知识",
+   "观点",
+   "轮播",
+   "小红书",
+   "carousel"
+  ]
+ },
+ {
+  "id": "slide-deck",
+  "scene": "slides",
+  "frames": 6,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "corporate-blue-light",
+  "title": {
+   "en": "Presentation · Six Slides",
+   "zh": "演示文稿 · 六页"
+  },
+  "summary": {
+   "en": "封面、目录、要点、数据、图表和结尾，16:9 投影比例，替换文案即可上台。",
+   "zh": "封面、目录、要点、数据、图表和结尾，16:9 投影比例，替换文案即可上台。"
+  },
+  "tags": [
+   "PPT",
+   "演示",
+   "汇报",
+   "幻灯片",
+   "slides",
+   "deck",
+   "presentation"
+  ]
+ },
+ {
+  "id": "knowledge-card-vertical",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Knowledge Card · Portrait",
+   "zh": "知识卡片 · 竖版"
+  },
+  "summary": {
+   "en": "A single 3:4 card with a headline, four takeaways, and a byline. Swap the copy and post it.",
+   "zh": "3:4 单张图文卡，标题、四条要点和署名条，换掉文案就能发小红书。"
+  },
+  "tags": [
+   "卡片",
+   "知识",
+   "小红书",
+   "图文",
+   "card",
+   "note"
+  ]
+ },
+ {
+  "id": "knowledge-card-square",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1080,
+  "title": {
+   "en": "Knowledge Card · Square",
+   "zh": "知识卡片 · 方版"
+  },
+  "summary": {
+   "en": "A 1:1 card in the same layout, compact enough for a post header or a social share.",
+   "zh": "1:1 方形卡，同一套版式的紧凑版，适合公众号头图与朋友圈。"
+  },
+  "tags": [
+   "卡片",
+   "知识",
+   "方形",
+   "公众号",
+   "card",
+   "square"
+  ]
+ },
+ {
+  "id": "before-after",
+  "scene": "comparison",
+  "frames": 1,
+  "width": 1600,
+  "height": 900,
+  "title": {
+   "en": "Before-and-After Redesign Comparison",
+   "zh": "改版前后对比"
+  },
+  "summary": {
+   "en": "左右并置的前后对比，配改动说明，适合复盘与作品展示。",
+   "zh": "左右并置的前后对比，配改动说明，适合复盘与作品展示。"
+  },
+  "tags": [
+   "对比",
+   "前后",
+   "复盘",
+   "comparison",
+   "before after"
+  ]
+ },
+ {
+  "id": "pitch-deck-dark",
+  "scene": "slides",
+  "frames": 6,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "midnight-minimal-dark",
+  "title": {
+   "en": "Pitch Deck · Dark",
+   "zh": "路演 deck · 深色"
+  },
+  "summary": {
+   "en": "A cover, the problem, the solution, the numbers, a roadmap and a contact slide. Big type on a dark ground, built for fundraising and launch talks.",
+   "zh": "封面、问题、方案、数据、里程碑和联系页，深底大字，适合融资路演与产品发布。"
+  },
+  "tags": [
+   "路演",
+   "融资",
+   "创业",
+   "深色",
+   "PPT",
+   "pitch",
+   "deck",
+   "startup",
+   "dark"
+  ]
+ },
+ {
+  "id": "lecture-deck-light",
+  "scene": "slides",
+  "frames": 6,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "education-friendly-light",
+  "title": {
+   "en": "Lecture Deck · Light",
+   "zh": "课件 deck · 浅色"
+  },
+  "summary": {
+   "en": "A course cover, objectives, a concept walkthrough, a worked example, a comparison table and a wrap-up. Paper-white, easy on the eyes for a full class.",
+   "zh": "课程封面、学习目标、概念讲解、例题、对比表和小结作业，纸白底耐看，适合上课投影。"
+  },
+  "tags": [
+   "课件",
+   "教学",
+   "讲课",
+   "教育",
+   "PPT",
+   "lecture",
+   "teaching",
+   "course",
+   "light"
+  ]
+ },
+ {
+  "id": "minimal-keynote",
+  "scene": "slides",
+  "frames": 9,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "portfolio-minimal-light",
+  "title": {
+   "en": "Minimal Keynote",
+   "zh": "极简 Keynote"
+  },
+  "summary": {
+   "en": "White space, oversized type, one centred line per slide — nine pages without a single card, and an agenda of nothing but rules and numbers. Built for launches and keynotes.",
+   "zh": "纯白留白、超大字号、一页一句话居中，九页里没有一张卡片，目录只有细线和数字，适合发布会与主题演讲。"
+  },
+  "tags": [
+   "极简",
+   "留白",
+   "发布会",
+   "演讲",
+   "keynote",
+   "minimal",
+   "PPT",
+   "slides",
+   "目录"
+  ]
+ },
+ {
+  "id": "gradient-tech",
+  "scene": "slides",
+  "frames": 6,
+  "width": 1920,
+  "height": 1080,
+  "styleGuide": "cyber-gradient-dark",
+  "title": {
+   "en": "Gradient Tech",
+   "zh": "渐变科技风"
+  },
+  "summary": {
+   "en": "A dark gradient ground with frosted-glass cards, covering architecture, benchmarks and a customer wall. For developer product launches.",
+   "zh": "深色渐变底加玻璃拟态卡，含架构、性能对比与客户墙，适合开发者产品发布。"
+  },
+  "tags": [
+   "渐变",
+   "科技",
+   "玻璃",
+   "深色",
+   "开发者",
+   "gradient",
+   "tech",
+   "glass",
+   "PPT"
+  ]
+ },
+ {
+  "id": "saas-landing-orange",
+  "scene": "web",
+  "frames": 1,
+  "width": 1200,
+  "height": 3240,
+  "styleGuide": "editorial-orange-light",
+  "title": {
+   "en": "SaaS Landing Page · Orange",
+   "zh": "SaaS 落地页 · 橙色"
+  },
+  "summary": {
+   "en": "A light marketing page built on near-black panels and one orange accent: navigation, a hero with a product shot, three capability cards, a workflow walkthrough, testimonials and a subscribe footer. Swap the copy and it is a site.",
+   "zh": "浅底黑卡配橙色主色的产品营销长页：导航、Hero 与产品截图、能力三卡、工作流演示、客户评价和订阅页脚，换掉文案就是一版官网。"
+  },
+  "tags": [
+   "落地页",
+   "官网",
+   "营销",
+   "橙色",
+   "SaaS",
+   "landing",
+   "marketing",
+   "web",
+   "orange"
+  ]
+ },
+ {
+  "id": "product-landing-light",
+  "scene": "web",
+  "frames": 1,
+  "width": 1200,
+  "height": 5374,
+  "styleGuide": "broadsheet-lime-light",
+  "title": {
+   "en": "Product Landing Page · Light",
+   "zh": "产品落地页 · 浅色"
+  },
+  "summary": {
+   "en": "A paper-white broadsheet product page: an interactive hero demo, capability columns, an analytics board, an old-versus-new comparison and three pricing tiers. Built for SaaS sites and product launches.",
+   "zh": "纸白报刊风的产品长页：Hero 交互演示卡、能力分栏、数据看板、新旧方案对比和三档定价，适合 SaaS 官网与产品发布。"
+  },
+  "tags": [
+   "落地页",
+   "官网",
+   "定价",
+   "浅色",
+   "报刊",
+   "landing",
+   "product",
+   "pricing",
+   "web",
+   "light"
+  ]
+ },
+ {
+  "id": "punch-quote-card",
+  "scene": "card",
+  "frames": 1,
+  "width": 1080,
+  "height": 1440,
+  "title": {
+   "en": "Quote Card · Poster",
+   "zh": "金句卡 · 大字报"
+  },
+  "summary": {
+   "en": "A 3:4 card on near-black: two lines of oversized type over one yellow highlight bar. One sentence and nothing else, built for opinions and quotes.",
+   "zh": "3:4 墨底金句卡，两行巨标题加一条亮黄标语，只讲一句话，适合观点与语录。"
+  },
+  "tags": [
+   "卡片",
+   "金句",
+   "语录",
+   "观点",
+   "深色",
+   "小红书",
+   "card",
+   "quote",
+   "poster",
+   "dark"
+  ]
+ }
+]

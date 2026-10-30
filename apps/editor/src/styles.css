@@ -39,6 +39,13 @@ input, select { font: inherit; color: var(--text); }
 .overlay .frame-label { fill: var(--dim); font-size: 11px; pointer-events: auto; cursor: default; user-select: none; }
 .overlay .frame-label:hover { fill: var(--text); }
 .overlay .frame-label.selected { fill: var(--accent); }
+.agents { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.agent-cursor { position: absolute; left: 0; top: 0; will-change: transform; }
+.agent-cursor svg { position: absolute; left: -2px; top: -1px; overflow: visible; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45)); }
+.agent-cursor path { fill: var(--agent); stroke: #fff; stroke-width: 1.4; stroke-linejoin: round; }
+.agent-name { position: absolute; left: 15px; top: 19px; padding: 2px 8px; border-radius: 10px; background: var(--agent); color: #fff; font-size: 11px; font-weight: 600; line-height: 16px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
+.agent-flash { position: absolute; border: 1.5px solid var(--agent); border-radius: 2px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent) 22%, transparent); }
+.agent-flash.remove { border-style: dashed; }
 .overlay .size-label rect { fill: var(--accent); }
 .overlay .size-label text { fill: #fff; font-size: 10.5px; text-anchor: middle; font-variant-numeric: tabular-nums; }
 .text-editor { position: absolute; pointer-events: auto; margin: 0; padding: 0; border: 0; outline: 1.5px solid var(--accent); background: transparent; resize: none; overflow: hidden; }

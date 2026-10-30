@@ -143,6 +143,11 @@ export class Renderer {
     drawNode(this.drawContext(scene, images), canvas, scene.root);
   }
 
+  /** Draw `target`, a node of a prepared scene, alone. The canvas is in its parent's space. */
+  drawTarget(canvas: Canvas, scene: PreparedScene, target: SceneNode, images: ImageLoader): void {
+    drawNode(this.drawContext(scene, images), canvas, target);
+  }
+
   /** PNG of the root node's box at `scale`, with a transparent background unless one is given. */
   async renderPNG(root: SceneNode, images: ImageLoader, opts: RasterOptions = {}): Promise<Uint8Array> {
     return this.renderNode(root, root, images, opts);

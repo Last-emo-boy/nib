@@ -31,7 +31,7 @@ export class LocalHost implements McpHost {
 
   browser(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
     if (!this.browserService) return Promise.resolve({ text: 'No browser is available.', images: [], isError: true });
-    return this.browserService.run(filePath, args);
+    return this.browserService.run(filePath, args, this.agent);
   }
 
   appState(filePath?: string): Promise<string> {
@@ -66,7 +66,7 @@ export class DaemonHost implements McpHost {
   }
 
   async browser(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
-    return (await this.post('/api/browser', { filePath, ...args })) as BrowserResult;
+    return (await this.post('/api/browser', { filePath, ...args, agent: this.agent ?? 'agent' })) as BrowserResult;
   }
 
   private async post(path: string, body: unknown): Promise<unknown> {

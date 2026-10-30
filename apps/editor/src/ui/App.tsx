@@ -13,6 +13,7 @@ import { Dashboard } from './Dashboard.tsx';
 import { Settings } from './Settings.tsx';
 import { Palette } from './Palette.tsx';
 import { Properties } from './Properties.tsx';
+import { agentLabel } from '../canvas/presence.ts';
 
 export function App() {
   const [file, setFile] = useState(fileFromUrl());
@@ -148,7 +149,7 @@ function ActivityFeed() {
           const ids = touched(c.ops).filter((id) => doc.has(id));
           return (
             <button key={c.version} className="change" onClick={() => { if (ids.length) { store.set({ selection: ids.slice(0, 50) }); const b = boundsOf(ids); if (b) store.set({ view: fitView(b, 2) }); } }}>
-              <span className={`who ${c.source.kind}`}><Icon name={c.source.kind === 'agent' ? 'bot' : 'user'} size={12} />{c.source.kind === 'agent' ? c.source.name : c.mine ? t.you : t.you}</span>
+              <span className={`who ${c.source.kind}`}><Icon name={c.source.kind === 'agent' ? 'bot' : 'user'} size={12} />{c.source.kind === 'agent' ? agentLabel(c.source.name) : t.you}</span>
               <span className="what">{c.label.replace(/^[^:]+: /, '')}</span>
               <span className="detail">{summary(c.ops)}</span>
               <span className="when">{new Date(c.at).toLocaleTimeString()}</span>

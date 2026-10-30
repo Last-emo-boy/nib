@@ -72,14 +72,15 @@ export class BrowserService {
     this.snapshotDir = join(opts.home, 'browser-snapshots');
   }
 
-  async run(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
+  /** `agent` names who asked, for the document changes the action makes. */
+  async run(filePath: string, args: BrowserArgs, agent = 'browser'): Promise<BrowserResult> {
     try {
       switch (args.action) {
-        case 'load-page': return await this.load(filePath, args);
+        case 'load-page': return await this.load(filePath, args, agent);
         case 'return-screenshot': return await this.screenshot(filePath, args);
         case 'return-element': return await this.element(filePath, args);
-        case 'import-to-canvas': return await this.importToCanvas(filePath, args);
-        case 'screenshot-to-canvas': return await this.screenshotToCanvas(filePath, args);
+        case 'import-to-canvas': return await this.importToCanvas(filePath, args, agent);
+        case 'screenshot-to-canvas': return await this.screenshotToCanvas(filePath, args, agent);
         case 'cdp': return await this.cdpCall(filePath, args);
         default: return fail(`unknown action ${JSON.stringify(args.action)}; use load-page, import-to-canvas, screenshot-to-canvas, return-element, return-screenshot or cdp`);
       }
@@ -206,7 +207,7 @@ export class BrowserService {
     return 'document.documentElement';
   }
 
-  private async load(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
+  private async load(filePath: string, args: BrowserArgs, agent: string): Promise<BrowserResult> {
     if (!args.url) return fail('load-page needs a url');
     const page = await this.page(filePath, args.nodeId);
     const url = await this.navigate(page, args.url);
@@ -215,7 +216,7 @@ export class BrowserService {
       // Stored under the page's final url first, so editors find it when the node's url changes to it.
       await this.saveSnapshot(page, url);
       const node = await this.browserNode(filePath, args.nodeId);
-      if (node.url !== url) await this.host.execute(filePath, { input: `Update(${JSON.stringify(args.nodeId)}, {url: ${JSON.stringify(url)}})` }, 'browser');
+      if (node.url !== url) await this.host.execute(filePath, { input: `Update(${JSON.stringify(args.nodeId)}, {url: ${JSON.stringify(url)}})` }, agent);
     }
     return { text: `Loaded ${url}${title ? ` — "${title}"` : ''}${args.nodeId ? ` in browser node ${args.nodeId} (${page.viewport.width}×${page.viewport.height})` : ` (${page.viewport.width}×${page.viewport.height})`}.`, images: [] };
   }
@@ -251,7 +252,7 @@ export class BrowserService {
     return { text, images: [] };
   }
 
-  private async importToCanvas(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
+  private async importToCanvas(filePath: string, args: BrowserArgs, agent: string): Promise<BrowserResult> {
     const page = await this.loadedPage(filePath, args.nodeId);
     const fullPage = args.target !== 'query' && args.target !== 'selection';
     const root = fullPage ? 'document.documentElement' : this.targetExpression(args);
@@ -262,7 +263,7 @@ export class BrowserService {
     const width = Math.round(node.width as number), height = Math.round(node.height as number);
     const nearNode = args.nodeId && !(await this.host.open(filePath)).session.doc.locate(args.nodeId)?.parent ? `, nodeId: ${JSON.stringify(args.nodeId)}` : '';
     const snippet = `const at = FindEmptySpace({width: ${width}, height: ${height}, padding: 120${nearNode}})\nconst node = ${JSON.stringify(node)}\nnode.x = at.x; node.y = at.y\nPrint(Insert(document, node))`;
-    const res = await this.host.execute(filePath, { input: snippet }, 'browser');
+    const res = await this.host.execute(filePath, { input: snippet }, agent);
     if (!res.ok) return fail(`the import did not fit the document: ${res.text.split('\n').slice(0, 6).join('\n')}`);
     const id = /## Print output\n(\S+)/.exec(res.text)?.[1] ?? '?';
     return {
@@ -271,7 +272,7 @@ export class BrowserService {
     };
   }
 
-  private async screenshotToCanvas(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
+  private async screenshotToCanvas(filePath: string, args: BrowserArgs, agent: string): Promise<BrowserResult> {
     const page = await this.loadedPage(filePath, args.nodeId);
     const shot = await this.capture(page, args, undefined);
     const dir = join(dirname(resolvePath(filePath)), 'images');
@@ -280,7 +281,7 @@ export class BrowserService {
     const name = `screenshot-${host}-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.png`;
     await writeFile(join(dir, name), Buffer.from(shot.data, 'base64'));
     const w = Math.round(shot.width), h = Math.round(shot.height);
-    const res = await this.host.execute(filePath, { input: `const at = FindEmptySpace({width: ${w}, height: ${h}, padding: 120})\nPrint(Insert(document, {type: "rectangle", name: ${JSON.stringify(`Screenshot · ${host}`)}, x: at.x, y: at.y, width: ${w}, height: ${h}, fill: {type: "image", url: ${JSON.stringify(`images/${name}`)}, mode: "cover"}}))` }, 'browser');
+    const res = await this.host.execute(filePath, { input: `const at = FindEmptySpace({width: ${w}, height: ${h}, padding: 120})\nPrint(Insert(document, {type: "rectangle", name: ${JSON.stringify(`Screenshot · ${host}`)}, x: at.x, y: at.y, width: ${w}, height: ${h}, fill: {type: "image", url: ${JSON.stringify(`images/${name}`)}, mode: "cover"}}))` }, agent);
     if (!res.ok) return fail(res.text);
     const id = /## Print output\n(\S+)/.exec(res.text)?.[1] ?? '?';
     return { text: `Placed a screenshot of ${page.url} as "${id}" (${w}×${h}); the image is saved as images/${name} next to the document.`, images: [] };

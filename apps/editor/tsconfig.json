@@ -13,5 +13,5 @@
     "verbatimModuleSyntax": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "vite.config.ts", "../../packages/render/src/canvaskit-full.d.ts"]
+  "include": ["src", "test", "vite.config.ts", "../../packages/render/src/canvaskit-full.d.ts"]
 }

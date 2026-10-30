@@ -1,9 +1,10 @@
-import type { Canvas, SkPicture as Picture } from 'canvaskit-wasm';
+import type { Canvas, Paint, SkPicture as Picture } from 'canvaskit-wasm';
 import { buildScene, type Op, type PenDoc, type SceneNode } from '@nib/core';
 import type { Node } from '@nib/format';
 import type { Box } from '@nib/layout';
-import { browserSnapshotUrl, type ImageLoader } from '@nib/render';
+import { browserSnapshotUrl, type ImageLoader, type PreparedScene } from '@nib/render';
 import type { Engine } from './engine.ts';
+import { easeOut, FADE_MS } from './presence.ts';
 
 /** A drawn node with its box on the canvas (document coordinates, rotation ignored). */
 export interface Placed {
@@ -21,6 +22,19 @@ interface Entry {
   /** Scene nodes in paint order. */
   placed: Placed[];
   byId: Map<string, Placed>;
+  /** While nodes in it are being revealed. */
+  live?: Live;
+}
+
+/** A top-level node with nodes fading in: its laid-out scene is kept so only drawing is redone. */
+interface Live {
+  prepared: PreparedScene;
+  /** The nodes being revealed, with the opacity they really have. */
+  nodes: Map<string, { node: SceneNode; opacity: unknown }>;
+  /** The state each node had when the picture was recorded: h hidden, a fading in, s shown. */
+  states: string;
+  /** Each node fading in, drawn alone. */
+  fading: Map<string, Picture>;
 }
 
 /**
@@ -36,6 +50,9 @@ export class SceneCache {
   private building: Promise<void> | undefined;
   private hidden: string | undefined;
   private again = false;
+  private paint: Paint | undefined;
+  /** Node id -> when it starts fading in (performance.now() ms); it is hidden before. */
+  reveal = new Map<string, number>();
   onUpdate: () => void = () => {};
 
   constructor(engine: Engine, doc: PenDoc, images: ImageLoader) {
@@ -45,8 +62,8 @@ export class SceneCache {
     for (const n of doc.data.children) this.dirty.add(n.id);
   }
 
-  /** Mark what `ops` (already applied to the document) changed. */
-  invalidate(ops: Op[]): void {
+  /** Mark what `ops` (already applied to the document) changed; resolves when it is redrawn. */
+  invalidate(ops: Op[]): Promise<void> {
     let everything = false;
     for (const op of ops) {
       if (op.op === 'document') everything = true;
@@ -57,8 +74,8 @@ export class SceneCache {
     if (everything) for (const n of this.doc.data.children) this.dirty.add(n.id);
     // Top-level nodes that were removed lose their entry.
     const ids = new Set(this.doc.data.children.map((n) => n.id));
-    for (const id of this.entries.keys()) if (!ids.has(id)) { this.entries.get(id)?.picture?.delete(); this.entries.delete(id); }
-    this.rebuild();
+    for (const [id, e] of this.entries) if (!ids.has(id)) { drop(e); this.entries.delete(id); }
+    return this.rebuild();
   }
 
   /** Load `url` again and redraw the browser nodes showing it. */
@@ -97,14 +114,23 @@ export class SceneCache {
 
   /** Draw every top-level picture; `shift` offsets some (top-level nodes being dragged). */
   draw(canvas: Canvas, shift?: ReadonlyMap<string, { dx: number; dy: number }>): void {
+    const now = performance.now();
     for (const n of this.doc.data.children) {
       const e = this.entries.get(n.id);
+      if (e?.live) this.step(e, now);
       if (!e?.picture) continue;
       const d = shift?.get(n.id);
       if (d) { canvas.save(); canvas.translate(d.dx, d.dy); }
       canvas.drawPicture(e.picture);
+      if (e.live) for (const [id, picture] of e.live.fading) this.drawFading(canvas, e, id, picture, now);
       if (d) canvas.restore();
     }
+  }
+
+  /** Whether nodes are still being revealed (the canvas keeps drawing frames meanwhile). */
+  animating(): boolean {
+    for (const e of this.entries.values()) if (e.live) return true;
+    return false;
   }
 
   /** Draw a node invisibly (keeping its layout), e.g. while its text is edited in place. */
@@ -147,8 +173,10 @@ export class SceneCache {
   }
 
   dispose(): void {
-    for (const e of this.entries.values()) e.picture?.delete();
+    for (const e of this.entries.values()) drop(e);
     this.entries.clear();
+    this.paint?.delete();
+    this.paint = undefined;
   }
 
   private chain(id: string): string[] {
@@ -176,7 +204,7 @@ export class SceneCache {
   }
 
   private async build(node: Node): Promise<void> {
-    const { ck, renderer } = this.engine;
+    const { renderer } = this.engine;
     const old = this.entries.get(node.id);
     const scene = buildScene(this.doc, node);
     if (scene && this.hidden) {
@@ -184,31 +212,126 @@ export class SceneCache {
       hide(scene);
     }
     if (!scene) {
-      old?.picture?.delete();
+      if (old) drop(old);
       this.entries.set(node.id, { placed: [], byId: new Map() });
       return;
     }
-    const prepared = await renderer.prepare(scene, this.images);
-    try {
-      const rec = new ck.PictureRecorder();
-      const canvas = rec.beginRecording(ck.LTRBRect(-1e6, -1e6, 1e6, 1e6));
-      renderer.draw(canvas, prepared, this.images);
-      const picture = rec.finishRecordingAsPicture();
-      rec.delete();
-      const placed: Placed[] = [];
-      const walk = (n: SceneNode, ox: number, oy: number, depth: number, clip: Box | undefined) => {
-        const b = prepared.layout.box(n);
-        const abs = { x: ox + b.x, y: oy + b.y, width: b.width, height: b.height };
-        placed.push({ id: n.id, type: n.type, abs, clip, depth });
-        const inner = n.clip === true ? intersect(abs, clip) : clip;
-        for (const c of n.children ?? []) walk(c, abs.x, abs.y, depth + 1, inner);
+    // Nodes still to be revealed in this scene.
+    const revealing = new Map<string, { node: SceneNode; opacity: unknown }>();
+    if (this.reveal.size) {
+      const now = performance.now();
+      const visit = (n: SceneNode) => {
+        const at = this.reveal.get(n.id);
+        if (at !== undefined && now < at + FADE_MS) revealing.set(n.id, { node: n, opacity: n.opacity });
+        n.children?.forEach(visit);
       };
-      walk(scene, 0, 0, 0, undefined);
-      old?.picture?.delete();
-      this.entries.set(node.id, { picture, bounds: placed[0].abs, placed, byId: new Map(placed.map((p) => [p.id, p])) });
-    } finally {
-      prepared.dispose();
+      visit(scene);
     }
+    const prepared = await renderer.prepare(scene, this.images);
+    const placed: Placed[] = [];
+    const walk = (n: SceneNode, ox: number, oy: number, depth: number, clip: Box | undefined) => {
+      const b = prepared.layout.box(n);
+      const abs = { x: ox + b.x, y: oy + b.y, width: b.width, height: b.height };
+      placed.push({ id: n.id, type: n.type, abs, clip, depth });
+      const inner = n.clip === true ? intersect(abs, clip) : clip;
+      for (const c of n.children ?? []) walk(c, abs.x, abs.y, depth + 1, inner);
+    };
+    walk(scene, 0, 0, 0, undefined);
+    const entry: Entry = { bounds: placed[0].abs, placed, byId: new Map(placed.map((p) => [p.id, p])) };
+    if (revealing.size) {
+      entry.live = { prepared, nodes: revealing, states: '', fading: new Map() };
+      this.step(entry, performance.now());
+    } else {
+      try {
+        entry.picture = this.record((c) => renderer.draw(c, prepared, this.images));
+      } finally {
+        prepared.dispose();
+      }
+    }
+    if (old) drop(old);
+    this.entries.set(node.id, entry);
+  }
+
+  private record(paint: (canvas: Canvas) => void): Picture {
+    const { ck } = this.engine;
+    const rec = new ck.PictureRecorder();
+    paint(rec.beginRecording(ck.LTRBRect(-1e6, -1e6, 1e6, 1e6)));
+    const picture = rec.finishRecordingAsPicture();
+    rec.delete();
+    return picture;
+  }
+
+  /**
+   * Bring a revealing entry up to `now`: hidden nodes are left out of its picture, nodes fading in get a
+   * picture of their own, and once every node is shown the entry goes back to a plain picture.
+   */
+  private step(e: Entry, now: number): void {
+    const live = e.live!;
+    const state = (id: string) => {
+      const at = this.reveal.get(id);
+      return at === undefined || now >= at + FADE_MS ? 's' : now < at ? 'h' : 'a';
+    };
+    const states = [...live.nodes.keys()].map(state).join('');
+    if (states === live.states) return;
+    live.states = states;
+    const { ck, renderer } = this.engine;
+    const set = (n: { node: SceneNode; opacity: unknown }, shown: boolean) => {
+      if (!shown) n.node.opacity = 0;
+      else if (n.opacity === undefined) delete n.node.opacity;
+      else n.node.opacity = n.opacity as number;
+    };
+    const entries = [...live.nodes];
+    entries.forEach(([, n], i) => set(n, states[i] === 's'));
+    entries.forEach(([id, n], i) => {
+      if (states[i] !== 'a') { live.fading.get(id)?.delete(); live.fading.delete(id); return; }
+      const p = e.byId.get(id);
+      if (live.fading.has(id) || !p) return;
+      const rel = live.prepared.layout.box(n.node);
+      set(n, true);
+      live.fading.set(id, this.record((c) => {
+        if (p.clip) c.clipRect(ck.LTRBRect(p.clip.x, p.clip.y, p.clip.x + p.clip.width, p.clip.y + p.clip.height), ck.ClipOp.Intersect, true);
+        c.translate(p.abs.x - rel.x, p.abs.y - rel.y);
+        renderer.drawTarget(c, live.prepared, n.node, this.images);
+      }));
+      set(n, false);
+    });
+    e.picture?.delete();
+    e.picture = this.record((c) => renderer.draw(c, live.prepared, this.images));
+    if (!/[ha]/.test(states)) {
+      for (const id of live.nodes.keys()) this.reveal.delete(id);
+      live.prepared.dispose();
+      e.live = undefined;
+    }
+  }
+
+  /** A node fading in: more opaque and closer to its full size as its fade goes on. */
+  private drawFading(canvas: Canvas, e: Entry, id: string, picture: Picture, now: number): void {
+    const p = e.byId.get(id);
+    const at = this.reveal.get(id);
+    if (!p || at === undefined) return;
+    const { ck } = this.engine;
+    const t = easeOut(Math.min(1, Math.max(0, (now - at) / FADE_MS)));
+    const b = p.abs, pad = 64;
+    this.paint ??= new ck.Paint();
+    this.paint.setAlphaf(t);
+    canvas.save();
+    canvas.saveLayer(this.paint, ck.LTRBRect(b.x - pad, b.y - pad, b.x + b.width + pad, b.y + b.height + pad));
+    const cx = b.x + b.width / 2, cy = b.y + b.height / 2, scale = 0.96 + 0.04 * t;
+    canvas.translate(cx, cy + (1 - t) * 6);
+    canvas.scale(scale, scale);
+    canvas.translate(-cx, -cy);
+    canvas.drawPicture(picture);
+    canvas.restore();
+    canvas.restore();
+  }
+}
+
+/** Free an entry's pictures and kept scene. */
+function drop(e: Entry): void {
+  e.picture?.delete();
+  if (e.live) {
+    e.live.prepared.dispose();
+    for (const p of e.live.fading.values()) p.delete();
   }
 }
 

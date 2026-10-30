@@ -141,8 +141,8 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const body = await readJson(req);
         if (typeof body.filePath !== 'string') return send(res, 400, { error: 'filePath is required' });
         if (!opts.browser) return send(res, 200, { text: 'No browser is available in this nib.', images: [], isError: true });
-        const { filePath, ...args } = body;
-        return send(res, 200, await opts.browser.run(filePath, args as never) as unknown as Json);
+        const { filePath, agent, ...args } = body;
+        return send(res, 200, await opts.browser.run(filePath, args as never, typeof agent === 'string' ? agent : undefined) as unknown as Json);
       }
       case 'GET /api/library':
         return send(res, 200, { recents: await recents(), drafts: await drafts(), open: host.list().map((d) => d.path) });

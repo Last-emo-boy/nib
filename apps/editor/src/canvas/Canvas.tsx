@@ -6,7 +6,9 @@ import { commit, insertNode, isContainer, isFree, pruneSelection } from '../app/
 import type { Connection } from '../app/connection.ts';
 import { store, type View } from '../app/store.ts';
 import { getEngine, imagesFor, type Engine } from './engine.ts';
+import { AgentCursors } from './AgentCursors.tsx';
 import { Overlay, type Gesture } from './Overlay.tsx';
+import { presence } from './presence.ts';
 import { SceneCache } from './scenes.ts';
 
 /** What other parts of the editor need from the canvas. */
@@ -113,6 +115,8 @@ export function CanvasView() {
       canvas.cache?.draw(c, canvas.shift);
       c.restore();
       surface.flush();
+      // Keep drawing while nodes fade in.
+      if (canvas.cache?.animating()) canvas.redraw();
     };
     canvas.redraw = () => { if (!frame) frame = requestAnimationFrame(draw); };
 
@@ -134,6 +138,7 @@ export function CanvasView() {
       canvas.cache?.dispose();
       const { conn } = store.get();
       const cache = new SceneCache(engine, doc, imagesFor(conn!.path));
+      cache.reveal = presence.reveal;
       canvas.cache = cache;
       cache.onUpdate = () => {
         store.set((s) => ({ layoutVersion: s.layoutVersion + 1 }));
@@ -166,7 +171,12 @@ export function CanvasView() {
       conn = next;
       offConn = next?.on((e) => {
         if (e.t === 'change' && canvas.cache && store.get().doc) {
-          canvas.cache.invalidate(e.change.ops);
+          // An agent's change plays out: its cursor visits each node and new nodes fade in (not for undo and redo).
+          // It starts once the change is laid out (fonts may still be loading).
+          const { source, label, ops } = e.change;
+          const play = source.kind === 'agent' && !/^(Undo|Redo) /.test(label) ? presence.add(source.name, ops) : undefined;
+          const built = canvas.cache.invalidate(ops);
+          if (play) void built.finally(() => play(performance.now()));
           pruneSelection(store.get().doc!);
         }
         if (e.t === 'asset') canvas.cache?.refreshImage(e.url);
@@ -337,6 +347,7 @@ export function CanvasView() {
   return (
     <div ref={host} className={`canvas tool-${store.get().tool}`} onWheel={onWheel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onDoubleClick={onDoubleClick} onPointerLeave={() => store.get().hover && store.set({ hover: undefined })}>
       <canvas ref={el} />
+      <AgentCursors />
       <Overlay gesture={gesture} register={(f) => { forceOverlayRef.current = f; }} startResize={(handle, box) => {
         const s = store.get();
         gesture.current = { kind: 'resize', id: s.selection[0], handle, box, start: { x: 0, y: 0 }, end: undefined, shift: false };

@@ -64,7 +64,7 @@ Templates, style presets and UI kits take ZSeven-W/openpencil (MIT) as the refer
 On top of pen.dev's structure, nib fixes what gets in the way:
 
 - **Chat and layers at the same time.** The agent panel docks on its own (right or bottom), so the layer tree and inspector stay visible while an agent works.
-- **See what the agent did.** A live change feed lists each agent operation (inserted, updated, moved, deleted) with click-to-select; each agent step is one undo checkpoint; per-agent cursors and labels on the canvas instead of only a placeholder tint.
+- **See what the agent did.** A live change feed lists each agent operation (inserted, updated, moved, deleted) with click-to-select; each agent step is one undo checkpoint; per-agent cursors and labels on the canvas instead of only a placeholder tint. Status 2026-10-30: done. Each agent change plays out over at most 2.4 s once it is laid out: the agent's cursor (named after its MCP client, one color per agent) glides to every node it inserts, updates or deletes from, inserted nodes fade and scale in one after another, touched nodes flash an outline; undo/redo and reduced-motion skip it. Edits made through the `browser` tool carry the calling agent's name.
 - **Visual diffs.** `.pen` files live in Git, so nib shows a before/after diff of any frame between two versions (commit, checkpoint, or agent step).
 - **Problems panel.** The same checks agents get from `Get` (clipped or overflowing nodes, collapsed layouts, missing fills, low contrast) are shown to people, with jump-to-node.
 - **Command palette.** One searchable palette for every action, node names and frames (pen.dev puts chat on Cmd+K).

@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p apps/editor",
     "dev": "sh scripts/dev.sh",
-    "desktop": "pnpm --filter @nib/editor build && pnpm --filter @nib/desktop exec electron ."
+    "desktop": "pnpm --filter @nib/editor build && pnpm --filter @nib/desktop exec electron .",
+    "package:desktop": "pnpm --filter @nib/desktop package"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

@@ -1,0 +1,110 @@
+{
+  "version": "2.20",
+  "children": [
+    {
+      "type": "frame",
+      "name": "nib icon",
+      "x": 0,
+      "y": 0,
+      "width": 1024,
+      "height": 1024,
+      "layout": "none",
+      "id": "SIi09",
+      "children": [
+        {
+          "type": "rectangle",
+          "name": "Tile",
+          "x": 100,
+          "y": 100,
+          "width": 824,
+          "height": 824,
+          "cornerRadius": 186,
+          "fill": {
+            "type": "gradient",
+            "gradientType": "linear",
+            "rotation": 180,
+            "colors": [
+              {
+                "color": "#26282F",
+                "position": 0
+              },
+              {
+                "color": "#141519",
+                "position": 1
+              }
+            ]
+          },
+          "stroke": "#FFFFFF1A",
+          "strokeWidth": 2,
+          "effect": {
+            "type": "shadow",
+            "offset": {
+              "x": 0,
+              "y": 12
+            },
+            "blur": 28,
+            "color": "#00000059"
+          },
+          "id": "Qqr02"
+        },
+        {
+          "type": "path",
+          "name": "Nib",
+          "x": 312,
+          "y": 196,
+          "width": 400,
+          "height": 640,
+          "viewBox": [
+            0,
+            0,
+            400,
+            640
+          ],
+          "fillRule": "evenodd",
+          "geometry": "M200 640 C176 560 70 470 40 360 C24 300 44 240 80 200 L120 120 L280 120 L320 200 C356 240 376 300 360 360 C330 470 224 560 200 640 Z M170 300 A30 30 0 1 0 230 300 A30 30 0 1 0 170 300 Z M193 330 L207 330 L207 600 L200 624 L193 600 Z",
+          "fill": {
+            "type": "gradient",
+            "gradientType": "linear",
+            "rotation": 180,
+            "colors": [
+              {
+                "color": "#8EA6FF",
+                "position": 0
+              },
+              {
+                "color": "#4C6EF5",
+                "position": 1
+              }
+            ]
+          },
+          "id": "chmoI"
+        },
+        {
+          "type": "rectangle",
+          "name": "Collar",
+          "x": 420,
+          "y": 196,
+          "width": 184,
+          "height": 92,
+          "cornerRadius": 22,
+          "fill": {
+            "type": "gradient",
+            "gradientType": "linear",
+            "rotation": 180,
+            "colors": [
+              {
+                "color": "#E8ECF6",
+                "position": 0
+              },
+              {
+                "color": "#B8C0D4",
+                "position": 1
+              }
+            ]
+          },
+          "id": "T9h4Y"
+        }
+      ]
+    }
+  ]
+}

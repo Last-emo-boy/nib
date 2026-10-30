@@ -5,10 +5,14 @@
   "type": "module",
   "description": "nib desktop app",
   "main": "src/main.ts",
+  "scripts": {
+    "package": "node scripts/package.ts"
+  },
   "dependencies": {
     "@nib/daemon": "workspace:*"
   },
   "devDependencies": {
+    "@electron/packager": "^20.3.0",
     "electron": "^45.1.0"
   }
 }

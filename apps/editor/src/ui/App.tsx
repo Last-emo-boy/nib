@@ -6,6 +6,7 @@ import { desktop, openDashboard } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
 import { store, toast, toggleSide, useEditor, type Tool } from '../app/store.ts';
 import { boundsOf, CanvasView, fitView, isTyping } from '../canvas/Canvas.tsx';
+import { deletePoints, editPath, finishDrawing, finishEditing } from '../canvas/pen.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
 import { LeftPanel, layerName } from './LeftPanel.tsx';
@@ -87,7 +88,7 @@ function ToolStrip() {
   const leftOpen = useEditor((s) => s.leftOpen);
   const tools: [Tool, IconName, string, string][] = [
     ['move', 'pointer', t.move, 'V'], ['frame', 'frame', t.frame, 'F'], ['rectangle', 'square', t.rectangle, 'R'],
-    ['ellipse', 'circle', t.ellipse, 'O'], ['polygon', 'hexagon', t.polygon, 'P'], ['text', 'type', t.text, 'T'], ['icon', 'smile', t.iconTool, 'I'],
+    ['ellipse', 'circle', t.ellipse, 'O'], ['polygon', 'hexagon', t.polygon, ''], ['pen', 'penTool', t.pen, 'P'], ['text', 'type', t.text, 'T'], ['icon', 'smile', t.iconTool, 'I'],
     ['note', 'note', t.note, 'N'], ['hand', 'hand', t.hand, 'H'],
   ];
   return (
@@ -95,7 +96,7 @@ function ToolStrip() {
       <button className={leftOpen ? 'on' : ''} title="Panel (⌘\\)" onClick={() => store.set({ leftOpen: !leftOpen })}><Icon name="panelLeft" /></button>
       <span className="hsep" />
       {tools.map(([id, icon, label, key]) => (
-        <button key={id} className={tool === id ? 'active' : ''} title={`${label} (${key})`} onClick={() => store.set({ tool: id })}><Icon name={icon} /></button>
+        <button key={id} className={tool === id ? 'active' : ''} title={key ? `${label} (${key})` : label} onClick={() => store.set({ tool: id })}><Icon name={icon} /></button>
       ))}
     </div>
   );
@@ -281,7 +282,7 @@ function useShortcuts() {
       const s = store.get();
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
-      const tools: Record<string, Tool> = { v: 'move', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', p: 'polygon', t: 'text', i: 'icon', n: 'note', h: 'hand' };
+      const tools: Record<string, Tool> = { v: 'move', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', p: 'pen', t: 'text', i: 'icon', n: 'note', h: 'hand' };
       const chords: Record<string, string> = { z: e.shiftKey ? 'redo' : 'undo', y: 'redo', d: 'duplicate', k: 'palette', j: 'toggle-agent', a: 'select-all', '\\': 'toggle-panel', '0': 'zoom-100', '=': 'zoom-in', '-': 'zoom-out' };
       if (mod && e.altKey && key === 'g') { e.preventDefault(); runCommand('frame-selection'); return; }
       if (mod && e.altKey && key === 'k') { e.preventDefault(); runCommand('make-component'); return; }
@@ -293,6 +294,11 @@ function useShortcuts() {
       if (e.shiftKey && (key === '1')) { runCommand('zoom-fit'); return; }
       if (e.shiftKey && (key === '2' || key === '@')) { runCommand('zoom-selection'); return; }
       if (mod) return;
+      // While a path is drawn or its points edited, these keys work on its points.
+      if (s.pen) {
+        if (key === 'escape' || key === 'enter') { e.preventDefault(); if (s.pen.mode === 'draw') void finishDrawing(); else finishEditing(); return; }
+        if (key === 'backspace' || key === 'delete') { e.preventDefault(); deletePoints(); return; }
+      }
       if (key === 'backspace' || key === 'delete') { e.preventDefault(); deleteSelection(); return; }
       if (key === 'escape') {
         const parent = s.selection.length === 1 ? s.doc?.locate(s.selection[0])?.parent : undefined;
@@ -302,6 +308,7 @@ function useShortcuts() {
       if (key === 'enter' && s.selection.length === 1) {
         const n = s.doc?.get(s.selection[0]);
         if (n?.type === 'text') store.set({ editingText: n.id });
+        else if (n?.type === 'path') editPath(n.id);
         else { const kid = (n as { children?: { id: string }[] } | undefined)?.children?.[0]; if (kid) store.set({ selection: [kid.id] }); }
         return;
       }

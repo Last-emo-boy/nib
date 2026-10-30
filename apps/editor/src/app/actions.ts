@@ -167,6 +167,12 @@ export async function paste(given?: string): Promise<void> {
   let clip = clipboard;
   try {
     const text = given ?? (await navigator.clipboard?.readText());
+    // SVG markup (copied from an icon site or a drawing app) comes in as editable paths.
+    if (text && /^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE[^>]*>\s*)?<svg[\s>]/i.test(text)) {
+      const { importSvg } = await import('../canvas/Canvas.tsx');
+      await importSvg(text);
+      return;
+    }
     const parsed = text ? JSON.parse(text) : undefined;
     if (parsed?.nib === 1 && Array.isArray(parsed.nodes)) clip = parsed as Clip;
   } catch {

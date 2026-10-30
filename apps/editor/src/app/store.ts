@@ -2,7 +2,9 @@ import { useSyncExternalStore } from 'react';
 import type { PenDoc } from '@nib/core';
 import type { Change, Connection } from './connection.ts';
 
-export type Tool = 'move' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'text' | 'icon' | 'note';
+import type { PenSession } from '../canvas/pen.tsx';
+
+export type Tool = 'move' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'pen' | 'text' | 'icon' | 'note';
 export type LeftTab = 'layers' | 'components' | 'libraries' | 'variables' | 'problems';
 export type Lang = 'en' | 'zh';
 
@@ -34,6 +36,8 @@ export interface EditorState {
   /** Width of the agent's chat panel, and whether the canvas follows the agent's cursor. */
   agentWidth: number;
   followAgent: boolean;
+  /** A path being drawn with the pen or having its points edited. */
+  pen?: PenSession;
   /** The node whose text is being edited on the canvas. */
   editingText?: string;
   lang: Lang;

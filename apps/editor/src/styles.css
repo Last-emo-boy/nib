@@ -36,6 +36,15 @@ input, select { font: inherit; color: var(--text); }
 .overlay rect.hover { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0.8; }
 .overlay rect.marquee { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
 .overlay rect.handle { fill: #fff; stroke: var(--accent); stroke-width: 1.5; pointer-events: auto; }
+.overlay .pen-path { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.overlay .pen-segment { fill: none; stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: copy; }
+.overlay .pen-next { fill: none; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; }
+.overlay .pen-handle-line { stroke: var(--accent); stroke-width: 1; opacity: 0.7; }
+.overlay .pen-handle { fill: #fff; stroke: var(--accent); stroke-width: 1.5; pointer-events: auto; cursor: move; }
+.overlay .pen-point { fill: #fff; stroke: var(--accent); stroke-width: 1.5; pointer-events: auto; cursor: move; }
+.overlay .pen-point.on { fill: var(--accent); }
+.overlay .pen-point.closing { fill: var(--accent); stroke: #fff; }
+.canvas.tool-pen { cursor: crosshair; }
 .overlay .frame-label { fill: var(--dim); font-size: 11px; pointer-events: auto; cursor: default; user-select: none; }
 .overlay .frame-label:hover { fill: var(--text); }
 .overlay .frame-label.selected { fill: var(--accent); }

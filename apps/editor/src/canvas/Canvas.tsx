@@ -1,16 +1,17 @@
 import { useEffect, useRef } from 'react';
 import type { Surface } from 'canvaskit-wasm';
-import type { PenDoc } from '@nib/core';
+import { newId, svgToNodes, type PenDoc } from '@nib/core';
 import type { Box } from '@nib/layout';
 import { commit, insertNode, isContainer, isFree, pruneSelection } from '../app/actions.ts';
 import { COMPONENT_MIME } from '../app/libraries.ts';
 import type { Connection } from '../app/connection.ts';
-import { store, type View } from '../app/store.ts';
+import { store, toast, type View } from '../app/store.ts';
 import { getEngine, imagesFor, type Engine } from './engine.ts';
 import { AgentCursors } from './AgentCursors.tsx';
 import { Overlay, type Gesture } from './Overlay.tsx';
 import { presence } from './presence.ts';
 import { SceneCache } from './scenes.ts';
+import { editPath, finishEditing, penDown, penHover } from './pen.tsx';
 
 /** What other parts of the editor need from the canvas. */
 export const canvas = {
@@ -112,6 +113,45 @@ export async function insertInstance(ref: string, screen?: { sx: number; sy: num
   const pos = flow ? {} : parentBox ? { x: Math.round(p.x - parentBox.x), y: Math.round(p.y - parentBox.y) } : { x: Math.round(p.x), y: Math.round(p.y) };
   const name = s.doc.get(ref)?.name ?? 'component';
   await insertNode(parent, { type: 'ref', ref, ...pos }, `Insert ${name}`);
+}
+
+/**
+ * Put a new node of a known size where it was dropped (centred on a screen point), else into the selected
+ * frame, else in the middle of the view; in a frame with a layout it joins the flow.
+ */
+export async function placeNode(node: Record<string, unknown>, label: string, screen?: { sx: number; sy: number }): Promise<string | undefined> {
+  const s = store.get();
+  const cache = canvas.cache;
+  if (!s.doc || !cache) return undefined;
+  const a = visibleArea();
+  const p = toDoc(s.view, screen?.sx ?? a.x + a.width / 2, screen?.sy ?? a.y + a.height / 2);
+  const selected = s.selection.length === 1 && isContainer(s.doc.get(s.selection[0])) ? s.selection[0] : null;
+  const parent = screen ? containerAt(s.doc, cache.hit(p.x, p.y)) : selected;
+  const parentNode = parent ? s.doc.get(parent) : undefined;
+  const flow = !!parentNode && parentNode.type === 'frame' && parentNode.layout !== 'none';
+  const origin = parent ? cache.box(parent) : undefined;
+  const w = Number(node.width) || 0, h = Number(node.height) || 0;
+  // Dropped or pasted into a frame without a point: its middle.
+  const at = !screen && origin ? { x: origin.x + origin.width / 2, y: origin.y + origin.height / 2 } : p;
+  const pos = flow ? {} : { x: Math.round(at.x - w / 2 - (origin?.x ?? 0)), y: Math.round(at.y - h / 2 - (origin?.y ?? 0)) };
+  return insertNode(parent, { ...node, ...pos }, label);
+}
+
+/** SVG markup as editable layers, placed like `placeNode`. */
+export async function importSvg(text: string, screen?: { sx: number; sy: number }, name?: string): Promise<void> {
+  const { doc } = store.get();
+  if (!doc) return;
+  const taken = new Set<string>();
+  const id = () => { const i = newId(doc, taken); taken.add(i); return i; };
+  try {
+    const { node, skipped } = svgToNodes(text, id, name);
+    const { id: _, ...rest } = node;
+    await placeNode(rest, `Import ${String(node.name)}`, screen);
+    const left = Object.entries(skipped).map(([k, n]) => `${n} ${k}`).join(', ');
+    if (left) toast(`Imported the SVG's shapes; left out: ${left}.`);
+  } catch (e) {
+    toast(`SVG: ${(e as Error).message}`);
+  }
 }
 
 export function CanvasView() {
@@ -270,6 +310,9 @@ export function CanvasView() {
     }
     if (e.button !== 0) return;
     const chain = canvas.cache.hit(p.x, p.y);
+    if (s.tool === 'pen') { penDown(p, e, containerAt(s.doc, chain)); return; }
+    // A press on the canvas (not on a point or handle) ends point editing.
+    if (s.pen?.mode === 'edit') finishEditing();
     if (s.tool !== 'move') {
       gesture.current = { kind: 'create', tool: s.tool, start: p, end: p, parent: containerAt(s.doc, chain) };
       return;
@@ -294,6 +337,7 @@ export function CanvasView() {
     const p = toDoc(s.view, sx, sy);
     const g = gesture.current;
     if (!g) {
+      if (s.tool === 'pen') { penHover(p, e.shiftKey); return; }
       if (s.tool === 'move' && !space.current) {
         const hover = pick(s.doc, canvas.cache.hit(p.x, p.y), s.selection, e.metaKey || e.ctrlKey);
         if (hover !== s.hover) store.set({ hover });
@@ -362,9 +406,12 @@ export function CanvasView() {
     const { sx, sy } = local(e);
     const p = toDoc(s.view, sx, sy);
     const chain = canvas.cache.hit(p.x, p.y);
+    if (s.tool === 'pen') return;
     const current = s.selection.find((id) => chain.includes(id));
     const i = current ? chain.indexOf(current) : -1;
     if (current && s.doc.get(current)?.type === 'text') { store.set({ editingText: current }); return; }
+    if (current && s.doc.get(current)?.type === 'path' && editPath(current)) return;
+    if (i === 0 && s.doc.get(chain[0])?.type === 'path' && editPath(chain[0])) return;
     if (i > 0) store.set({ selection: [chain[i - 1]] });
     else if (i === 0 && s.doc.get(chain[0])?.type === 'text') store.set({ editingText: chain[0] });
   };
@@ -374,8 +421,16 @@ export function CanvasView() {
 
   return (
     <div ref={host} className={`canvas tool-${store.get().tool}`} onWheel={onWheel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onDoubleClick={onDoubleClick} onPointerLeave={() => store.get().hover && store.set({ hover: undefined })}
-      onDragOver={(e) => { if (e.dataTransfer.types.includes(COMPONENT_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } }}
-      onDrop={(e) => { const ref = e.dataTransfer.getData(COMPONENT_MIME); if (ref) { e.preventDefault(); void insertInstance(ref, local(e)); } }}>
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(COMPONENT_MIME) || e.dataTransfer.types.includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } }}
+      onDrop={(e) => {
+        const ref = e.dataTransfer.getData(COMPONENT_MIME);
+        if (ref) { e.preventDefault(); void insertInstance(ref, local(e)); return; }
+        const files = [...e.dataTransfer.files];
+        if (!files.length) return;
+        e.preventDefault();
+        const at = local(e);
+        for (const f of files) if (/\.svg$/i.test(f.name) || f.type === 'image/svg+xml') void f.text().then((text) => importSvg(text, at, f.name.replace(/\.svg$/i, '')));
+      }}>
       <canvas ref={el} />
       <AgentCursors />
       <Overlay gesture={gesture} register={(f) => { forceOverlayRef.current = f; }} startResize={(handle, box) => {

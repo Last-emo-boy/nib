@@ -4,7 +4,7 @@ import type { Node } from '@nib/format';
 import { copyAsHtml, copyAsPng, copyAsReact, copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, paste, saveAs } from '../app/actions.ts';
 import { useT } from '../app/i18n.ts';
 import { store, useEditor, type Tool, toggleSide } from '../app/store.ts';
-import { boundsOf, fitView } from '../canvas/Canvas.tsx';
+import { boundsOf, fitView, importSvg } from '../canvas/Canvas.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
 import { layerName, typeIcon } from './LeftPanel.tsx';
@@ -28,8 +28,15 @@ export function Palette() {
     const tool = (id: Tool, label: string, icon: IconName, hint: string): Item => ({ key: `tool:${id}`, label, icon, hint, run: () => store.set({ tool: id }) });
     return [
       tool('move', t.move, 'pointer', 'V'), tool('frame', t.frame, 'frame', 'F'), tool('rectangle', t.rectangle, 'square', 'R'),
-      tool('ellipse', t.ellipse, 'circle', 'O'), tool('polygon', t.polygon, 'hexagon', 'P'), tool('text', t.text, 'type', 'T'),
+      tool('ellipse', t.ellipse, 'circle', 'O'), tool('polygon', t.polygon, 'hexagon', ''), tool('pen', t.pen, 'penTool', 'P'), tool('text', t.text, 'type', 'T'),
       tool('icon', t.iconTool, 'smile', 'I'), tool('note', t.note, 'note', 'N'), tool('hand', t.hand, 'hand', 'H'),
+      { key: 'import-svg', label: t.importSvg, icon: 'penTool', run: () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.svg,image/svg+xml';
+        input.onchange = () => { const f = input.files?.[0]; if (f) void f.text().then((text) => importSvg(text, undefined, f.name.replace(/\.svg$/i, ''))); };
+        input.click();
+      } },
       { key: 'copy-png', label: t.copyPng, icon: 'image', hint: '⇧⌘C', run: () => void copyAsPng() },
       { key: 'copy-html', label: t.copyHtml, icon: 'copy', run: () => void copyAsHtml() },
       { key: 'copy-tailwind', label: t.copyTailwind, icon: 'copy', run: () => void copyAsHtml(true) },

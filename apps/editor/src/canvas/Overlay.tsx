@@ -6,6 +6,7 @@ import { setProps } from '../app/actions.ts';
 import { authHeaders } from '../app/connection.ts';
 import { store, useEditor, type Tool, type View } from '../app/store.ts';
 import { canvas, rectOf, resizedBox } from './Canvas.tsx';
+import { PenOverlay } from './pen.tsx';
 
 type Point = { x: number; y: number };
 
@@ -40,7 +41,10 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
   const doc = useEditor((s) => s.doc);
   useEditor((s) => s.layoutVersion);
   useEditor((s) => s.version);
-  const editing = useEditor((s) => s.editingText);
+  const text = useEditor((s) => s.editingText);
+  const pen = useEditor((s) => s.pen);
+  // Points being edited take the place of the selection's handles.
+  const editing = text ?? (pen ? 'pen' : undefined);
   const cache = canvas.cache;
   if (!doc || !cache) return null;
 
@@ -100,9 +104,10 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
             </g>
           );
         })()}
+        <PenOverlay />
         {all && !editing && <SizeLabel box={screen(view, g?.kind === 'resize' && resizedBox(g) ? resizedBox(g)! : all)} real={g?.kind === 'resize' && resizedBox(g) ? resizedBox(g)! : all} />}
       </svg>
-      {editing && <TextEditor id={editing} />}
+      {text && <TextEditor id={text} />}
     </div>
   );
 }

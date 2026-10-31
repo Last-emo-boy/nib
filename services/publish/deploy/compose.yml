@@ -1,0 +1,33 @@
+# /srv/nib-publish/compose.yml on OVH. Reached by Sluice as http://nib-publish:8080 on the Steadholme network;
+# it reaches Siteflow there too. Secrets are files in /srv/nib-publish/secrets (read-only in the container).
+name: nib-publish
+services:
+  nib-publish:
+    image: nib-publish:${TAG:?set TAG}
+    container_name: nib-publish
+    restart: unless-stopped
+    read_only: true
+    user: "1000:1000"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    pids_limit: 128
+    environment:
+      PORT: "8080"
+      DATA_DIR: /data
+      PUBLIC_BASE: https://nib.w33d.xyz
+      NIB_CLIENT_ID: nib-desktop
+      SITEFLOW_URL: http://siteflow-api:9360
+      SITEFLOW_TOKEN_FILE: /run/secrets/siteflow_token
+      GATEWAY_HMAC_KEY_FILE: /run/secrets/gateway_hmac_key
+    volumes:
+      - /srv/nib-publish/data:/data
+      - /srv/nib-publish/secrets:/run/secrets:ro
+    tmpfs: [/tmp]
+    networks:
+      steadholme:
+        aliases: [nib-publish]
+networks:
+  steadholme:
+    external: true
+    name: ovh-prod-steadholme_steadholme

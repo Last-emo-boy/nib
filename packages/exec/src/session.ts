@@ -1,9 +1,10 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join, resolve as resolvePath } from 'node:path';
 import type { Node } from '@nib/format';
 import { buildScene, childrenOf, DocEditor, type Op, type PenDoc, type SceneNode } from '@nib/core';
-import { CELL_NAMES, comparePixels, cropPixels, decodePixels, encodePng, FontsNotLoaded, parseColor, resizePixels, type FontFace, type ImageLoader, type Pixels, type Renderer } from '@nib/render';
-import { pictureKey, PenApi, PicturesNeeded, type ApiOutput, type CapturedScene, type CompareReference, type ExportFormat, type ExportOptions, type PictureRequest, type PictureResult } from './api.ts';
+import { CELL_NAMES, comparePixels, cropPixels, decodePixels, encodePng, fillPixels, FontsNotLoaded, parseColor, resizePixels, type FontFace, type ImageLoader, type Pixels, type Renderer } from '@nib/render';
+import { imageKey, ImagesNeeded, pictureKey, PenApi, PicturesNeeded, type ApiOutput, type CapturedScene, type CompareReference, type ExportFormat, type ExportOptions, type ImageAccess, type ImageRequest, type PictureRequest, type PictureResult } from './api.ts';
 import { BoundsCache, problemOf, type LayoutFn } from './bounds.ts';
 import { assetIssues, layoutIssues, variableIssues, type Problem } from './checks.ts';
 import { reviewIssues, type ReviewItem } from './review.ts';
@@ -67,6 +68,17 @@ export class ExecSession {
   private failed = new Map<string, string>();
   /** Pictures Generate has asked for in this session, by request. */
   private pictureCache = new Map<string, PictureResult>();
+  /** Images as pixels that calls have needed (or why they could not be read), by request. */
+  private imageCache = new Map<string, Pixels | string>();
+  private imageAccess: ImageAccess = {
+    pixels: (key) => this.imageCache.get(key),
+    savePng: (name, pixels) => {
+      const dir = join(this.opts.baseDir, 'images');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, name), encodePng(this.opts.renderer.ck, pixels));
+      return `images/${name}`;
+    },
+  };
 
   private constructor(doc: PenDoc, sandbox: Sandbox, opts: SessionOptions) {
     this.current = doc;
@@ -223,6 +235,12 @@ export class ExecSession {
         continue;
       }
       if (run.kind === 'pictures') return failure('Generate asked for too many pictures in one snippet: ask for at most 6 at a time.');
+      if (run.kind === 'images' && fetched++ < MAX_PICTURE_RETRIES) {
+        attempt--;
+        for (const r of run.requests) this.imageCache.set(imageKey(r), await this.loadPixels(r));
+        continue;
+      }
+      if (run.kind === 'images') return failure('This snippet needs too many pictures at once: work on at most 6 in one snippet.');
       if (run.kind !== 'ok') {
         const error: SnippetError = run.kind === 'fonts' ? { name: 'Error', message: `fonts could not be loaded: ${run.faces.map((f) => f.family).join(', ')}` } : run.error;
         editId ??= newEditId(this.failed);
@@ -245,12 +263,14 @@ export class ExecSession {
     | { kind: 'ok'; out: ApiOutput; globals: Record<string, string>; ops: Op[]; undo: Op[] }
     | { kind: 'fonts'; faces: FontFace[] }
     | { kind: 'pictures'; requests: PictureRequest[] }
+    | { kind: 'images'; requests: ImageRequest[] }
     | { kind: 'error'; error: SnippetError; out: ApiOutput } {
     this.editor.begin();
     this.bounds.invalidate();
-    const api = new PenApi(this.doc, this.editor, this.bounds, (key) => this.pictureCache.get(key));
+    const api = new PenApi(this.doc, this.editor, this.bounds, (key) => this.pictureCache.get(key), this.imageAccess);
     let fonts: FontFace[] | undefined;
     let pictures: PictureRequest[] | undefined;
+    let images: ImageRequest[] | undefined;
     let internal: unknown;
     const host = (name: string, args: unknown[]) => {
       const fn = (api as unknown as Record<string, (...a: unknown[]) => unknown>)[name];
@@ -264,17 +284,19 @@ export class ExecSession {
         this.bounds.invalidate();
         if (e instanceof FontsNotLoaded) { fonts = e.faces; throw e; }
         if (e instanceof PicturesNeeded) { pictures = e.requests; throw e; }
+        if (e instanceof ImagesNeeded) { images = e.requests; throw e; }
         if (!(e instanceof ExecError)) internal ??= e;
         throw e;
       }
     };
-    const result = this.sandbox.run(code, host, { timeoutMs: this.opts.timeoutMs, abort: () => fonts !== undefined || pictures !== undefined });
-    if (fonts || pictures || internal || !result.ok) {
+    const result = this.sandbox.run(code, host, { timeoutMs: this.opts.timeoutMs, abort: () => fonts !== undefined || pictures !== undefined || images !== undefined });
+    if (fonts || pictures || images || internal || !result.ok) {
       this.editor.rollback();
       this.bounds.invalidate();
       if (result.ok) this.sandbox.restoreGlobals();
       if (fonts) return { kind: 'fonts', faces: fonts };
       if (pictures) return { kind: 'pictures', requests: pictures };
+      if (images) return { kind: 'images', requests: images };
       if (internal) {
         const e = internal instanceof Error ? internal : new Error(String(internal));
         const err = result.ok ? { name: 'InternalError', message: '' } : result.error;
@@ -352,6 +374,18 @@ export class ExecSession {
     if (issues.length) sections.push(`## Issues\n${issues.map((i) => `- ${i}`).join('\n')}\n\nFix these in your next call.`);
     if (shots.length) sections.push(`## Screenshots\nAttached, in order: ${shots.join(', ')}. Check each against the request, and look for collapsed, overflowing, clipped or overlapping elements.`);
     return { ok: true, text: sections.join('\n\n'), images, ops, undo };
+  }
+
+  /** An image as pixels for a call (or why it cannot be read): the fill as it shows at a size, or the image itself. */
+  private async loadPixels(r: ImageRequest): Promise<Pixels | string> {
+    const bytes = await this.opts.images.load(r.url).catch(() => undefined);
+    if (!bytes) return `cannot read the picture ${r.url}`;
+    try {
+      const ck = this.opts.renderer.ck;
+      return (r.natural ? decodePixels(ck, bytes) : fillPixels(ck, bytes, r.fill, r.width, r.height)) ?? `cannot read the picture ${r.url}`;
+    } catch (e) {
+      return `cannot read the picture ${r.url}: ${(e as Error).message}`;
+    }
   }
 
   /** Build the scenes of `nodes` and load their fonts, icons and images. */

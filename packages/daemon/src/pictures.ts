@@ -100,7 +100,7 @@ export class Pictures {
 
   /** The picture for `req`, saved under `dir/images`; its url relative to `dir`. */
   async make(req: PictureRequest, dir: string): Promise<{ url: string; credit?: string }> {
-    return req.kind === 'stock' ? this.stock(req, dir) : this.generated(req, dir);
+    return req.kind === 'stock' ? this.stock(req, dir) : req.kind === 'cutout' ? this.cutout(req, dir) : this.generated(req, dir);
   }
 
   private async stock(req: PictureRequest, dir: string): Promise<{ url: string; credit?: string }> {
@@ -146,6 +146,36 @@ export class Pictures {
     const b64 = j.data?.[0]?.b64_json;
     if (!b64) throw new Error('the image model sent no picture');
     const name = `generated-${slug(req.prompt)}-${hash(`${req.prompt}|${req.index}|${req.width}x${req.height}`)}.jpg`;
+    await this.save(dir, name, new Uint8Array(Buffer.from(b64, 'base64')));
+    return { url: `images/${name}` };
+  }
+
+  /** The picture at `req.source` with its background taken away by the image model (any background). */
+  private async cutout(req: PictureRequest, dir: string): Promise<{ url: string }> {
+    const key = await this.key();
+    if (!key) throw new Error('taking away a busy background needs an OpenAI API key: add one in nib, or use {method: "color"} for a plain background');
+    const source = req.source ?? '';
+    let bytes: Uint8Array<ArrayBuffer>;
+    if (/^https?:/.test(source)) {
+      const r = await this.fetch(source, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(30_000) });
+      if (!r.ok) throw new Error(`could not download ${source} (${r.status})`);
+      bytes = new Uint8Array(await r.arrayBuffer());
+    } else {
+      bytes = new Uint8Array(await readFile(join(dir, source)).catch(() => { throw new Error(`cannot read ${source}`); }));
+    }
+    const type = bytes[0] === 0x89 ? 'image/png' : bytes[0] === 0xff ? 'image/jpeg' : 'image/webp';
+    const form = new FormData();
+    form.append('model', this.model);
+    form.append('image', new Blob([bytes], { type }), `picture.${type.split('/')[1]}`);
+    form.append('prompt', 'Keep the main subject exactly as it is, and remove everything else: a transparent background.');
+    form.append('background', 'transparent');
+    form.append('output_format', 'png');
+    const r = await this.fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(240_000) });
+    const j = (await r.json().catch(() => ({}))) as { data?: { b64_json?: string }[]; error?: { message?: string } };
+    if (!r.ok) throw new Error(`the image model answered: ${j.error?.message ?? r.status}`);
+    const b64 = j.data?.[0]?.b64_json;
+    if (!b64) throw new Error('the image model sent no picture');
+    const name = `${slug(source.split('/').pop()!.replace(/\.\w+$/, ''))}-cutout-${hash(source)}.png`;
     await this.save(dir, name, new Uint8Array(Buffer.from(b64, 'base64')));
     return { url: `images/${name}` };
   }

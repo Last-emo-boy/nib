@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -61,6 +61,23 @@ describe('pictures', () => {
     const r = await new Pictures({ key: async () => 'sk-test', fetch: fetchFn, model: 'gpt-image-2.5-flare' }).make({ kind: 'image', prompt: 'a fox', width: 800, height: 400, index: 0 }, dir);
     expect(r.url).toMatch(/^images\/generated-a-fox-[0-9a-f]{8}\.jpg$/);
     expect(asked.at(-1)!.body).toEqual({ model: 'gpt-image-2.5-flare', prompt: 'a fox', size: '1776x880', n: 1, output_format: 'jpeg', output_compression: 90 });
+  });
+
+  it('asks the image model to cut a subject out of its background', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nib-pictures-'));
+    await writeFile(join(dir, 'shoe.jpg'), JPEG);
+    const asked: { url: string; form?: FormData }[] = [];
+    const fetchFn = (async (input: string | URL, init?: RequestInit) => {
+      asked.push({ url: String(input), ...(init?.body instanceof FormData ? { form: init.body } : {}) });
+      return Response.json({ data: [{ b64_json: Buffer.from(JPEG).toString('base64') }] });
+    }) as typeof fetch;
+    const p = new Pictures({ key: async () => 'sk-test', fetch: fetchFn, model: 'gpt-image-2.5-flare' });
+    const r = await p.make({ kind: 'cutout', prompt: 'x', width: 300, height: 300, index: 0, source: 'shoe.jpg' }, dir);
+    expect(r.url).toMatch(/^images\/shoe-cutout-[0-9a-f]{8}\.png$/);
+    expect(asked[0].url).toBe('https://api.openai.com/v1/images/edits');
+    expect([asked[0].form!.get('model'), asked[0].form!.get('background'), asked[0].form!.get('output_format')]).toEqual(['gpt-image-2.5-flare', 'transparent', 'png']);
+    expect((asked[0].form!.get('image') as File).type).toBe('image/jpeg');
+    await expect(new Pictures({ key: async () => undefined, fetch: fetchFn }).make({ kind: 'cutout', prompt: 'x', width: 1, height: 1, index: 0, source: 'shoe.jpg' }, dir)).rejects.toThrow('needs an OpenAI API key');
   });
 
   it('sizes requests for image models and ranks stock photos by fit', () => {

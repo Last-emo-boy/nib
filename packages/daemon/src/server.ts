@@ -210,6 +210,18 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           return send(res, 400, { error: (e as Error).message });
         }
       }
+      case 'POST /api/picture/vectorize':
+      case 'POST /api/picture/cutout': {
+        // A layer's picture as shapes, or without its background: the execute calls, as the person's change.
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || typeof body.node !== 'string') return send(res, 400, { error: 'doc and node are required' });
+        const vectorize = url.pathname === '/api/picture/vectorize';
+        const options = vectorize ? { colors: Math.min(24, Math.max(2, Math.round(Number(body.colors) || 8))), detail: ['low', 'medium', 'high'].includes(body.detail as string) ? body.detail : 'medium' } : { method: body.method === 'model' ? 'model' : 'color' };
+        const r = await host.execute(body.doc, { input: `${vectorize ? 'Vectorize' : 'RemoveBackground'}(${JSON.stringify(body.node)}, ${JSON.stringify(options)})` }, 'nib', { source: { kind: 'user' }, label: vectorize ? 'Vectorize' : 'Remove background' });
+        if (!r.ok) return send(res, 400, { error: (/Error: [^:]+: (.*)/.exec(r.text)?.[1] ?? r.text).split('\n')[0] });
+        const created = r.ops.find((o) => o.op === 'insert');
+        return send(res, 200, { ...(created?.op === 'insert' ? { created: created.node.id } : {}) });
+      }
       case 'POST /api/stress': {
         // Copies of a frame with long text, other scripts, the dark theme and a narrow width, reviewed for
         // what breaks (findings the original already has are left out).

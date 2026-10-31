@@ -124,7 +124,7 @@ export function Properties() {
           <button className="link" title={t.responsiveHint} onClick={() => void makeResponsive(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {(canvas.cache?.box(n.id)?.width ?? 0) > 808 ? t.makeResponsive : t.makePhoneVersion}</button>
         </Section>
       )}
-      {nodes.length === 1 && !parts.length && conn && ['frame', 'rectangle', 'ellipse', 'polygon'].includes(n.type) && !hasSketch(n as Node) && <Picture path={conn.path} id={n.id} t={t} />}
+      {nodes.length === 1 && !parts.length && conn && ['frame', 'rectangle', 'ellipse', 'polygon'].includes(n.type) && !hasSketch(n as Node) && <Picture path={conn.path} id={n.id} t={t} hasImage={imageFillIndex(n) >= 0} />}
       {nodes.length === 1 && !parts.length && n.type === 'frame' && !doc.locate(n.id)?.parent && !hasSketch(n as Node) && conn && <Implementation path={conn.path} id={n.id} t={t} />}
       {nodes.length === 1 && !parts.length && hasSketch(n as Node) && (
         <Section title={t.sketch}>
@@ -460,8 +460,28 @@ function Typography({ t, shown, set }: { t: Strings; shown: (k: string) => any; 
 }
 
 /** A picture for the layer's fill: a stock photo of what the person describes, or one an image model makes. */
-function Picture({ path, id, t }: { path: string; id: string; t: Strings }) {
+function Picture({ path, id, t, hasImage }: { path: string; id: string; t: Strings; hasImage: boolean }) {
   const [prompt, setPrompt] = useState('');
+  const [colors, setColors] = useState(8);
+  const [working, setWorking] = useState<'vector' | 'cutout' | undefined>();
+  const act = async (what: 'vector' | 'cutout', method?: 'color' | 'model') => {
+    setWorking(what);
+    try {
+      const r = await post<{ created?: string }>(what === 'vector' ? '/api/picture/vectorize' : '/api/picture/cutout', { doc: path, node: id, ...(what === 'vector' ? { colors } : { method }) });
+      if (r.created) {
+        for (let i = 0; i < 40 && !store.get().doc?.has(r.created); i++) await new Promise((res) => setTimeout(res, 50));
+        store.set({ selection: [r.created] });
+      }
+    } catch (e) {
+      const message = (e as Error).message;
+      if (/OpenAI API key/.test(message)) setNeedKey(true);
+      // A busy background: offer the image model.
+      else if (/plain background/.test(message) && confirm(t.cutoutWithModel)) void act('cutout', 'model');
+      else toast(message);
+    } finally {
+      setWorking(undefined);
+    }
+  };
   const [busy, setBusy] = useState<'stock' | 'image' | undefined>();
   const [last, setLast] = useState<{ kind: 'stock' | 'image'; prompt: string; index: number; credit?: string } | undefined>();
   const [needKey, setNeedKey] = useState(false);
@@ -489,6 +509,15 @@ function Picture({ path, id, t }: { path: string; id: string; t: Strings }) {
         <button className="link" disabled={!!busy || !(prompt.trim() || last)} title={t.makePictureHint} onClick={() => void run('image')}>{busy === 'image' ? t.making : t.makePicture}</button>
       </div>
       {last?.credit && <div className="picture-credit">{last.credit}</div>}
+      {hasImage && (
+        <div className="row">
+          <button className="link" disabled={!!working} title={t.vectorizeHint} onClick={() => void act('vector')}>{working === 'vector' ? t.tracing : t.vectorize}</button>
+          <select className="picture-colors" value={colors} title={t.vectorColors} onChange={(e) => setColors(Number(e.target.value))}>
+            {[2, 4, 6, 8, 12, 16, 24].map((n) => <option key={n} value={n}>{t.nColors(n)}</option>)}
+          </select>
+          <button className="link" disabled={!!working} title={t.removeBackgroundHint} onClick={() => void act('cutout', 'color')}>{working === 'cutout' ? t.cuttingOut : t.removeBackground}</button>
+        </div>
+      )}
       {needKey && (
         <div className="picture-key">
           <div className="picture-credit">{t.imageKeyHint}</div>

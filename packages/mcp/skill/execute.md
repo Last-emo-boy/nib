@@ -99,6 +99,14 @@ hero = Insert(page, {type: "frame", name: "Hero photo", width: "fill_container",
 Generate(hero, "stock", "mountain lake at sunrise")
 ```
 
+### `Vectorize(path, options?) → id`
+
+Turns the picture a layer shows (its image fill, as cropped) into flat-colored shapes: a frame of paths, one per color, stacked from the color covering most of the picture up. A top-level picture gets the frame beside it; one inside a frame is replaced in place (the picture is hidden, `enabled: false`, so it can come back). Options: `colors` (2–24, default 8), `detail` (`"low"`, `"medium"` default, `"high"`). Logos, icons and flat illustrations come out clean with few colors; photos come out posterized.
+
+### `RemoveBackground(path, options?) → url`
+
+Takes the background away from the picture a layer shows and fills the layer with the result (a PNG with transparency in the `images` folder). `method: "color"` (default) removes a plain background (a product shot, a portrait against a wall), from the edges inwards; `tolerance` (default 0.12) says how far from the background's color still counts as background. `method: "model"` asks an image model to cut out the subject from any background (needs the person's OpenAI key).
+
 ### `InsertSvg(parent, svg, props?) → id`
 
 SVG markup as editable layers: a frame the size of the drawing holding its shapes as paths, inserted like `Insert` (`props` sets the frame's name, position and size). Use it to draw illustrations, logos and icons nib's icon sets do not have: write the SVG yourself, keeping it to shapes and paths (text and embedded images are left out).

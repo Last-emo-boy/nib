@@ -610,3 +610,4 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .picture-prompt { width: 100%; margin-bottom: 4px; }
 .picture-credit { font-size: 11px; color: var(--dim); line-height: 1.35; overflow-wrap: anywhere; margin-top: 4px; }
 .picture-key input { width: 100%; margin-top: 4px; }
+.picture-colors { width: auto; }

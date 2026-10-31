@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildScene, PenDoc } from '@nib/core';
 import { serializePen, type PenDocument } from '@nib/format';
-import type { Renderer } from '@nib/render';
+import { encodePng, type Renderer } from '@nib/render';
 import { createNodeRenderer } from '@nib/render/node';
 import { applyEdits, ExecSession } from '../src/index.ts';
 
@@ -309,6 +309,42 @@ Compare("box", ${JSON.stringify(join(dir, 'tall.png'))})`);
     expect(logo).toMatchObject({ name: 'Logo', width: 96 });
     expect(logo.children.map((c) => c.type)).toEqual(['path', 'path']);
     expect((await run('InsertSvg("page", "not svg")')).text).toContain('InsertSvg: the second argument is SVG markup');
+  });
+
+  it('vectorizes a picture and takes its plain background away', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nib-pictures-'));
+    // White, with a red disc in the middle.
+    const w = 120, h = 80, rgba = new Uint8Array(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) rgba.set(Math.hypot(x - 60, y - 40) < 25 ? [210, 30, 40, 255] : [255, 255, 255, 255], (y * w + x) * 4);
+    const png = encodePng(renderer.ck, { width: w, height: h, rgba });
+    const images = { load: async (url: string) => (url === 'pic.png' ? png : undefined) };
+    const doc = new PenDoc({ version: '2.20', children: [
+      { type: 'rectangle', id: 'pic', name: 'Logo', x: 0, y: 0, width: 240, height: 160, fill: { type: 'image', url: 'pic.png', mode: 'cover' } },
+      { type: 'frame', id: 'card', x: 0, y: 400, width: 300, height: 200, layout: 'none', children: [{ type: 'rectangle', id: 'inner', x: 10, y: 10, width: 120, height: 80, fill: { type: 'image', url: 'pic.png' } }] },
+    ] } as unknown as PenDocument);
+    const s = await ExecSession.open(doc, { renderer, images, baseDir: dir });
+    const r = await s.execute({ input: 'v = Vectorize("pic", {colors: 2})' });
+    expect(r.ok, r.text).toBe(true);
+    expect(r.text).toMatch(/Vectorized pic into 2 colors: #FF\w{4}, #D\w{5}\./);
+    const vec = doc.data.children[2] as unknown as { name: string; x: number; y: number; width: number; height: number; children: { type: string; fill: string; width: number }[] };
+    // Beside the picture, its size; the white covers it all, the red disc on top.
+    expect([vec.name, vec.x, vec.y, vec.width, vec.height]).toEqual(['Logo · Vector', 280, 0, 240, 160]);
+    // Near the picture's colors (it is drawn smoothed at the layer's size first).
+    const near = (hex: string, rgb: number[]) => [1, 3, 5].every((i, k) => Math.abs(parseInt(hex.slice(i, i + 2), 16) - rgb[k]) <= 8);
+    expect(vec.children.map((c) => c.type)).toEqual(['path', 'path']);
+    expect(near(vec.children[0].fill, [255, 255, 255]) && near(vec.children[1].fill, [210, 30, 40])).toBe(true);
+    expect(Math.abs(vec.children[1].width - 100)).toBeLessThan(4);
+    // Inside a frame: in the picture's place, the picture hidden.
+    expect((await s.execute({ input: 'Vectorize("inner", {colors: 2})' })).ok).toBe(true);
+    const card = doc.data.children[1] as unknown as { children: { id: string; name?: string; enabled?: boolean; x?: number }[] };
+    expect(card.children.map((c) => [c.name ?? c.id, c.enabled ?? true, c.x])).toEqual([['inner', false, 10], ['Picture · Vector', true, 10]]);
+    const cut = await s.execute({ input: 'RemoveBackground("pic")' });
+    expect(cut.ok, cut.text).toBe(true);
+    expect(cut.text).toMatch(/Took 8\d% of pic's picture away as background/);
+    expect((doc.get('pic') as unknown as { fill: unknown }).fill).toEqual({ type: 'image', url: 'images/pic-cutout.png', mode: 'cover' });
+    expect(await readdir(join(dir, 'images'))).toEqual(['pic-cutout.png']);
+    expect((await s.execute({ input: 'RemoveBackground("card")' })).text).toContain('card shows no picture');
+    expect((await s.execute({ input: 'RemoveBackground("inner", {method: "model"})' })).text).toContain('pictures cannot be got here');
   });
 
   it('stops endless loops', async () => {

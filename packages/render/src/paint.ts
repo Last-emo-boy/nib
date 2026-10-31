@@ -117,6 +117,36 @@ function gradientShader(ck: CanvasKit, f: Rec, box: PaintBox, opacity: number): 
 }
 
 /**
+ * An image fill as it shows in a `width` × `height` layer (its mode and crop applied), as pixels: for
+ * tracing or cutting out what the layer shows. Undefined when the image cannot be read.
+ */
+export function fillPixels(ck: CanvasKit, bytes: Uint8Array, fill: Rec, width: number, height: number): { width: number; height: number; rgba: Uint8Array } | undefined {
+  const img = ck.MakeImageFromEncoded(bytes);
+  if (!img) return undefined;
+  const w = Math.max(1, Math.round(width)), h = Math.max(1, Math.round(height));
+  const surface = ck.MakeSurface(w, h);
+  if (!surface) { img.delete(); return undefined; }
+  try {
+    const shader = imageShader(ck, img, fill, { width: w, height: h });
+    if (!shader) return undefined;
+    const paint = new ck.Paint();
+    paint.setShader(shader);
+    const c = surface.getCanvas();
+    c.clear(ck.TRANSPARENT);
+    c.drawRect(ck.LTRBRect(0, 0, w, h), paint);
+    paint.delete();
+    shader.delete();
+    const snap = surface.makeImageSnapshot();
+    const rgba = snap.readPixels(0, 0, { width: w, height: h, colorType: ck.ColorType.RGBA_8888, alphaType: ck.AlphaType.Unpremul, colorSpace: ck.ColorSpace.SRGB });
+    snap.delete();
+    return rgba ? { width: w, height: h, rgba: rgba as Uint8Array } : undefined;
+  } finally {
+    img.delete();
+    surface.delete();
+  }
+}
+
+/**
  * Image fill. `mode` fits the (optionally cropped) image into the node: cover/fill crops to fill it,
  * contain/fit shows it whole, stretch distorts it. `transform` maps normalized image coordinates into
  * the crop's unit box.

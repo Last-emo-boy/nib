@@ -1,9 +1,10 @@
 import { NODE_SPECS, validateNode, type Issue, type Node, type NodeType, type RefNode, type Variable } from '@nib/format';
 import {
-  buildScene, childrenOf, defaultTheme, expandTree, inheritedTheme, newId, reassignIds, resolveDeep, svgToNodes, withTheme,
+  buildScene, childrenOf, defaultTheme, expandTree, inheritedTheme, newId, pathNodeProps, reassignIds, resolveDeep, svgToNodes, withTheme,
   type DocEditor, type PenDoc, type SceneNode, type ThemeContext,
 } from '@nib/core';
 import type { Box } from '@nib/layout';
+import { removeBackground, traceImage, type Pixels } from '@nib/render';
 import { problemOf, type BoundsCache, type ClipProblem } from './bounds.ts';
 import { ExecError } from './errors.ts';
 import { componentDescendant, componentRoot, DOCUMENT, findById, nestedComponent, normalizeDescendantKeys, resolve, type Target } from './targets.ts';
@@ -73,8 +74,11 @@ const isObject = (v: unknown): v is Props => typeof v === 'object' && v !== null
  * The functions an `execute` snippet calls, working on one document through a `DocEditor`, so that the
  * session can commit or roll back everything a snippet did. Arguments arrive as plain JSON.
  */
-/** A picture Generate asks for: what kind, what it shows, the size it fills, and which of the matches. */
-export interface PictureRequest { kind: 'stock' | 'image'; prompt: string; width: number; height: number; index: number }
+/**
+ * A picture Generate asks for: what kind, what it shows, the size it fills, and which of the matches; for
+ * `cutout`, the picture (`source`, a url of the document) to take the background away from.
+ */
+export interface PictureRequest { kind: 'stock' | 'image' | 'cutout'; prompt: string; width: number; height: number; index: number; source?: string }
 /** A picture got for a request: a file next to the .pen file (`url` relative to it), or why there is none. */
 export type PictureResult = { url: string; credit?: string } | { error: string };
 export const pictureKey = (r: PictureRequest) => `${r.kind}|${r.index}|${r.width}x${r.height}|${r.prompt}`;
@@ -90,18 +94,52 @@ export class PicturesNeeded extends Error {
 
 const FILLABLE = new Set(['frame', 'rectangle', 'ellipse', 'polygon', 'path']);
 
+/** An image a call needs as pixels: an image fill as it shows in a `width` × `height` layer, or the image itself (`natural`). */
+export interface ImageRequest { url: string; fill: Props; width: number; height: number; natural?: boolean }
+export const imageKey = (r: ImageRequest) => JSON.stringify([r.url, r.natural ? 'natural' : [r.width, r.height, r.fill.mode ?? 'cover', r.fill.transform ?? null]]);
+
+/** A call needs images as pixels that are not loaded yet: the session loads them, then runs the snippet again. */
+export class ImagesNeeded extends Error {
+  readonly requests: ImageRequest[];
+  constructor(requests: ImageRequest[]) {
+    super('images needed');
+    this.requests = requests;
+  }
+}
+
+/** Images as pixels for Vectorize and RemoveBackground, and where new pictures are saved. */
+export interface ImageAccess {
+  /** Loaded pixels, an error message, or undefined when not loaded yet. */
+  pixels(key: string): Pixels | string | undefined;
+  /** Save pixels as a PNG in the images folder next to the .pen file; the url relative to it. */
+  savePng(name: string, pixels: Pixels): string;
+}
+
+/** The topmost image fill a layer shows, with its index in the fill list. */
+function topImageFill(node: Node): { fill: Props; index: number; list: unknown[] } | undefined {
+  const raw = (node as Props).fill;
+  const list = Array.isArray(raw) ? raw : raw === undefined ? [] : [raw];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const f = list[i] as Props;
+    if (f && typeof f === 'object' && f.type === 'image' && f.enabled !== false && typeof f.url === 'string' && f.url) return { fill: f, index: i, list };
+  }
+  return undefined;
+}
+
 export class PenApi {
   readonly out: ApiOutput = { prints: [], created: [], captures: [], warnings: [] };
   private doc: PenDoc;
   private editor: DocEditor;
   private bounds: BoundsCache;
   private pictures: (key: string) => PictureResult | undefined;
+  private images: ImageAccess | undefined;
 
-  constructor(doc: PenDoc, editor: DocEditor, bounds: BoundsCache, pictures: (key: string) => PictureResult | undefined = () => undefined) {
+  constructor(doc: PenDoc, editor: DocEditor, bounds: BoundsCache, pictures: (key: string) => PictureResult | undefined = () => undefined, images?: ImageAccess) {
     this.doc = doc;
     this.editor = editor;
     this.bounds = bounds;
     this.pictures = pictures;
+    this.images = images;
   }
 
   // Mutations
@@ -250,6 +288,97 @@ export class PenApi {
     this.update(path, { fill: { type: 'image', url: got.url, mode: 'cover' } });
     if (got.credit) this.out.prints.push(`Picture in ${t.kind === 'inside' ? t.path : node.id}: ${got.credit}`);
     return got.url;
+  }
+
+  /**
+   * A layer's picture as flat-colored shapes: a frame of paths, one per color. Beside a top-level picture;
+   * in place of one inside a frame (the picture is hidden, so it can be shown again). Returns the frame's id.
+   */
+  vectorize(path: unknown, options?: unknown): string {
+    if (options !== undefined && !isObject(options)) throw new ExecError('Vectorize: options must be an object, e.g. {colors: 6, detail: "high"}');
+    const o = (options ?? {}) as { colors?: unknown; detail?: unknown };
+    if (o.colors !== undefined && (!Number.isInteger(o.colors) || (o.colors as number) < 2 || (o.colors as number) > 24)) throw new ExecError('Vectorize: colors is 2 to 24');
+    const sides: Record<string, number> = { low: 200, medium: 360, high: 640 };
+    if (o.detail !== undefined && !(String(o.detail) in sides)) throw new ExecError('Vectorize: detail is "low", "medium" or "high"');
+    const { node, top, box } = this.pictureLayer(path, 'Vectorize');
+    const px = this.pixelsFor({ url: top.fill.url as string, fill: top.fill, width: Math.min(1600, box.width), height: Math.min(1600, box.height) }, 'Vectorize');
+    const layers = traceImage(px, box.width, box.height, { colors: (o.colors as number | undefined) ?? 8, maxSide: sides[String(o.detail ?? 'medium')] });
+    if (!layers.length) throw new ExecError('Vectorize: the picture is empty (all of it is transparent)');
+    const frame = this.prepareNew({
+      type: 'frame', name: `${String(node.name ?? 'Picture')} · Vector`, width: box.width, height: box.height, layout: 'none', clip: true,
+      children: layers.map((l, i) => ({ type: 'path', name: `Color ${i + 1}`, ...pathNodeProps(l.subs, 1), fill: l.color })),
+    }, 'Vectorize');
+    const at = this.doc.locate(node.id)!;
+    const props = frame as Props;
+    let id: string;
+    if (!at.parent) {
+      props.x = Math.round(((node as Props).x as number | undefined ?? 0) + box.width + 40);
+      props.y = (node as Props).y ?? 0;
+      id = this.place(DOCUMENT, frame, undefined, 'Vectorize');
+    } else {
+      for (const k of ['x', 'y', 'layoutPosition', 'rotation']) if ((node as Props)[k] !== undefined) props[k] = (node as Props)[k];
+      id = this.place(at.parent.id, frame, at.index + 1, 'Vectorize');
+      this.editor.set(node.id, { enabled: false });
+      this.changed();
+    }
+    this.noteCreated(frame, true, id);
+    this.out.prints.push(`Vectorized ${node.id} into ${layers.length} colors: ${layers.map((l) => l.color).join(', ')}.`);
+    return id;
+  }
+
+  /**
+   * Take a picture's background away: "color" (default) clears the plain color around its edges, "model" asks
+   * an image model (with the person's OpenAI key) for a cut-out of any background. The layer shows the new
+   * picture, saved next to the .pen file; returns its url.
+   */
+  removeBackground(path: unknown, options?: unknown): string {
+    if (options !== undefined && !isObject(options)) throw new ExecError('RemoveBackground: options must be an object, e.g. {method: "model"}');
+    const o = (options ?? {}) as { method?: unknown; tolerance?: unknown };
+    if (o.method !== undefined && o.method !== 'color' && o.method !== 'model') throw new ExecError('RemoveBackground: method is "color" (a plain background) or "model" (any background, with an OpenAI key)');
+    if (o.tolerance !== undefined && (typeof o.tolerance !== 'number' || o.tolerance <= 0 || o.tolerance > 0.5)) throw new ExecError('RemoveBackground: tolerance is a number above 0, up to 0.5 (default 0.12)');
+    const { node, top, box } = this.pictureLayer(path, 'RemoveBackground');
+    const source = top.fill.url as string;
+    let url: string;
+    if (o.method === 'model') {
+      const req: PictureRequest = { kind: 'cutout', prompt: 'the subject, with the background removed', width: box.width, height: box.height, index: 0, source };
+      const got = this.pictures(pictureKey(req));
+      if (!got) throw new PicturesNeeded([req]);
+      if ('error' in got) throw new ExecError(`RemoveBackground: ${got.error}`);
+      url = got.url;
+    } else {
+      const px = this.pixelsFor({ url: source, fill: top.fill, width: 0, height: 0, natural: true }, 'RemoveBackground');
+      let cut: ReturnType<typeof removeBackground>;
+      try {
+        cut = removeBackground(px, (o.tolerance as number | undefined) ?? 0.12);
+      } catch (e) {
+        throw new ExecError(`RemoveBackground: ${(e as Error).message}${/plain background/.test((e as Error).message) ? '; {method: "model"} handles any background' : ''}`);
+      }
+      const base = source.split(/[\\/]/).pop()!.replace(/\.\w+$/, '').replace(/[^\w-]+/g, '-').slice(0, 40) || 'picture';
+      url = this.images!.savePng(`${base}-cutout.png`, cut.pixels);
+      this.out.prints.push(`Took ${Math.round(cut.removed * 100)}% of ${node.id}'s picture away as background.`);
+    }
+    const list = [...top.list];
+    list[top.index] = { ...top.fill, url };
+    this.update(path, { fill: list.length === 1 ? list[0] : list });
+    return url;
+  }
+
+  /** The layer at `path` and the picture it shows, for calls that work on pictures. */
+  private pictureLayer(path: unknown, fn: string): { node: Node; top: NonNullable<ReturnType<typeof topImageFill>>; box: { width: number; height: number } } {
+    const t = this.mutable(path, fn);
+    if (t.kind === 'inside') throw new ExecError(`${fn}: works on layers of this document, not on parts of an instance`);
+    const top = topImageFill(t.node);
+    if (!top) throw new ExecError(`${fn}: ${t.node.id} shows no picture (no image fill)`);
+    if (!this.images) throw new ExecError(`${fn} is not available here`);
+    const b = this.bounds.box(t.node.id);
+    return { node: t.node, top, box: { width: Math.max(1, Math.round(b?.width ?? 1)), height: Math.max(1, Math.round(b?.height ?? 1)) } };
+  }
+
+  private pixelsFor(req: ImageRequest, fn: string): Pixels {
+    const got = this.images!.pixels(imageKey(req));
+    if (got === undefined) throw new ImagesNeeded([req]);
+    if (typeof got === 'string') throw new ExecError(`${fn}: ${got}`);
+    return got;
   }
 
   /** SVG markup as editable layers: a frame the drawing's size holding its shapes, placed like Insert. */

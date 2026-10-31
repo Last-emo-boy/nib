@@ -10,3 +10,5 @@ export * from './renderer.ts';
 export * from './text.ts';
 export * from './mesh.ts';
 export * from './compare.ts';
+export * from './trace.ts';
+export * from './cutout.ts';

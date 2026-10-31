@@ -117,14 +117,15 @@ export class DocumentHost {
     return this.enqueue(open, () => this.refresh(open, notes));
   }
 
-  async execute(filePath: string, req: ExecuteRequest, agent = 'agent'): Promise<ExecuteResult & { notes: string[] }> {
+  /** Run a snippet as one change; `as` records it as someone else's (a person's action in the editor). */
+  async execute(filePath: string, req: ExecuteRequest, agent = 'agent', as?: { source: Source; label: string }): Promise<ExecuteResult & { notes: string[] }> {
     const notes: string[] = [];
     const open = await this.open(filePath, notes);
     return this.enqueue(open, async () => {
       await this.refresh(open, notes);
       notes.push(...open.pending.splice(0));
       const result = await open.session.execute(req);
-      if (result.ops.length) await this.record(open, { ops: result.ops, undo: result.undo, source: { kind: 'agent', name: agent }, label: `${agent}: execute` });
+      if (result.ops.length) await this.record(open, { ops: result.ops, undo: result.undo, source: as?.source ?? { kind: 'agent', name: agent }, label: as?.label ?? `${agent}: execute` });
       return { ...result, notes };
     });
   }

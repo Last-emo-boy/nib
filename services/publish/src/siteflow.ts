@@ -41,7 +41,8 @@ export class Siteflow {
       const bytes = Buffer.from(f.contentBase64, 'base64');
       return { path: f.path, contentBase64: f.contentBase64, size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
     });
-    return this.json<Deployment>('POST', '/api/deployments/prebuilt', { projectSlug, requestedHostPrefix: hostPrefix, entrypoint: 'index.html', files: payload, routing: { cleanUrls: true } });
+    // nib's pages link to each other as `page.html`: no clean URLs (they would redirect those links away).
+    return this.json<Deployment>('POST', '/api/deployments/prebuilt', { projectSlug, requestedHostPrefix: hostPrefix, entrypoint: 'index.html', files: payload, routing: { cleanUrls: false } });
   }
 
   /** Archive a project in Siteflow (its files stay; nib-publish no longer serves them). */

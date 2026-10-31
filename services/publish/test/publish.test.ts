@@ -33,6 +33,7 @@ function fakeSiteflow() {
     }
     if (req.method === 'DELETE' && req.url?.startsWith('/api/projects/')) { archived.push(decodeURIComponent(req.url.slice(14))); res.writeHead(200).end('{}'); return; }
     const files = hosts.get(String(req.headers.host));
+    if (req.url === '/old') { res.writeHead(308, { location: '/pricing.html' }).end(); return; }
     const path = (req.url ?? '/').split('?')[0].replace(/^\//, '') || 'index.html';
     const body = files?.get(path) ?? files?.get(`${path}.html`);
     if (body === undefined) { res.writeHead(404).end('missing'); return; }
@@ -88,6 +89,8 @@ describe('nib-publish', () => {
     expect(page.headers.get('set-cookie')).toBeNull();
     expect(page.headers.get('cache-control')).toBe('private, no-cache');
     expect((await fetch(`${base}/s/quill`, { redirect: 'manual' })).headers.get('location')).toBe('/s/quill/');
+    // A redirect from Siteflow to a path stays inside the site.
+    expect((await fetch(`${base}/p/quill/old`, { redirect: 'manual', headers: { 'x-auth-subject': 'usr_other', 'x-auth-sig': sig('usr_other') } })).headers.get('location')).toBe('/p/quill/pricing.html');
 
     // Public now.
     const pub = await fetch(`${base}/api/sites/quill`, { method: 'PATCH', headers: { ...as('usr_a'), 'content-type': 'application/json' }, body: '{"visibility":"public"}' });

@@ -176,6 +176,10 @@ export function startServer(cfg: Config, port: number, host = '0.0.0.0'): Promis
     }
     // Private pages are not cached by shared caches.
     headers['cache-control'] = site.visibility === 'private' || door === 'p' ? 'private, no-cache' : (typeof up.headers['cache-control'] === 'string' ? up.headers['cache-control'] : 'no-cache');
+    // Siteflow serves the site at its root; here it lives under /s/<slug>/ or /p/<slug>/, so redirects to a
+    // path stay inside the site.
+    const location = up.headers.location;
+    if (typeof location === 'string' && location.startsWith('/') && !location.startsWith('//')) headers.location = `/${door}/${slug}${location}`;
     headers['x-content-type-options'] = 'nosniff';
     headers['referrer-policy'] = 'strict-origin-when-cross-origin';
     res.writeHead(up.statusCode ?? 502, headers);

@@ -12,6 +12,7 @@ import { Overlay, type Gesture } from './Overlay.tsx';
 import { presence } from './presence.ts';
 import { SceneCache } from './scenes.ts';
 import { editPath, finishEditing, penDown, penHover } from './pen.tsx';
+import { finishSketch, sketchWidth } from './sketch.ts';
 import { imageFillIndex } from './crop.ts';
 import { measure, snap, snapPoint, type Guide, type Lines, type Measure } from './snap.ts';
 import { apply, applyLinear, invert, isAxisAligned, placement, type P } from './affine.ts';
@@ -402,6 +403,12 @@ export function CanvasView() {
     if (e.button !== 0) return;
     const chain = canvas.cache.hit(p.x, p.y);
     if (s.tool === 'pen') { penDown(p, e, containerAt(s.doc, chain)); return; }
+    if (s.tool === 'pencil') {
+      // No selection handles in the way while sketching.
+      if (s.selection.length) store.set({ selection: [] });
+      gesture.current = { kind: 'sketch', points: [p], parent: containerAt(s.doc, chain), width: sketchWidth(s.view.zoom) };
+      return;
+    }
     // A press on the canvas (not on a point or handle) ends point editing.
     if (s.pen?.mode === 'edit') finishEditing();
     // The scale tool selects and moves like the move tool; only its handles differ.
@@ -475,6 +482,11 @@ export function CanvasView() {
       case 'marquee':
         g.end = p;
         break;
+      case 'sketch': {
+        const last = g.points[g.points.length - 1];
+        if (Math.hypot(p.x - last.x, p.y - last.y) * s.view.zoom >= 1.5) g.points.push(p);
+        break;
+      }
       case 'create': {
         const r = e.metaKey || e.ctrlKey ? { ...p, guides: [] } : snapPoint(p, snapTargets(s.doc, g.parent, []), SNAP_PX / s.view.zoom);
         g.end = { x: r.x, y: r.y };
@@ -523,6 +535,7 @@ export function CanvasView() {
       const r = rectOf(g.start, g.end);
       if (r.width > 1 || r.height > 1) store.set({ selection: [...new Set([...g.add, ...canvas.cache.within(r, 0)])] });
     } else if (g.kind === 'create') void finishCreate(s.doc, g);
+    else if (g.kind === 'sketch') void finishSketch(g.points, g.parent, g.width);
     else if (g.kind === 'resize') finishResize(s.doc, g);
     else if (g.kind === 'rotate') finishRotate(s.doc, g);
     canvas.shift.clear();

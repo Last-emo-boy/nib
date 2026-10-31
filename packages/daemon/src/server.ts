@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { basename, dirname, extname, join, normalize, relative, resolve as resolvePath } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
-import type { Op } from '@nib/core';
+import { childrenOf, classifyStroke, flatten, isSketchStroke, pathInBox, sketchOutline, type Op } from '@nib/core';
+import type { Node } from '@nib/format';
 import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } from '@nib/render';
 import { faceInfo, faceOffsets, type FolderFontLoader, type SystemFontLoader } from '@nib/render/node';
 import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
@@ -795,7 +796,33 @@ function describeSelection(open: OpenDocument, ids: string[]): string | undefine
     const text = n.type === 'text' && typeof n.content === 'string' ? ` "${n.content.slice(0, 80)}"` : '';
     return [`- \`${id}\` ${n.type}${n.name ? ` "${n.name}"` : ''}${n.type === 'ref' ? ` (instance of ${n.ref})` : ''}${text}${size}`];
   });
-  return lines.length ? `Document: ${open.path}\nSelected in the editor:\n${lines.join('\n')}` : `Document: ${open.path}\nNothing is selected in the editor.`;
+  const sketch = sketchOf(open, ids);
+  return lines.length ? `Document: ${open.path}\nSelected in the editor:\n${lines.join('\n')}${sketch ? `\n\n${sketch}` : ''}` : `Document: ${open.path}\nNothing is selected in the editor.`;
+}
+
+/** The pencil strokes in the selection read as shapes, for models that cannot see the sketch. */
+function sketchOf(open: OpenDocument, ids: string[]): string | undefined {
+  const doc = open.session.doc;
+  const strokes: Node[] = [];
+  const visit = (n: Node) => { if (isSketchStroke(n)) strokes.push(n); else for (const c of childrenOf(n) ?? []) visit(c); };
+  for (const id of ids) { const n = doc.get(id); if (n) visit(n); }
+  // Where a layer is in the document: its box and its parents' boxes added up (sketches are not turned).
+  const origin = (id: string) => {
+    let x = 0, y = 0;
+    for (let cur: Node | undefined = doc.get(id); cur; cur = doc.locate(cur.id)?.parent ?? undefined) {
+      const b = open.session.box(cur.id);
+      if (!b) return undefined;
+      x += b.x; y += b.y;
+    }
+    return { x, y };
+  };
+  const items = strokes.flatMap((n) => {
+    const o = origin(n.id), b = open.session.box(n.id);
+    const { geometry, viewBox } = n as { geometry?: unknown; viewBox?: number[] };
+    if (!o || !b || typeof geometry !== 'string') return [];
+    return pathInBox(geometry, b.width, b.height, viewBox).map((sub) => classifyStroke(flatten(sub).map((p) => ({ x: p.x + o.x, y: p.y + o.y }))));
+  });
+  return items.length ? sketchOutline(items) : undefined;
 }
 
 function send(res: ServerResponse, status: number, body: Json): void {

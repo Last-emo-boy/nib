@@ -23,6 +23,8 @@ export type Gesture =
   | { kind: 'drag'; start: Point; end: Point; ids: string[] }
   | { kind: 'marquee'; start: Point; end: Point; add: string[] }
   | { kind: 'create'; tool: Tool; start: Point; end: Point; parent: string | null }
+  /** A pencil stroke being drawn: its points in document coordinates, `width` its line width there. */
+  | { kind: 'sketch'; points: Point[]; parent: string | null; width: number }
   /** `box` and `end` are in the node's own coordinates; `matrix` takes them to the document's. */
   | { kind: 'resize'; id: string; handle: string; box: Box; matrix: M; start: Point; end: Point | undefined; shift: boolean; scale?: boolean }
   /** Turning a w × h node around `center` (document coordinates); `from` is the pointer's angle when pressed. */
@@ -118,6 +120,12 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
         })}
         {g?.kind === 'marquee' && <Outline box={screen(view, rectOf(g.start, g.end))} className="marquee" />}
         {g?.kind === 'create' && <Outline box={screen(view, rectOf(g.start, g.end))} className="selected" />}
+        {g?.kind === 'sketch' && (() => {
+          const pts = g.points.map((p) => `${p.x * view.zoom + view.tx},${p.y * view.zoom + view.ty}`).join(' ');
+          const w = g.width * view.zoom;
+          // Ink with a light edge, so it shows on the dark canvas as well as on paper.
+          return <g><polyline points={pts} className="sketch-ink" style={{ stroke: '#FFFFFF', strokeWidth: w + 3 }} /><polyline points={pts} className="sketch-ink" style={{ strokeWidth: w }} /></g>;
+        })()}
         {g?.kind === 'resize' && resized && <Frame m={mul(g.matrix, [1, 0, 0, 1, resized.x, resized.y])} w={resized.width} h={resized.height} view={view} className="selected ghost" />}
         {single && !drag && !editing && !isPart(single.id) && (() => {
           const { matrix: m, abs: { width: w, height: h } } = single;

@@ -6,3 +6,4 @@ export * from './scene.ts';
 export * from './paths.ts';
 export * from './svg.ts';
 export * from './slides.ts';
+export * from './sketch.ts';

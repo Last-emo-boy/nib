@@ -26,6 +26,7 @@ import hash from 'lucide-static/icons/hash.svg?raw';
 import image from 'lucide-static/icons/image.svg?raw';
 import smile from 'lucide-static/icons/smile.svg?raw';
 import penTool from 'lucide-static/icons/pen-tool.svg?raw';
+import pencil from 'lucide-static/icons/pencil.svg?raw';
 import lock from 'lucide-static/icons/lock.svg?raw';
 import box from 'lucide-static/icons/box.svg?raw';
 import grid from 'lucide-static/icons/grid-2x2.svg?raw';
@@ -69,5 +70,5 @@ import globe from 'lucide-static/icons/globe.svg?raw';
 import library from 'lucide-static/icons/library-big.svg?raw';
 import palette from 'lucide-static/icons/palette.svg?raw';
 
-export const ICONS = { check, settings, hexagon, alignLeft, alignHCenter, alignRight, alignTop, alignVCenter, alignBottom, pointer, hand, square, circle, type, frame, note, layers, component, variable, undo, redo, minus, plus, panelLeft, eye, eyeOff, chevronRight, chevronDown, activity, download, languages, bot, hash, image, smile, penTool, lock, box, grid, text, diamond, folder, file, x, alignStart, arrowRight, arrowDown, scan, command, link, search, user, sparkles, trash, copy, maximize, globe, library, palette, crop, mask, scaling, flipH, flipV, bringToFront, sendToBack, play, presentation, paperclip };
+export const ICONS = { check, settings, hexagon, alignLeft, alignHCenter, alignRight, alignTop, alignVCenter, alignBottom, pointer, hand, square, circle, type, frame, note, layers, component, variable, undo, redo, minus, plus, panelLeft, eye, eyeOff, chevronRight, chevronDown, activity, download, languages, bot, hash, image, smile, penTool, pencil, lock, box, grid, text, diamond, folder, file, x, alignStart, arrowRight, arrowDown, scan, command, link, search, user, sparkles, trash, copy, maximize, globe, library, palette, crop, mask, scaling, flipH, flipV, bringToFront, sendToBack, play, presentation, paperclip };
 export type IconName = keyof typeof ICONS;

@@ -7,7 +7,7 @@ import type { GradientEdit } from '../canvas/GradientOverlay.tsx';
 import type { CropEdit } from '../canvas/CropOverlay.tsx';
 import { applyPrefs, readPrefs, writePrefs, type Prefs } from './prefs.ts';
 
-export type Tool = 'move' | 'scale' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'pen' | 'text' | 'icon' | 'note';
+export type Tool = 'move' | 'scale' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'pen' | 'pencil' | 'text' | 'icon' | 'note';
 export type LeftTab = 'layers' | 'slides' | 'components' | 'libraries' | 'variables' | 'problems';
 export type Lang = 'en' | 'zh';
 

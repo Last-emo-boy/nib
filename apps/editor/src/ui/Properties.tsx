@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { PenDoc } from '@nib/core';
+import { hasSketch, isSketchFrame, isSketchStroke, type PenDoc } from '@nib/core';
 import type { Node, RefNode } from '@nib/format';
 import { align, isFree, resetOverrides, setProps, type Align } from '../app/actions.ts';
 import { isPart, layerOf, overrideOf, ownerOf } from '../app/parts.ts';
@@ -115,6 +115,11 @@ export function Properties() {
       {nodes.length === 1 && !parts.length && imageFillIndex(n) >= 0 && (
         <Section title={t.agent}>
           <button className="link" onClick={() => void recreate(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {t.recreateAsLayers}</button>
+        </Section>
+      )}
+      {nodes.length === 1 && !parts.length && hasSketch(n as Node) && (
+        <Section title={t.sketch}>
+          <button className="link" title={t.sketchHint} onClick={() => void buildSketch(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {t.buildFromSketch}</button>
         </Section>
       )}
       {nodes.length === 1 && <Prototype doc={doc} n={n} t={t} set={set} />}
@@ -524,6 +529,22 @@ async function recreate(doc: PenDoc, n: Node, t: Strings): Promise<void> {
     if (!(model?.vision ?? info?.vision)) { toast(t.needsVision); return; }
     await openSession(undefined);
     await sendMessage(conn.path, t.recreatePrompt(layerName(doc, n), n.id), [n.id]);
+  } catch (e) {
+    toast((e as Error).message);
+  }
+}
+
+/** Ask the agent, in a new chat, to build the sketch in `n` (or the sketch a stroke `n` is in) as a design. */
+async function buildSketch(doc: PenDoc, n: Node, t: Strings): Promise<void> {
+  const conn = store.get().conn;
+  if (!conn) return;
+  const top = doc.topLevel(n.id);
+  const target = isSketchStroke(n) && top && isSketchFrame(top) ? top : n;
+  store.set({ agentOpen: true, activityOpen: false, browserOpen: false });
+  try {
+    await loadAgent(conn.path);
+    await openSession(undefined);
+    await sendMessage(conn.path, t.sketchPrompt(layerName(doc, target), target.id), [target.id]);
   } catch (e) {
     toast((e as Error).message);
   }

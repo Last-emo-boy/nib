@@ -82,7 +82,8 @@ input, select { font: inherit; color: var(--text); }
 .overlay .pen-point { fill: #fff; stroke: var(--accent); stroke-width: 1.5; pointer-events: auto; cursor: move; }
 .overlay .pen-point.on { fill: var(--accent); }
 .overlay .pen-point.closing { fill: var(--accent); stroke: #fff; }
-.canvas.tool-pen { cursor: crosshair; }
+.canvas.tool-pen, .canvas.tool-pencil { cursor: crosshair; }
+.overlay .sketch-ink { fill: none; stroke: #2B2B2B; stroke-linecap: round; stroke-linejoin: round; }
 .overlay .guide { stroke: #F24E1E; stroke-width: 1; }
 .overlay .grad-line { stroke: #fff; stroke-width: 1.5; filter: drop-shadow(0 0 1px #000a); fill: none; }
 .overlay .grad-line.dim { opacity: 0.6; stroke-dasharray: 3 3; }

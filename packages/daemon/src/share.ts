@@ -2,8 +2,9 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer, type Server, type ServerResponse } from 'node:http';
 import { networkInterfaces } from 'node:os';
-import { basename, extname, join, normalize, sep } from 'node:path';
+import { basename, dirname, extname, join, normalize, sep } from 'node:path';
 import { buildScene, isSlide, readingOrder, type SceneNode } from '@nib/core';
+import type { Exporter } from '@nib/exec';
 import type { ImageLoader, Renderer } from '@nib/render';
 import type { DocumentHost } from './host.ts';
 import { VIEWER_HTML } from './share-viewer.ts';
@@ -54,14 +55,10 @@ function linksIn(root: SceneNode, box: (n: SceneNode) => { x: number; y: number;
   return out;
 }
 
-/** Write (or rewrite) the snapshot of the design at `path`; returns its id. */
-export async function buildShare(host: DocumentHost, renderer: Renderer, images: (file: string) => ImageLoader, path: string, dir: string): Promise<string> {
+/** A design's pages: its top-level frames (components left out) in reading order, laid out. */
+export async function pagesOf(host: DocumentHost, renderer: Renderer, images: (file: string) => ImageLoader, path: string): Promise<{ node: SceneNode; box: { x: number; y: number; width: number; height: number }; links: ShareLink[] }[]> {
   const open = await host.open(path);
   const doc = open.session.doc;
-  const id = await idFor(dir, open.path);
-  const out = join(dir, id);
-  await rm(out, { recursive: true, force: true });
-  await mkdir(join(out, 'frames'), { recursive: true });
   const loader = images(open.path);
   const shown: { node: SceneNode; box: { x: number; y: number; width: number; height: number }; links: ShareLink[] }[] = [];
   for (const n of doc.data.children) {
@@ -77,9 +74,20 @@ export async function buildShare(host: DocumentHost, renderer: Renderer, images:
     }
   }
   const order = readingOrder(shown.map((s) => ({ id: s.node.id, box: s.box })));
+  return order.map((id) => shown.find((x) => x.node.id === id)!);
+}
+
+/** Write (or rewrite) the snapshot of the design at `path`; returns its id. */
+export async function buildShare(host: DocumentHost, renderer: Renderer, images: (file: string) => ImageLoader, path: string, dir: string): Promise<string> {
+  const open = await host.open(path);
+  const id = await idFor(dir, open.path);
+  const out = join(dir, id);
+  await rm(out, { recursive: true, force: true });
+  await mkdir(join(out, 'frames'), { recursive: true });
+  const loader = images(open.path);
   const frames: SharedFrame[] = [];
-  for (const [i, fid] of order.entries()) {
-    const s = shown.find((x) => x.node.id === fid)!;
+  for (const [i, s] of (await pagesOf(host, renderer, images, path)).entries()) {
+    const fid = s.node.id;
     const file = `frames/${String(i + 1).padStart(2, '0')}-${fid.replace(/[^\w-]/g, '_')}.png`;
     await writeFile(join(out, file), await renderer.renderPNG(s.node, loader, { scale: 2, maxSide: 4096 }));
     frames.push({ id: fid, name: typeof s.node.name === 'string' ? s.node.name : fid, file, width: s.box.width, height: s.box.height, links: s.links });
@@ -88,6 +96,14 @@ export async function buildShare(host: DocumentHost, renderer: Renderer, images:
   await writeFile(join(out, 'share.json'), JSON.stringify(manifest, null, 2));
   await writeFile(join(out, 'index.html'), VIEWER_HTML);
   return id;
+}
+
+/** The design as a static website (a page per frame, in reading order) in `dir`. */
+export async function exportSite(host: DocumentHost, renderer: Renderer, images: (file: string) => ImageLoader, site: Exporter, path: string, dir: string): Promise<void> {
+  const open = await host.open(path);
+  const pages = await pagesOf(host, renderer, images, path);
+  if (!pages.length) throw new Error('the design has no top-level frames to make pages of');
+  await site(pages.map((p) => ({ id: p.node.id, root: p.node, target: p.node })), dir, {}, { doc: open.session.doc, renderer, images: images(open.path), baseDir: dirname(open.path) });
 }
 
 const MIME: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.png': 'image/png' };

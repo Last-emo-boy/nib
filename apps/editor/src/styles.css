@@ -564,3 +564,12 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .agent-file-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 220px; height: 26px; padding: 0 8px; border-radius: 7px; background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .agent-file-chip button { display: inline-flex; color: var(--faint); }
 .agent-file-mini { width: 18px; height: 18px; object-fit: cover; border-radius: 3px; }
+
+/* Publish to w33d */
+.w33d { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.w33d-title { font-weight: 600; }
+.w33d-who { display: flex; justify-content: space-between; align-items: center; }
+.w33d-slug { display: flex; align-items: center; gap: 2px; height: 28px; padding: 0 8px; background: var(--panel-2); border-radius: 7px; font-size: 11px; }
+.w33d-slug input { flex: 1; min-width: 0; background: none; border: 0; outline: none; font-size: 12px; }
+.w33d .segmented button { flex: 1; padding: 0 8px; }
+.link.danger { color: #f87171; }

@@ -23,6 +23,8 @@
     "packages/*/src",
     "packages/*/test",
     "apps/*/src",
+    "services/*/src",
+    "services/*/test",
     "scripts"
   ],
   "exclude": [

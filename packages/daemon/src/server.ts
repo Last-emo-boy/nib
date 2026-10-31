@@ -1,5 +1,6 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { basename, dirname, extname, join, normalize, relative, resolve as resolvePath } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -13,7 +14,9 @@ import { brandFromPage, brandFromPalette, paletteFromPixels, paletteFromSvg, typ
 import { templateDocument, templateFile, templates } from './templates.ts';
 import { tokensFromCss, tokensFromJson, tokensToCss, tokensToJson, tokensToTailwind } from '@nib/export';
 import type { BrowserService } from './browser/service.ts';
-import { buildShare, lanAddress, serveShare, sharedId, ShareServer } from './share.ts';
+import { buildShare, exportSite, lanAddress, serveShare, sharedId, ShareServer } from './share.ts';
+import { slugFor, W33d, W33dError, type W33dConfig } from './w33d.ts';
+import type { Exporter } from '@nib/exec';
 import type { AgentService } from './agent/service.ts';
 
 export const DAEMON_VERSION = '0.1.0';
@@ -40,6 +43,10 @@ export interface DaemonOptions {
   /** Extra origins allowed to call the API, e.g. the editor's dev server. */
   devOrigins?: string[];
   token?: string;
+  /** Publishing to w33d: how to sign in and where nib-publish is (without it, the w33d endpoints answer 404). */
+  w33d?: Omit<W33dConfig, 'redirectUri'>;
+  /** The static-site exporter, for publishing. */
+  siteExporter?: Exporter;
   /** Where shared snapshots are kept (default: shares/ in nib's home). */
   sharesDir?: string;
   /** Address the local-network share server listens on (default all interfaces; tests use 127.0.0.1). */
@@ -81,6 +88,16 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
   const lan = new ShareServer(sharesDir, opts.shareBind);
   const lanUrl = (id: string) => (lan.on ? `http://${opts.shareBind && opts.shareBind !== '0.0.0.0' ? opts.shareBind : lanAddress() ?? '127.0.0.1'}:${lan.port}/share/${id}/` : undefined);
   const activity = () => opts.onActivity?.(sockets.size);
+  let w33d: W33d | undefined;
+  /** What each document was published as on w33d (by path). */
+  const publishedFile = join(NIB_HOME, 'w33d-sites.json');
+  const published = async (): Promise<Record<string, { slug: string; visibility: 'public' | 'private'; url: string }>> => JSON.parse(await readFile(publishedFile, 'utf8').catch(() => '{}'));
+  const notePublished = async (doc: string, entry: { slug: string; visibility: 'public' | 'private'; url: string } | undefined) => {
+    const all = await published();
+    if (entry) all[doc] = entry; else delete all[doc];
+    await mkdir(NIB_HOME, { recursive: true });
+    await writeFile(publishedFile, JSON.stringify(all, null, 2));
+  };
 
   const hostOk = (req: IncomingMessage) => {
     const h = req.headers.host ?? '';
@@ -112,6 +129,23 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
     if (!hostOk(req)) return send(res, 421, { error: 'wrong host' });
     if (!originOk(req)) return send(res, 403, { error: 'origin not allowed' });
     const url = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
+    // The browser coming back from signing in to w33d.
+    if (url.pathname === '/auth/w33d/callback' && req.method === 'GET') {
+      const page = (title: string, text: string, status = 200) => {
+        res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' });
+        res.end(`<!DOCTYPE html><meta charset="utf-8"><title>${title}</title><body style="font:15px -apple-system,system-ui;margin:56px;color:#222"><h1 style="font-size:20px">${title}</h1><p>${text}</p></body>`);
+      };
+      const esc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+      if (!w33d) return page('Not available', 'This nib has no w33d sign-in.', 404);
+      const code = url.searchParams.get('code'), state = url.searchParams.get('state');
+      if (!code || !state) return page('Not signed in', esc(url.searchParams.get('error_description') ?? url.searchParams.get('error') ?? 'w33d sent no code.'), 400);
+      try {
+        const s = await w33d.finish(code, state);
+        return page('Signed in to w33d', `${s.email ? `As ${esc(s.email)}. ` : ''}You can close this tab and go back to nib.`);
+      } catch (e) {
+        return page('Not signed in', esc((e as Error).message), 400);
+      }
+    }
     // Shared snapshots: read-only files whose unguessable id is the permission.
     if (url.pathname.startsWith('/share/') && req.method === 'GET' && (await serveShare(sharesDir, url.pathname, res))) return;
     if (!url.pathname.startsWith('/api/')) return serveEditor(url.pathname, res);
@@ -334,6 +368,60 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         for (let i = 2; await stat(join(dir, name)).catch(() => undefined); i++) name = `${stem}-${i}.${ext}`;
         await writeFile(join(dir, name), bytes);
         return send(res, 200, { url: `images/${name}`, width, height });
+      }
+      case 'POST /api/w33d/login': {
+        if (!w33d) return send(res, 404, { error: 'this nib has no w33d sign-in' });
+        return send(res, 200, { url: w33d.start() });
+      }
+      case 'GET /api/w33d/status':
+        return send(res, 200, w33d ? { available: true, ...(await w33d.status()) } : { available: false, signedIn: false });
+      case 'POST /api/w33d/logout':
+        await w33d?.signOut();
+        return send(res, 200, { signedIn: false });
+      case 'GET /api/w33d/site': {
+        // What this document was published as, with its suggested name when it was not.
+        const doc = resolvePath(q.get('doc') ?? '');
+        const entry = (await published())[doc];
+        return send(res, 200, { ...(entry ? { site: entry } : {}), suggested: slugFor(basename(doc)) });
+      }
+      case 'POST /api/w33d/publish': {
+        // The design as a site (a page per frame), up to nib.w33d.xyz as the signed-in person.
+        if (!w33d || !opts.siteExporter) return send(res, 404, { error: 'this nib cannot publish to w33d' });
+        const body = await readJson(req);
+        if (typeof body.path !== 'string' || typeof body.slug !== 'string') return send(res, 400, { error: 'path and slug are required' });
+        const visibility = body.visibility === 'public' ? 'public' : 'private';
+        const open = await host.open(body.path);
+        const dir = await mkdtemp(join(tmpdir(), 'nib-site-'));
+        try {
+          await exportSite(host, opts.renderer, opts.images, opts.siteExporter, open.path, dir);
+          const site = await w33d.publish(dir, body.slug, basename(open.path, '.pen'), visibility);
+          await notePublished(open.path, { slug: site.slug, visibility: site.visibility, url: site.url });
+          return send(res, 200, { site: site as unknown as Json });
+        } catch (e) {
+          return send(res, e instanceof W33dError ? e.status : 500, { error: (e as Error).message });
+        } finally {
+          await rm(dir, { recursive: true, force: true });
+        }
+      }
+      case 'POST /api/w33d/visibility':
+      case 'POST /api/w33d/unpublish': {
+        if (!w33d) return send(res, 404, { error: 'this nib has no w33d sign-in' });
+        const body = await readJson(req);
+        const doc = resolvePath(typeof body.path === 'string' ? body.path : '');
+        const entry = (await published())[doc];
+        if (!entry) return send(res, 404, { error: 'this design is not published' });
+        try {
+          if (url.pathname.endsWith('/unpublish')) {
+            await w33d.unpublish(entry.slug);
+            await notePublished(doc, undefined);
+            return send(res, 200, {});
+          }
+          const site = await w33d.setVisibility(entry.slug, body.visibility === 'public' ? 'public' : 'private');
+          await notePublished(doc, { slug: site.slug, visibility: site.visibility, url: site.url });
+          return send(res, 200, { site: site as unknown as Json });
+        } catch (e) {
+          return send(res, e instanceof W33dError ? e.status : 500, { error: (e as Error).message });
+        }
       }
       case 'POST /api/share': {
         // Snapshot the design for viewing (again, under the same link when it was shared before).
@@ -613,6 +701,8 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
   });
 
   const base = `http://127.0.0.1:${port}`;
+  // w33d sends the browser back here: the redirect registered for nib names this port.
+  if (opts.w33d) w33d = new W33d({ ...opts.w33d, redirectUri: `${base}/auth/w33d/callback` });
   function editorUrl(file?: string): string {
     const params = new URLSearchParams({ t: token, ...(file ? { file } : {}) });
     return `${base}/#${params}`;

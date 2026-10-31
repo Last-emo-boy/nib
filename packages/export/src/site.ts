@@ -2,6 +2,7 @@ import { copyFile, mkdir, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import type { SceneNode } from '@nib/core';
 import type { Exporter } from '@nib/exec';
+import { fillList } from '@nib/render';
 import { exportHtml } from './html.ts';
 
 /**
@@ -21,6 +22,38 @@ export function pageFiles(names: string[]): string[] {
     taken.add(slug);
     return `${slug}.html`;
   });
+}
+
+/** The color around a page: its own background (its top solid fill, or a gradient's last color), else white. */
+export function pageColor(fill: unknown): string {
+  const ok = (c: unknown): c is string => typeof c === 'string' && /^(#[0-9a-f]{3,8}|[a-z]+|(rgb|hsl|oklch)a?\([\d\s.,%/-]+\))$/i.test(c.trim());
+  const fills = fillList(fill) as (string | { type?: string; color?: unknown; colors?: { color?: unknown; position?: number }[] })[];
+  for (let i = fills.length - 1; i >= 0; i--) {
+    const f = fills[i];
+    if (ok(f)) return f;
+    if (typeof f !== 'object' || !f) continue;
+    if (f.type === 'color' && ok(f.color)) return f.color;
+    if (f.type === 'gradient' && Array.isArray(f.colors)) {
+      const last = [...f.colors].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).at(-1);
+      if (ok(last?.color)) return last.color;
+    }
+  }
+  return '#FFFFFF';
+}
+
+/**
+ * A page fills the window: the design is drawn at the window's width (zoomed to it, so its layout stays as
+ * designed) and the space it leaves takes the page's own color, so there are no white edges.
+ */
+export function fitPage(width: number, color: string): string {
+  return `<style>
+html { background: ${color}; scrollbar-gutter: stable; }
+body > :first-child { zoom: var(--nib-zoom, 1); }
+</style>
+<script>
+(() => { const fit = () => document.documentElement.style.setProperty('--nib-zoom', String(document.documentElement.clientWidth / ${Math.max(1, Math.round(width))})); fit(); addEventListener('resize', fit); })();
+</script>
+`;
 }
 
 const linkOf = (n: SceneNode): { to: string } | undefined => {
@@ -57,7 +90,11 @@ export const site: Exporter = async (scenes, outputPath, options, ctx) => {
       return pageOf.get(l.to);
     };
     const file = join(outputPath, files[i]);
-    await writeFile(file, await exportHtml([s], file, options, { ...ctx, link, asset }, false));
+    const prepared = await ctx.renderer.prepare(s.root, ctx.images);
+    let width: number;
+    try { width = prepared.layout.box(s.target).width; } finally { prepared.dispose(); }
+    const html = await exportHtml([s], file, options, { ...ctx, link, asset }, false);
+    await writeFile(file, html.replace('</head>', `${fitPage(width, pageColor(s.target.fill))}</head>`));
     written.push(file);
   }
   for (const [from, name] of copies) {

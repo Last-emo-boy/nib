@@ -6,7 +6,7 @@ import { buildScene, PenDoc } from '@nib/core';
 import type { PenDocument } from '@nib/format';
 import type { Renderer } from '@nib/render';
 import { createNodeRenderer } from '@nib/render/node';
-import { EXPORTERS, pageFiles, exportHtml, exportReact, tokensFromCss, tokensFromJson, tokensToCss, tokensToJson, tokensToTailwind, writePdf, type CodeMap } from '../src/index.ts';
+import { EXPORTERS, pageColor, pageFiles, exportHtml, exportReact, tokensFromCss, tokensFromJson, tokensToCss, tokensToJson, tokensToTailwind, writePdf, type CodeMap } from '../src/index.ts';
 
 let renderer: Renderer;
 const images = { load: async () => undefined };
@@ -67,7 +67,7 @@ describe('html export', () => {
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
     await writeFile(join(base, 'images', 'hero.png'), png);
     const doc = new PenDoc({ version: '2.20', children: [
-      { type: 'frame', id: 'home', name: 'Home', x: 0, y: 0, width: 400, layout: 'vertical', children: [
+      { type: 'frame', id: 'home', name: 'Home', x: 0, y: 0, width: 400, layout: 'vertical', fill: '#0F172A', children: [
         { type: 'rectangle', id: 'hero', width: 400, height: 200, fill: { type: 'image', url: 'images/hero.png' } },
         { type: 'frame', id: 'cta', name: 'See pricing', padding: 12, fill: '#000000', metadata: { type: 'nib-link', to: 'pricing' }, children: [{ type: 'text', id: 'cta-t', content: 'Pricing', fill: '#ffffff' }] },
       ] },
@@ -82,6 +82,12 @@ describe('html export', () => {
     const home = await readFile(join(out, 'index.html'), 'utf8');
     expect(home).toMatch(/<a class="[^"]*see-pricing[^"]*" data-name="See pricing" href="pricing.html">|<a [^>]*href="pricing.html"/);
     expect(home).toContain('url("assets/hero.png")');
+    // The page fills the window: zoomed to its width, the rest in its own color.
+    expect(home).toContain('html { background: #0F172A;');
+    expect(home).toContain('clientWidth / 400');
+    expect(await readFile(join(out, 'pricing.html'), 'utf8')).toContain('html { background: #FFFFFF;');
+    expect(pageColor([{ type: 'gradient', colors: [{ color: '#000000', position: 1 }, { color: '#FF0000', position: 0 }] }])).toBe('#000000');
+    expect(pageColor(['#111111', { type: 'color', color: 'red;} body{' }])).toBe('#111111');
     expect(await readFile(join(out, 'assets', 'hero.png'))).toEqual(png);
     expect(await readFile(join(out, 'pricing.html'), 'utf8')).toMatch(/<a [^>]*href="index.html"[^>]*>Back<\/a>/);
     expect(pageFiles(['Home', 'Über uns', 'Über uns', '价格'])).toEqual(['index.html', 'uber-uns.html', 'uber-uns-2.html', '价格.html']);

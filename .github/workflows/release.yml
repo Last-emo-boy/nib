@@ -1,0 +1,65 @@
+name: Release
+
+# A tag v<version> (matching apps/desktop/package.json) builds the macOS app and the nib-publish image and
+# publishes them: the disk image on a GitHub release, the image on GHCR. Run by hand, it only builds.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  app:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: The tag matches the app's version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then echo "::error::tag $GITHUB_REF_NAME does not match the app version $version"; exit 1; fi
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Package nib.app and its disk image
+        run: pnpm package:desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nib-macos
+          path: out/*.dmg
+          if-no-files-found: error
+      - name: GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" out/*.dmg --title "nib $GITHUB_REF_NAME" --generate-notes \
+            --notes "The app is ad-hoc signed, not notarized: the first time, open it with right-click > Open."
+
+  publish-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build (and on a tag, push) ghcr.io/<owner>/nib-publish
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/nib-publish"
+          docker build --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" -t "$image:$GITHUB_SHA" services/publish
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+            docker tag "$image:$GITHUB_SHA" "$image:${GITHUB_REF_NAME#v}"
+            docker tag "$image:$GITHUB_SHA" "$image:latest"
+            docker push "$image:${GITHUB_REF_NAME#v}"
+            docker push "$image:latest"
+          fi

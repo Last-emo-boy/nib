@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # nib renders with the platform's fonts and ships for macOS: test where it runs.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Build the editor
+        run: pnpm --filter @nib/editor build
+
+  publish-image:
+    # nib-publish, the service behind nib.w33d.xyz: its image still builds.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -t nib-publish:ci services/publish

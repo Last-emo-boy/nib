@@ -206,6 +206,12 @@ export class DocumentHost {
     return this.enqueue(open, () => open.session.problems());
   }
 
+  /** Top-level frame `id` against a picture of its implementation: see ExecSession.implementationFacts. */
+  implementationFacts(path: string, id: string, picture: Uint8Array): ReturnType<ExecSession['implementationFacts']> {
+    const open = this.require(path);
+    return this.enqueue(open, () => open.session.implementationFacts(id, picture));
+  }
+
   review(path: string, scope?: string, opts: { overflow?: boolean } = {}): Promise<ReviewItem[]> {
     const open = this.require(path);
     return this.enqueue(open, () => open.session.review(scope, opts));

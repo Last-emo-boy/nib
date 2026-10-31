@@ -8,8 +8,9 @@ import { PAGE_SCRIPT, type PageSample } from '../brand.ts';
 import { Cdp } from './cdp.ts';
 import { launchChrome, type Chrome } from './chrome.ts';
 import { domToPen } from './dom-import.ts';
+import { implementationReport, matchTexts, PAGE_TEXT_SCRIPT, type PageText } from './implementation.ts';
 
-export type BrowserAction = 'load-page' | 'import-to-canvas' | 'screenshot-to-canvas' | 'return-element' | 'return-screenshot' | 'cdp' | 'element-at';
+export type BrowserAction = 'load-page' | 'import-to-canvas' | 'screenshot-to-canvas' | 'return-element' | 'return-screenshot' | 'cdp' | 'element-at' | 'check-implementation';
 
 export interface BrowserArgs {
   action: BrowserAction;
@@ -25,6 +26,8 @@ export interface BrowserArgs {
   up?: number;
   /** For return-screenshot: the widest the image may be. */
   width?: number;
+  /** For check-implementation: the top-level design frame the page at `url` is built from. */
+  frameId?: string;
 }
 
 export interface BrowserResult {
@@ -93,7 +96,8 @@ export class BrowserService {
         case 'screenshot-to-canvas': return await this.screenshotToCanvas(filePath, args, agent);
         case 'cdp': return await this.cdpCall(filePath, args);
         case 'element-at': return await this.elementAt(filePath, args);
-        default: return fail(`unknown action ${JSON.stringify(args.action)}; use load-page, import-to-canvas, screenshot-to-canvas, return-element, return-screenshot or cdp`);
+        case 'check-implementation': return await this.checkImplementation(filePath, args);
+        default: return fail(`unknown action ${JSON.stringify(args.action)}; use load-page, import-to-canvas, screenshot-to-canvas, return-element, return-screenshot, cdp or check-implementation`);
       }
     } catch (e) {
       return fail(`browser ${args.action}: ${(e as Error).message}`);
@@ -169,10 +173,32 @@ export class BrowserService {
     return this.connecting;
   }
 
-  /** The page for a browser node (sized like it), or the shared page. */
-  private async page(filePath: string, nodeId: string | undefined, shared = 'shared'): Promise<Page> {
+  /**
+   * The page at `url` (a running app, often on localhost) against the design frame it is built from: loaded
+   * in a window as wide as the frame, compared pixel by pixel and text by text, with what to change.
+   */
+  private async checkImplementation(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
+    if (!args.url) return fail('check-implementation needs the url of the page');
+    if (!args.frameId) return fail('check-implementation needs frameId: the top-level design frame the page is built from');
+    const open = await this.host.open(filePath);
+    const frame = open.session.doc.get(args.frameId);
+    if (!frame || open.session.doc.locate(args.frameId)?.parent) return fail(`"${args.frameId}" is not a top-level frame of this document`);
+    const b = open.session.box(args.frameId);
+    if (!b) return fail(`"${args.frameId}" has no size yet`);
+    const width = Math.round(b.width), height = Math.round(b.height);
+    const page = await this.page('', undefined, 'implementation', { width, height, mobile: width < 600, dpr: 1 });
+    const url = await this.navigate(page, args.url);
+    const texts = await this.evaluate<PageText[]>(page, PAGE_TEXT_SCRIPT);
+    const shot = await this.capture(page, { action: 'return-screenshot' }, undefined);
+    const facts = await this.host.implementationFacts(open.path, args.frameId, new Uint8Array(Buffer.from(shot.data, 'base64')));
+    const report = implementationReport({ url, frame: { id: args.frameId, name: String(frame.name ?? args.frameId) }, pixels: facts.pixels, match: matchTexts(facts.texts, texts) });
+    return { text: report, images: [{ data: Buffer.from(facts.pixels.diff).toString('base64'), mimeType: 'image/png' }] };
+  }
+
+  /** The page for a browser node (sized like it), or a shared page (`size`: its window, else a desktop's). */
+  private async page(filePath: string, nodeId: string | undefined, shared = 'shared', size?: Viewport): Promise<Page> {
     const cdp = await this.cdp();
-    let viewport = DEVICES.desktop;
+    let viewport = size ?? DEVICES.desktop;
     let key = shared;
     if (nodeId) {
       const node = await this.browserNode(filePath, nodeId);

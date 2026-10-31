@@ -4,6 +4,7 @@ import type { Node, RefNode } from '@nib/format';
 import { align, isFree, resetOverrides, setProps, type Align } from '../app/actions.ts';
 import { isPart, layerOf, overrideOf, ownerOf } from '../app/parts.ts';
 import { authHeaders } from '../app/connection.ts';
+import { post } from '../app/libraries.ts';
 import { toast } from '../app/store.ts';
 import { useT, type Strings } from '../app/i18n.ts';
 import { store, useEditor } from '../app/store.ts';
@@ -30,6 +31,7 @@ export function Properties() {
   const t = useT();
   const doc = useEditor((s) => s.doc);
   const selection = useEditor((s) => s.selection);
+  const conn = useEditor((s) => s.conn);
   useEditor((s) => s.version);
   useEditor((s) => s.layoutVersion);
   if (!doc) return null;
@@ -122,6 +124,7 @@ export function Properties() {
           <button className="link" title={t.responsiveHint} onClick={() => void makeResponsive(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {(canvas.cache?.box(n.id)?.width ?? 0) > 808 ? t.makeResponsive : t.makePhoneVersion}</button>
         </Section>
       )}
+      {nodes.length === 1 && !parts.length && n.type === 'frame' && !doc.locate(n.id)?.parent && !hasSketch(n as Node) && conn && <Implementation path={conn.path} id={n.id} t={t} />}
       {nodes.length === 1 && !parts.length && hasSketch(n as Node) && (
         <Section title={t.sketch}>
           <button className="link" title={t.sketchHint} onClick={() => void buildSketch(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {t.buildFromSketch}</button>
@@ -451,6 +454,51 @@ function Typography({ t, shown, set }: { t: Strings; shown: (k: string) => any; 
           <option value="auto">auto</option><option value="fixed-width">fixed width</option><option value="fixed-width-height">fixed</option>
         </select>
       </div>
+    </Section>
+  );
+}
+
+/** Implementation check: the running app's page at `url` against this frame, with what to change for a coding agent. */
+function Implementation({ path, id, t }: { path: string; id: string; t: Strings }) {
+  const key = `nib.implementation:${path}#${id}`;
+  const [url, setUrl] = useState(() => localStorage.getItem(key) ?? '');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ text: string; diff?: string } | undefined>();
+  useEffect(() => { setUrl(localStorage.getItem(key) ?? ''); setResult(undefined); }, [key]);
+  const check = async () => {
+    const target = /^[a-z]+:\/\//i.test(url.trim()) ? url.trim() : `http://${url.trim()}`;
+    localStorage.setItem(key, url.trim());
+    setBusy(true);
+    try {
+      const r = await post<{ text: string; images: { data: string }[]; isError?: boolean }>('/api/browser', { filePath: path, action: 'check-implementation', frameId: id, url: target });
+      if (r.isError) { toast(r.text); setResult(undefined); } else setResult({ text: r.text, diff: r.images[0]?.data });
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const lines = result?.text.split('\n') ?? [];
+  const summary = lines.find((l) => l.startsWith('Pixels:'))?.replace(/^Pixels: ([\d.]+% similar).*/, '$1');
+  const items = lines.filter((l) => l.startsWith('- '));
+  // The report's sections, with their headings in the interface's language, at most 10 lines in all.
+  const heads: Record<string, string> = { 'Differences (design → page):': t.implDifferences, 'In the design but not on the page:': t.implMissing, 'On the page but not in the design:': t.implExtra };
+  const shown = lines.filter((l) => heads[l] || l.startsWith('- ')).slice(0, 12);
+  return (
+    <Section title={t.implementation}>
+      <div className="row">
+        <input className="impl-url" placeholder="localhost:3000" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter' && url.trim()) void check(); }} />
+        <button className="link" disabled={busy || !url.trim()} title={t.implementationHint} onClick={() => void check()}>{busy ? t.checking : t.checkImplementation}</button>
+      </div>
+      {result && (
+        <div className="impl-result">
+          <div className="impl-summary">{summary ? `${summary} · ` : ''}{items.length ? t.nDifferences(items.length) : t.implementationMatches}</div>
+          {shown.map((l, i) => (heads[l] ? <div key={i} className="impl-head">{heads[l]}</div> : <div key={i} className="impl-item">{l.slice(2)}</div>))}
+          {shown.length < lines.filter((l) => heads[l] || l.startsWith('- ')).length && <div className="impl-item">…</div>}
+          {result.diff && <img className="impl-diff" src={`data:image/png;base64,${result.diff}`} alt="" />}
+          <button className="link" onClick={() => { void navigator.clipboard.writeText(`${t.implementationCopyIntro}\n\n${result.text}`).then(() => toast(t.copiedForAgent)); }}>{t.copyForCodingAgent}</button>
+        </div>
+      )}
     </Section>
   );
 }

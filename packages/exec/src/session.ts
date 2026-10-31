@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join, resolve as resolvePath } from 'node:path';
 import type { Node } from '@nib/format';
 import { buildScene, childrenOf, DocEditor, type Op, type PenDoc, type SceneNode } from '@nib/core';
-import { CELL_NAMES, comparePixels, decodePixels, encodePng, FontsNotLoaded, resizePixels, type FontFace, type ImageLoader, type Pixels, type Renderer } from '@nib/render';
+import { CELL_NAMES, comparePixels, cropPixels, decodePixels, encodePng, FontsNotLoaded, parseColor, resizePixels, type FontFace, type ImageLoader, type Pixels, type Renderer } from '@nib/render';
 import { PenApi, type ApiOutput, type CapturedScene, type CompareReference, type ExportFormat, type ExportOptions } from './api.ts';
 import { BoundsCache, problemOf, type LayoutFn } from './bounds.ts';
 import { assetIssues, layoutIssues, variableIssues, type Problem } from './checks.ts';
@@ -132,6 +132,39 @@ export class ExecSession {
       if (e instanceof FontsNotLoaded) return [];
       throw e;
     }
+  }
+
+  /**
+   * Top-level frame `id` against a picture of its implementation (a page screenshot at the frame's width):
+   * the frame drawn at 1× and compared with the picture's top-left at the frame's size, and the frame's text
+   * layers with where they are in it, for matching with the page's.
+   */
+  async implementationFacts(id: string, picture: Uint8Array): Promise<{ texts: DesignText[]; pixels: PictureComparison }> {
+    const top = this.current.topLevel(id.split('/')[0]);
+    if (!top) throw new Error(`there is no frame "${id}"`);
+    const [scene] = await this.loadScenes([top]);
+    if (!scene) throw new Error(`"${id}" is hidden`);
+    const { renderer, images } = this.opts;
+    const design = await renderer.renderPixels(scene, scene, images, { scale: 1 });
+    const page = decodePixels(renderer.ck, picture);
+    const c = comparePixels(design, cropPixels(page, design.width, design.height));
+    const texts: DesignText[] = [];
+    const walk = (n: SceneNode, ox: number, oy: number, isTop: boolean) => {
+      if (n.enabled === false) return;
+      const b = isTop ? { x: 0, y: 0, width: design.width, height: design.height } : this.box(n.id);
+      if (!b) return;
+      const x = isTop ? 0 : ox + b.x, y = isTop ? 0 : oy + b.y;
+      if (n.type === 'text' && n.content !== undefined && n.content !== null && String(n.content).trim()) {
+        texts.push({
+          id: n.id, ...(typeof n.name === 'string' && n.name ? { name: n.name } : {}), text: String(n.content), x, y, width: b.width, height: b.height,
+          fontSize: Number(n.fontSize ?? 14), fontWeight: Number(String(n.fontWeight ?? '400').replace(/\D/g, '') || 400),
+          fontFamily: typeof n.fontFamily === 'string' && n.fontFamily ? n.fontFamily : 'Inter', ...(colorOf(n.fill ?? '#000000') ? { color: colorOf(n.fill ?? '#000000') } : {}),
+        });
+      }
+      for (const k of n.children ?? []) walk(k, x, y, false);
+    };
+    walk(scene, 0, 0, true);
+    return { texts, pixels: { width: design.width, height: design.height, pictureWidth: page.width, pictureHeight: page.height, similarity: c.similarity, changed: c.changed, cells: c.cells, diff: encodePng(renderer.ck, c.diff) } };
   }
 
   /** Layout box of a document node, relative to its parent; undefined when hidden or its fonts are not loaded. */
@@ -362,6 +395,20 @@ export class ExecSession {
     if (!exporter) throw new Error(`${format} export is not available`);
     return exporter(scenes, target, options, { doc: this.doc, renderer: this.opts.renderer, images: this.opts.images, baseDir: this.opts.baseDir });
   }
+}
+
+/** A text layer of a design, where it is in its top-level frame. */
+export interface DesignText { id: string; name?: string; text: string; x: number; y: number; width: number; height: number; fontSize: number; fontWeight: number; fontFamily: string; color?: string }
+
+/** A frame and a picture compared pixel by pixel (see comparePixels), with the difference image as a PNG. */
+export interface PictureComparison { width: number; height: number; pictureWidth: number; pictureHeight: number; similarity: number; changed: number; cells: number[]; diff: Uint8Array }
+
+/** The top solid color of a fill, as #RRGGBB (gradients and images: none). */
+function colorOf(fill: unknown): string | undefined {
+  const list = (Array.isArray(fill) ? fill : [fill]).filter((f) => !(f && typeof f === 'object' && (f as { enabled?: unknown }).enabled === false));
+  const top = list[list.length - 1];
+  const c = typeof top === 'string' ? parseColor(top) : top && typeof top === 'object' && (top as { type?: unknown }).type === 'color' ? parseColor((top as { color?: unknown }).color) : undefined;
+  return c ? `#${c.slice(0, 3).map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('').toUpperCase()}` : undefined;
 }
 
 function failure(text: string): ExecuteResult {

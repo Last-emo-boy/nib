@@ -72,16 +72,17 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'browser',
-    description: 'Drive a web page in nib\'s browser: load a url, take screenshots, read an element\'s DOM and styles, import a page or element as editable layers (import-to-canvas), place a screenshot on the canvas, or send a Chrome DevTools Protocol command. Pass nodeId to use a browser node on the canvas (the page then takes its size and the node shows it); without it a shared page is used. Call load-page first.',
+    description: 'Drive a web page in nib\'s browser: load a url, take screenshots, read an element\'s DOM and styles, import a page or element as editable layers (import-to-canvas), place a screenshot on the canvas, or send a Chrome DevTools Protocol command. Pass nodeId to use a browser node on the canvas (the page then takes its size and the node shows it); without it a shared page is used. Call load-page first. check-implementation compares a running app\'s page (url, often localhost) with the design frame it is built from (frameId): pixel similarity with a difference image, and each text that moved, changed size, weight, color or font, is missing or extra, with CSS selectors, so you can fix the page.',
     inputSchema: {
       type: 'object',
       properties: {
         filePath: { type: 'string', description: 'The .pen file the result goes into (import-to-canvas, screenshot-to-canvas) or whose browser node is used.' },
-        action: { type: 'string', enum: ['load-page', 'import-to-canvas', 'screenshot-to-canvas', 'return-element', 'return-screenshot', 'cdp'] },
+        action: { type: 'string', enum: ['load-page', 'import-to-canvas', 'screenshot-to-canvas', 'return-element', 'return-screenshot', 'cdp', 'check-implementation'] },
+        frameId: { type: 'string', description: 'For check-implementation: the top-level design frame the page is built from.' },
         nodeId: { type: 'string', description: 'A browser node (type "browser") in the document; omit for the shared page.' },
         target: { type: 'string', enum: ['full-page', 'selection', 'query'], description: 'What to act on (default full-page).' },
         querySelector: { type: 'string', description: 'CSS selector, for target "query".' },
-        url: { type: 'string', description: 'http(s) or file URL, for load-page.' },
+        url: { type: 'string', description: 'http(s) or file URL, for load-page and check-implementation.' },
         method: { type: 'string', description: 'A CDP method such as "Input.dispatchMouseEvent" (domains DOM, Input, Page, Runtime, Emulation, CSS, Accessibility), for cdp.' },
         params: { type: 'object', additionalProperties: true, description: 'The CDP method\'s parameters.' },
       },

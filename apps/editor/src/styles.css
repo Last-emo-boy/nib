@@ -594,3 +594,9 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .stress-scenario { display: block; width: 100%; text-align: left; background: none; border: 0; cursor: pointer; }
 .stress-scenario:hover { color: var(--text); }
 .empty.small { padding: 4px 8px 8px; font-size: 11px; }
+.impl-url { flex: 1; min-width: 0; }
+.impl-result { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.impl-summary { font-weight: 600; font-size: 12px; }
+.impl-item { font-size: 11px; color: var(--dim); line-height: 1.35; overflow-wrap: anywhere; }
+.impl-diff { width: 100%; border-radius: 4px; border: 1px solid var(--line); margin: 4px 0; }
+.impl-head { font-size: 11px; font-weight: 600; margin-top: 4px; }

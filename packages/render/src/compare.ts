@@ -57,6 +57,15 @@ export function comparePixels(a: Pixels, b: Pixels): Comparison {
   };
 }
 
+/** The top-left `width` × `height` of a picture, transparent (white when compared) where it is smaller. */
+export function cropPixels(p: Pixels, width: number, height: number): Pixels {
+  if (p.width === width && p.height === height) return p;
+  const rgba = new Uint8Array(width * height * 4);
+  const w = Math.min(width, p.width) * 4;
+  for (let y = 0; y < Math.min(height, p.height); y++) rgba.set(p.rgba.subarray(y * p.width * 4, y * p.width * 4 + w), y * width * 4);
+  return { width, height, rgba };
+}
+
 /** An encoded picture (PNG, JPEG, WebP, GIF) as pixels. */
 export function decodePixels(ck: CanvasKit, bytes: Uint8Array): Pixels {
   const img = ck.MakeImageFromEncoded(bytes);

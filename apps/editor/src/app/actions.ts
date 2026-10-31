@@ -121,7 +121,8 @@ export function nudge(dx: number, dy: number): void {
   void commit('Move', (ed) => {
     for (const id of free) {
       const n = doc.get(id)!;
-      ed.set(id, { x: Math.round((n.x ?? 0) + dx), y: Math.round((n.y ?? 0) + dy) });
+      // To 1/100 px: nudges smaller than a pixel add up.
+      ed.set(id, { x: Math.round(((n.x ?? 0) + dx) * 100) / 100, y: Math.round(((n.y ?? 0) + dy) * 100) / 100 });
     }
   });
 }

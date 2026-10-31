@@ -5,6 +5,7 @@ import type { Change, Connection } from './connection.ts';
 import type { PenSession } from '../canvas/pen.tsx';
 import type { GradientEdit } from '../canvas/GradientOverlay.tsx';
 import type { CropEdit } from '../canvas/CropOverlay.tsx';
+import { applyPrefs, readPrefs, writePrefs, type Prefs } from './prefs.ts';
 
 export type Tool = 'move' | 'scale' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'pen' | 'text' | 'icon' | 'note';
 export type LeftTab = 'layers' | 'components' | 'libraries' | 'variables' | 'problems';
@@ -40,6 +41,8 @@ export interface EditorState {
   followAgent: boolean;
   /** The 1px grid shown at high zoom. */
   pixelGrid: boolean;
+  /** Nudge distances, zoom speed, theme, motion. */
+  prefs: Prefs;
   /** A gradient fill whose handles are on the canvas. */
   gradientEdit?: GradientEdit;
   /** An image fill being cropped on the canvas. */
@@ -93,7 +96,26 @@ export const store = createStore<EditorState>({
   lang: savedLang,
   paletteOpen: false,
   pixelGrid: localStorage.getItem('nib-pixel-grid') !== '0',
+  prefs: readPrefs(),
 });
+
+/** Change preferences: stored for every nib window, shown at once. */
+export function setPrefs(patch: Partial<Prefs>): void {
+  const prefs = { ...store.get().prefs, ...patch };
+  writePrefs(prefs);
+  store.set({ prefs });
+}
+
+// The page follows the preferences, another window's changes to them, and the computer's light/dark and
+// reduce-motion settings (for preferences that follow the system).
+applyPrefs(store.get().prefs);
+store.subscribe(() => applyPrefs(store.get().prefs));
+window.addEventListener('storage', (e) => {
+  if (e.key === 'nib-prefs') store.set({ prefs: readPrefs(e.newValue) });
+  if (e.key === 'nib-pixel-grid') store.set({ pixelGrid: e.newValue !== '0' });
+});
+// A new prefs object, so everything that draws with them (the canvas) updates too.
+for (const q of ['(prefers-color-scheme: light)', '(prefers-reduced-motion: reduce)']) matchMedia(q).addEventListener('change', () => store.set({ prefs: { ...store.get().prefs } }));
 
 export function useEditor<T>(select: (s: EditorState) => T): T {
   return useSyncExternalStore(store.subscribe, () => select(store.get()));

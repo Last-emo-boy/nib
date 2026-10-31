@@ -337,7 +337,7 @@ function useShortcuts() {
         return;
       }
       const arrows: Record<string, [number, number]> = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };
-      if (arrows[key]) { e.preventDefault(); const [dx, dy] = arrows[key]; const step = e.shiftKey ? 10 : 1; nudge(dx * step, dy * step); return; }
+      if (arrows[key]) { e.preventDefault(); const [dx, dy] = arrows[key]; const step = e.shiftKey ? s.prefs.bigNudge : s.prefs.nudge; nudge(dx * step, dy * step); return; }
       if (tools[key]) { store.set({ tool: tools[key] }); return; }
     };
     const onCopy = (e: ClipboardEvent) => { if (isTypingTarget(document.activeElement) || !store.get().selection.length) return; e.preventDefault(); copySelection(e.clipboardData ?? undefined); };

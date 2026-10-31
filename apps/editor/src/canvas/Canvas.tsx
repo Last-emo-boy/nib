@@ -65,7 +65,7 @@ function unionOf(boxes: Box[]): Box {
 
 export const toDoc = (v: View, sx: number, sy: number) => ({ x: (sx - v.tx) / v.zoom, y: (sy - v.ty) / v.zoom });
 
-const BACKGROUND = [0.075, 0.075, 0.08, 1] as const;
+const BACKGROUND = { dark: [0.075, 0.075, 0.08, 1], light: [0.953, 0.953, 0.96, 1] } as const;
 const DRAG_THRESHOLD = 3;
 
 /** The part of the canvas not covered by panels, in screen pixels. */
@@ -260,7 +260,7 @@ export function CanvasView() {
       frame = 0;
       if (!surface || !engine) return;
       const c = surface.getCanvas();
-      c.clear(Float32Array.from(BACKGROUND));
+      c.clear(Float32Array.from(BACKGROUND[document.documentElement.dataset.theme === 'light' ? 'light' : 'dark']));
       const { view } = store.get();
       c.save();
       c.scale(dpr, dpr);
@@ -379,7 +379,7 @@ export function CanvasView() {
     const { sx, sy } = local(e);
     if (e.ctrlKey || e.metaKey) {
       // Pinch on a trackpad arrives as ctrl+wheel.
-      const zoom = clamp(view.zoom * Math.exp(-e.deltaY * (e.ctrlKey && !e.metaKey ? 0.01 : 0.002)), 0.02, 64);
+      const zoom = clamp(view.zoom * Math.exp(-e.deltaY * (e.ctrlKey && !e.metaKey ? 0.01 : 0.002) * store.get().prefs.zoomSpeed), 0.02, 64);
       const p = toDoc(view, sx, sy);
       store.set({ view: { zoom, tx: sx - p.x * zoom, ty: sy - p.y * zoom } });
     } else {

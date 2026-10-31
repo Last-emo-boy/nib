@@ -89,7 +89,8 @@ export class Presence {
     const played = track.beats.filter((b) => b.at <= now);
     track.beats = [...played.slice(-1), ...track.beats.filter((b) => b.at > now), ...beats];
     return (now) => {
-      const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // Fewer animations (nib's setting, or the computer's): changes show at once.
+      const reduced = typeof document !== 'undefined' && document.documentElement.dataset.motion === 'reduced';
       // Queue behind what is playing, but never more than a second behind the document.
       const start = Math.max(now, Math.min(this.end, now + 1000));
       const step = Math.min(220, Math.max(12, SPAN_MS / beats.length));

@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { authHeaders } from '../app/connection.ts';
 import { desktop, type McpClientStatus } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
-import { store, useEditor } from '../app/store.ts';
+import { setPrefs, store, useEditor } from '../app/store.ts';
+import type { Prefs } from '../app/prefs.ts';
 import { Icon } from './Icon.tsx';
 
-/** Language, agent (MCP client) setup, and where nib keeps things. */
+/** Language, how the editor behaves and looks, agent (MCP client) setup, and where nib keeps things. */
 export function Settings() {
   const t = useT();
   const lang = useEditor((s) => s.lang);
@@ -27,6 +28,7 @@ export function Settings() {
           <button className={lang === 'zh' ? 'on' : ''} onClick={() => setLang('zh')}>中文</button>
         </div>
       </section>
+      <EditorPrefs />
       <section>
         <h2>{t.agentsTitle}</h2>
         <p className="dim">{t.agentsHint}</p>
@@ -55,5 +57,41 @@ export function Settings() {
         <p className="dim">{t.credits}</p>
       </section>
     </div>
+  );
+}
+
+/** Nudge distances, zoom speed, the interface's look, motion and the pixel grid. */
+function EditorPrefs() {
+  const t = useT();
+  const prefs = useEditor((s) => s.prefs);
+  const pixelGrid = useEditor((s) => s.pixelGrid);
+  const choice = <K extends 'theme' | 'motion'>(key: K, options: [Prefs[K], string][]) => (
+    <div className="segmented">
+      {options.map(([v, label]) => <button key={v} className={prefs[key] === v ? 'on' : ''} onClick={() => setPrefs({ [key]: v } as Partial<Prefs>)}>{label}</button>)}
+    </div>
+  );
+  const number = (key: 'nudge' | 'bigNudge', label: string) => (
+    <label className="pref-row">
+      <span>{label}</span>
+      <span className="pref-num"><input type="number" min={0.01} max={1000} step={key === 'nudge' ? 0.5 : 1} value={prefs[key]}
+        onChange={(e) => { const v = Number(e.target.value); if (v > 0 && v <= 1000) setPrefs({ [key]: v }); }} /> px</span>
+    </label>
+  );
+  return (
+    <section>
+      <h2>{t.editorPrefs}</h2>
+      <div className="pref-row"><span>{t.interfaceTheme}</span>{choice('theme', [['dark', t.themeDark], ['light', t.themeLight], ['system', t.followSystem]])}</div>
+      <div className="pref-row"><span>{t.motionPref}</span>{choice('motion', [['full', t.motionFull], ['reduced', t.motionReduced], ['system', t.followSystem]])}</div>
+      {number('nudge', t.nudgeStep)}
+      {number('bigNudge', t.bigNudgeStep)}
+      <label className="pref-row">
+        <span>{t.zoomSpeed}</span>
+        <span className="pref-num"><input type="range" min={0.25} max={3} step={0.05} value={prefs.zoomSpeed} onChange={(e) => setPrefs({ zoomSpeed: Number(e.target.value) })} /> {prefs.zoomSpeed.toFixed(2)}×</span>
+      </label>
+      <label className="pref-row">
+        <span>{t.togglePixelGrid}</span>
+        <input type="checkbox" checked={pixelGrid} onChange={(e) => { localStorage.setItem('nib-pixel-grid', e.target.checked ? '1' : '0'); store.set({ pixelGrid: e.target.checked }); }} />
+      </label>
+    </section>
   );
 }

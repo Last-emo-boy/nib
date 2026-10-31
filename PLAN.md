@@ -105,6 +105,7 @@ Everything pen.dev has that nib lacks, the pain points seen while using nib's ag
 - D1. Slides panel (ordered frames), Present mode, PDF of the slides.
 - D2. Prototype links between frames, clickable in Present mode, simple transitions.
 - D3. Share by link: a static, self-hostable viewer of the design, served read-only on the local network by the daemon.
+- Status 2026-10-31: phase D done. Slides are the top-level frames (components left out) in reading order, nothing stored: the Slides tab reorders them by swapping the frames' places, presents from one, and saves them as one PDF. Present mode is the live canvas full screen, fitted to a slide with black around it (agent edits show, cursors hidden). Prototype links are `nib-link` metadata on any layer (a frame, next, previous; instant, dissolve, or a glide across the canvas), drawn as arrows on the canvas. Share writes a read-only snapshot (2× PNG per frame, share.json with link hotspots, a self-contained viewer page) under a stable unguessable id, served at /share/<id>/ by the daemon without the token; "Also on the local network" starts a second server that serves the shares folder and nothing else, off until switched on.
 
 **E. Agent features**
 - E1. Variants: several agents at once on copies of a frame, side by side; keep one.

@@ -537,3 +537,11 @@ select:focus { border-color: var(--accent); }
 .overlay .proto-link path { fill: none; stroke: var(--accent); stroke-width: 1.5; }
 .overlay .proto-link circle { fill: var(--accent); }
 select.grow { flex: 1; max-width: none; min-width: 0; }
+
+/* Share */
+.share { position: relative; display: inline-flex; }
+.share-menu { position: absolute; top: 38px; right: -8px; width: 320px; z-index: 25; display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px var(--shadow); }
+.share-menu p { margin: 0; line-height: 1.5; }
+.share-link { display: flex; gap: 4px; align-items: center; }
+.share-link input { flex: 1; min-width: 0; height: 28px; padding: 0 8px; background: var(--panel-2); border: 1px solid transparent; border-radius: 7px; outline: none; font-size: 11px; }
+.share-folder { font-size: 11px; word-break: break-all; }

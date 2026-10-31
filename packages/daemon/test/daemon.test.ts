@@ -21,7 +21,7 @@ beforeAll(async () => {
   const renderer = await createNodeRenderer();
   host = new DocumentHost({ renderer, images: () => counting });
   const projectFonts = new FolderFontLoader(() => host.list().map((d) => join(dirname(d.path), 'fonts')));
-  daemon = await startDaemon({ host, renderer, fonts: none, projectFonts, icons: new PackageIconSource(), images: () => none, fallbacks: renderer.fallbacks, port: 0 });
+  daemon = await startDaemon({ host, renderer, fonts: none, projectFonts, icons: new PackageIconSource(), images: () => none, fallbacks: renderer.fallbacks, port: 0, sharesDir: join(dir, 'shares'), shareBind: '127.0.0.1' });
 });
 afterAll(async () => {
   await daemon.close();
@@ -266,6 +266,38 @@ describe('library', () => {
     const list = await (await fetch(`http://127.0.0.1:${daemon.port}/api/fonts?doc=${encodeURIComponent(path)}`, { headers: { authorization: `Bearer ${daemon.token}` } })).json();
     expect(list.project).toEqual([{ family: 'lucide', faces: [{ weight: 400, italic: false }] }]);
     expect((await api('/api/font-file', { path, name: 'x.ttf', data: Buffer.from('not a font').toString('base64') })).status).toBe(422);
+  });
+
+  it('shares a read-only snapshot under a stable link, on the local network only when switched on', async () => {
+    const path = join(dir, 'deck.pen');
+    await writeFile(path, serializePen({ version: '2.20', children: [
+      { type: 'frame', id: 'two', name: 'Two', x: 500, y: 0, width: 400, height: 225, fill: '#ff0000' },
+      { type: 'frame', id: 'one', name: 'One', x: 0, y: 0, width: 400, height: 225, layout: 'none', fill: '#0000ff', children: [
+        { type: 'rectangle', id: 'btn', name: 'Next', x: 20, y: 30, width: 100, height: 40, fill: '#ffffff', metadata: { type: 'nib-link', to: 'two', transition: 'dissolve' } },
+      ] },
+      { type: 'frame', id: 'c', reusable: true, x: 0, y: 400, width: 10, height: 10 },
+    ] } as unknown as PenDocument));
+    const r = await (await api('/api/share', { path })).json();
+    expect(r.url).toBe(`http://127.0.0.1:${daemon.port}/share/${r.id}/`);
+    expect(r.lanUrl).toBeUndefined();
+    // No token needed: the id is the permission.
+    expect(await (await fetch(r.url)).text()).toContain("fetch('share.json'");
+    const manifest = await (await fetch(`${r.url}share.json`)).json();
+    expect(manifest.frames.map((f: { id: string }) => f.id)).toEqual(['one', 'two']);
+    expect(manifest.frames[0].links).toEqual([{ x: 20, y: 30, width: 100, height: 40, to: 'two', transition: 'dissolve', label: 'Next' }]);
+    const png = await fetch(`${r.url}${manifest.frames[0].file}`);
+    expect(png.headers.get('content-type')).toBe('image/png');
+    expect((await fetch(`${r.url}..%2Findex.json`)).status).toBe(404);
+    expect((await fetch(`http://127.0.0.1:${daemon.port}/share/short/`)).status).toBe(404);
+    expect((await (await api('/api/share', { path })).json()).id).toBe(r.id);
+    // The local-network server serves shares and nothing else.
+    const on = await (await api('/api/share/lan', { on: true })).json();
+    expect(on.lan).toBe(true);
+    expect((await fetch(`http://127.0.0.1:${on.port}/share/${r.id}/share.json`)).status).toBe(200);
+    expect((await fetch(`http://127.0.0.1:${on.port}/api/ping`)).status).toBe(404);
+    expect((await (await fetch(`http://127.0.0.1:${daemon.port}/api/share?doc=${encodeURIComponent(path)}`, { headers: { authorization: `Bearer ${daemon.token}` } })).json()).lanUrl).toBe(`http://127.0.0.1:${on.port}/share/${r.id}/`);
+    await api('/api/share/lan', { on: false });
+    await expect(fetch(`http://127.0.0.1:${on.port}/share/${r.id}/share.json`)).rejects.toThrow();
   });
 
   it('makes a design system from a logo: reads its colors, writes a themed copy beside the design and imports it', async () => {

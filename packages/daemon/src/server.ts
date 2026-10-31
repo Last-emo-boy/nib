@@ -7,12 +7,13 @@ import type { Op } from '@nib/core';
 import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } from '@nib/render';
 import { faceInfo, faceOffsets, type FolderFontLoader, type SystemFontLoader } from '@nib/render/node';
 import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
-import { DRAFTS_DIR, drafts, newDraft, nodePreview, recents, thumbnail } from './library.ts';
+import { DRAFTS_DIR, drafts, newDraft, NIB_HOME, nodePreview, recents, thumbnail } from './library.ts';
 import { aliasFor, brandLibrary, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
 import { brandFromPage, brandFromPalette, paletteFromPixels, paletteFromSvg, type Brand } from './brand.ts';
 import { templateDocument, templateFile, templates } from './templates.ts';
 import { tokensFromCss, tokensFromJson, tokensToCss, tokensToJson, tokensToTailwind } from '@nib/export';
 import type { BrowserService } from './browser/service.ts';
+import { buildShare, lanAddress, serveShare, sharedId, ShareServer } from './share.ts';
 import type { AgentService } from './agent/service.ts';
 
 export const DAEMON_VERSION = '0.1.0';
@@ -39,6 +40,10 @@ export interface DaemonOptions {
   /** Extra origins allowed to call the API, e.g. the editor's dev server. */
   devOrigins?: string[];
   token?: string;
+  /** Where shared snapshots are kept (default: shares/ in nib's home). */
+  sharesDir?: string;
+  /** Address the local-network share server listens on (default all interfaces; tests use 127.0.0.1). */
+  shareBind?: string;
   /** Called on every request and connection change, for idle shutdown. */
   onActivity?: (clients: number) => void;
 }
@@ -72,6 +77,9 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
   const host = opts.host;
   let port = opts.port ?? DEFAULT_PORT;
   const sockets = new Set<WebSocket>();
+  const sharesDir = opts.sharesDir ?? join(NIB_HOME, 'shares');
+  const lan = new ShareServer(sharesDir, opts.shareBind);
+  const lanUrl = (id: string) => (lan.on ? `http://${opts.shareBind && opts.shareBind !== '0.0.0.0' ? opts.shareBind : lanAddress() ?? '127.0.0.1'}:${lan.port}/share/${id}/` : undefined);
   const activity = () => opts.onActivity?.(sockets.size);
 
   const hostOk = (req: IncomingMessage) => {
@@ -104,6 +112,8 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
     if (!hostOk(req)) return send(res, 421, { error: 'wrong host' });
     if (!originOk(req)) return send(res, 403, { error: 'origin not allowed' });
     const url = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
+    // Shared snapshots: read-only files whose unguessable id is the permission.
+    if (url.pathname.startsWith('/share/') && req.method === 'GET' && (await serveShare(sharesDir, url.pathname, res))) return;
     if (!url.pathname.startsWith('/api/')) return serveEditor(url.pathname, res);
     if (url.pathname === '/api/ping') return send(res, 200, { ok: true, version: DAEMON_VERSION, pid: process.pid });
     if (!tokenOk(requestToken(req, url))) return send(res, 401, { error: 'missing or wrong token' });
@@ -295,6 +305,25 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         for (let i = 2; await stat(join(dir, name)).catch(() => undefined); i++) name = `${stem}-${i}.${ext}`;
         await writeFile(join(dir, name), bytes);
         return send(res, 200, { url: `images/${name}`, width, height });
+      }
+      case 'POST /api/share': {
+        // Snapshot the design for viewing (again, under the same link when it was shared before).
+        const body = await readJson(req);
+        if (typeof body.path !== 'string') return send(res, 400, { error: 'path is required' });
+        const id = await buildShare(host, opts.renderer, opts.images, body.path, sharesDir);
+        return send(res, 200, { id, url: `http://127.0.0.1:${port}/share/${id}/`, lanUrl: lanUrl(id), folder: join(sharesDir, id) });
+      }
+      case 'GET /api/share': {
+        const doc = q.get('doc');
+        const id = doc ? await sharedId(sharesDir, resolvePath(doc)) : undefined;
+        return send(res, 200, id ? { id, url: `http://127.0.0.1:${port}/share/${id}/`, lanUrl: lanUrl(id), folder: join(sharesDir, id), lan: lan.on } : { lan: lan.on });
+      }
+      case 'POST /api/share/lan': {
+        // The local-network server: on only when asked, serving shares and nothing else.
+        const body = await readJson(req);
+        if (body.on === true) await lan.start(typeof body.port === 'number' ? body.port : 0);
+        else await lan.stop();
+        return send(res, 200, { lan: lan.on, port: lan.port || undefined, address: lan.on ? lanAddress() : undefined });
       }
       case 'GET /api/fonts': {
         // The families a design can use: those in its fonts/ folder, and those installed on this computer.
@@ -565,6 +594,7 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
     url: base,
     editorUrl,
     close: () => new Promise((resolve) => {
+      void lan.stop();
       for (const ws of sockets) ws.terminate();
       wss.close();
       server.close(() => resolve());

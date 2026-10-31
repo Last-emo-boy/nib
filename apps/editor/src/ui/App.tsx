@@ -11,6 +11,7 @@ import { isMask, maskSelection, releaseMask } from '../canvas/mask.ts';
 import { arrange, flipSelection } from '../canvas/arrange.ts';
 import { layerOf } from '../app/parts.ts';
 import { Present, startPresenting } from '../canvas/present.tsx';
+import { ShareButton } from './Share.tsx';
 import { followLink } from '../canvas/links.ts';
 import { deletePoints, editPath, finishDrawing, finishEditing } from '../canvas/pen.tsx';
 import { Icon } from './Icon.tsx';
@@ -131,6 +132,7 @@ function TopRight() {
       <button className={`text-button${activity ? ' on' : ''}`} onClick={() => toggleSide('activityOpen')}>
         <span className={`dot${agentBusy ? ' busy' : ''}`} />{t.activity}
       </button>
+      <ShareButton />
       <button className="text-button" title={`${t.present} (⌥⌘↵)`} onClick={() => startPresenting()}><Icon name="play" size={15} /></button>
       <button className="text-button" title={t.language} onClick={() => { const next = lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', next); store.set({ lang: next }); }}><Icon name="languages" size={15} /></button>
     </div>

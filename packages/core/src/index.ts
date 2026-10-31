@@ -5,3 +5,4 @@ export * from './instances.ts';
 export * from './scene.ts';
 export * from './paths.ts';
 export * from './svg.ts';
+export * from './slides.ts';

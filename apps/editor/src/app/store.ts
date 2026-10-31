@@ -6,7 +6,7 @@ import type { PenSession } from '../canvas/pen.tsx';
 import type { GradientEdit } from '../canvas/GradientOverlay.tsx';
 import type { CropEdit } from '../canvas/CropOverlay.tsx';
 
-export type Tool = 'move' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'pen' | 'text' | 'icon' | 'note';
+export type Tool = 'move' | 'scale' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'pen' | 'text' | 'icon' | 'note';
 export type LeftTab = 'layers' | 'components' | 'libraries' | 'variables' | 'problems';
 export type Lang = 'en' | 'zh';
 

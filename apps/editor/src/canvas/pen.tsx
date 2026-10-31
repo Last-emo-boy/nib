@@ -2,6 +2,7 @@ import { bezier, formatPath, pathInBox, pathNodeProps, transformPaths, type Path
 import { commit, insertNode, isFree } from '../app/actions.ts';
 import { store, toast, useEditor } from '../app/store.ts';
 import { canvas, toDoc } from './Canvas.tsx';
+import { applyLinear, invert, mul, placement } from './affine.ts';
 
 /**
  * The pen tool and point editing. Drawing: a click adds a corner point, a click-drag a smooth one with
@@ -106,8 +107,8 @@ export async function finishDrawing(): Promise<void> {
   if (!subs.length) return;
   const { doc } = store.get();
   const parent = s.parent && doc?.has(s.parent) ? s.parent : null;
-  const origin = parent ? canvas.cache?.box(parent) : undefined;
-  const props = pathNodeProps(transformPaths(subs, [1, 0, 0, 1, -(origin?.x ?? 0), -(origin?.y ?? 0)]));
+  const space = parent ? canvas.cache?.placed(parent)?.inner : undefined;
+  const props = pathNodeProps(space ? transformPaths(subs, invert(space)) : subs);
   if (!props) return;
   const flow = parent ? (doc!.get(parent) as { layout?: string }).layout !== 'none' : false;
   const closed = subs.some((x) => x.closed);
@@ -122,13 +123,13 @@ export async function finishDrawing(): Promise<void> {
 /** Start editing the points of path `id`. */
 export function editPath(id: string): boolean {
   const { doc } = store.get();
-  const node = doc?.get(id) as { type?: string; geometry?: unknown; rotation?: unknown; viewBox?: number[] } | undefined;
-  const box = canvas.cache?.box(id);
-  if (node?.type !== 'path' || typeof node.geometry !== 'string' || !box) return false;
-  if (typeof node.rotation === 'number' && node.rotation % 360 !== 0) { toast('Rotated paths cannot be edited point by point yet: set rotation to 0 first.'); return false; }
+  const node = doc?.get(id) as { type?: string; geometry?: unknown; viewBox?: number[] } | undefined;
+  const placed = canvas.cache?.placed(id);
+  if (node?.type !== 'path' || typeof node.geometry !== 'string' || !placed) return false;
   let subs: SubPath[];
   try {
-    subs = transformPaths(pathInBox(node.geometry, box.width, box.height, node.viewBox), [1, 0, 0, 1, box.x, box.y]);
+    // On the canvas, as drawn: turned and mirrored with the path.
+    subs = transformPaths(pathInBox(node.geometry, placed.abs.width, placed.abs.height, node.viewBox), placed.inner);
   } catch (e) {
     toast((e as Error).message);
     return false;
@@ -153,13 +154,19 @@ async function save(subs: SubPath[], label: string): Promise<void> {
     await commit(label, (ed) => ed.remove(id));
     return;
   }
-  const parent = doc.locate(id)?.parent;
-  const origin = parent ? canvas.cache?.box(parent.id) : undefined;
-  const props = pathNodeProps(transformPaths(kept, [1, 0, 0, 1, -(origin?.x ?? 0), -(origin?.y ?? 0)]));
+  // Back in the path's own (turned) frame: its box is the points' bounds there, its corner placed in the parent.
+  // A mirrored path's points are kept as drawn, so the mirroring is dropped.
+  const placed = canvas.cache?.placed(id);
+  const node = doc.get(id) as { rotation?: unknown; flipX?: unknown; flipY?: unknown };
+  const turn = placement(0, 0, typeof node.rotation === 'number' ? node.rotation : 0);
+  const frame = placed ? mul(placed.parent, turn) : turn;
+  const props = pathNodeProps(transformPaths(kept, invert(frame)));
   if (!props) return;
   const { x, y, ...shape } = props;
+  const at = applyLinear(turn, x, y);
+  const unflip = node.flipX === true || node.flipY === true ? { flipX: undefined, flipY: undefined } : {};
   update({ ...s, subs: kept, selected: s.selected.filter((k) => { const [si, pi] = k.split(':').map(Number); return kept[si]?.points[pi]; }) });
-  await commit(label, (ed) => ed.set(id, isFree(doc, id) ? { x, y, ...shape } : shape));
+  await commit(label, (ed) => ed.set(id, isFree(doc, id) ? { x: Math.round(at.x * 100) / 100, y: Math.round(at.y * 100) / 100, ...shape, ...unflip } : { ...shape, ...unflip }));
 }
 
 const keyOf = (si: number, pi: number) => `${si}:${pi}`;

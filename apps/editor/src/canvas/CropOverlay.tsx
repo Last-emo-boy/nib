@@ -4,6 +4,7 @@ import { token } from '../app/connection.ts';
 import { store, useEditor } from '../app/store.ts';
 import { canvas } from './Canvas.tsx';
 import { coverBox, cropFill, imageRect, type R } from './crop.ts';
+import { applyLinear, invert, svgMatrix } from './affine.ts';
 
 /** The image fill being cropped: which node, which entry of its fills. */
 export interface CropEdit { id: string; index: number }
@@ -43,12 +44,13 @@ export function CropOverlay() {
     if (!src || natural?.url === src) return;
     void naturalSize(src).then((s) => setNatural({ url: src, ...s }), () => store.set({ crop: undefined }));
   }, [src]);
-  const box = crop ? canvas.cache?.box(crop.id) : undefined;
-  if (!crop || !node || !fill || !src || !box || natural?.url !== src) return null;
+  const placed = crop ? canvas.cache?.placed(crop.id) : undefined;
+  if (!crop || !node || !fill || !src || !placed || natural?.url !== src) return null;
+  // Drawn in the node's own coordinates (as its fills are: turned and mirrored with it).
+  const box = placed.abs;
+  const toLocal = invert(placed.inner);
   const r = live ?? imageRect(fill, natural.w, natural.h, box.width, box.height);
-  const sx = (x: number) => (box.x + x) * view.zoom + view.tx, sy = (y: number) => (box.y + y) * view.zoom + view.ty;
-  const screen = { x: sx(r.x), y: sy(r.y), width: r.width * view.zoom, height: r.height * view.zoom };
-  const b = { x: sx(0), y: sy(0), width: box.width * view.zoom, height: box.height * view.zoom };
+  const px = 1 / view.zoom;
 
   const write = (next: R, merge: string) => {
     const value = node.fill;
@@ -64,7 +66,8 @@ export function CropOverlay() {
     let last: R | undefined, sent = 0;
     const move = (ev: PointerEvent) => {
       const z = store.get().view.zoom;
-      last = coverBox(change((ev.clientX - x0) / z, (ev.clientY - y0) / z, start), box.width, box.height);
+      const d = applyLinear(toLocal, (ev.clientX - x0) / z, (ev.clientY - y0) / z);
+      last = coverBox(change(d.x, d.y, start), box.width, box.height);
       setLive(last);
       if (performance.now() - sent > 60) { sent = performance.now(); void write(last, merge); }
     };
@@ -84,15 +87,15 @@ export function CropOverlay() {
     if (Math.abs(dy) > Math.abs(dx)) { height = Math.max(4, s.height + (cy ? dy : -dy)); width = height * ratio; }
     return { x: cx ? s.x : s.x + s.width - width, y: cy ? s.y : s.y + s.height - height, width, height };
   });
-  const outside = `M${screen.x} ${screen.y}h${screen.width}v${screen.height}h${-screen.width}Z M${b.x} ${b.y}h${b.width}v${b.height}h${-b.width}Z`;
+  const outside = `M${r.x} ${r.y}h${r.width}v${r.height}h${-r.width}Z M0 0h${box.width}v${box.height}h${-box.width}Z`;
   return (
-    <g className="crop">
+    <g className="crop" transform={svgMatrix(placed.inner, view)}>
       <defs><clipPath id="crop-outside"><path d={outside} clipRule="evenodd" /></clipPath></defs>
-      <image href={src} x={screen.x} y={screen.y} width={screen.width} height={screen.height} preserveAspectRatio="none" opacity={0.4} clipPath="url(#crop-outside)" />
-      <rect className="crop-image" x={screen.x} y={screen.y} width={screen.width} height={screen.height} onPointerDown={(e) => drag(e, (dx, dy, s) => ({ ...s, x: s.x + dx, y: s.y + dy }))} />
-      <rect className="crop-box" x={b.x} y={b.y} width={b.width} height={b.height} />
+      <image href={src} x={r.x} y={r.y} width={r.width} height={r.height} preserveAspectRatio="none" opacity={0.4} clipPath="url(#crop-outside)" />
+      <rect className="crop-image" x={r.x} y={r.y} width={r.width} height={r.height} onPointerDown={(e) => drag(e, (dx, dy, s) => ({ ...s, x: s.x + dx, y: s.y + dy }))} />
+      <rect className="crop-box" x={0} y={0} width={box.width} height={box.height} />
       {([[0, 0], [1, 0], [0, 1], [1, 1]] as const).map(([cx, cy]) => (
-        <rect key={`${cx}${cy}`} className="handle" x={screen.x + cx * screen.width - 5} y={screen.y + cy * screen.height - 5} width={10} height={10}
+        <rect key={`${cx}${cy}`} className="handle" x={r.x + cx * r.width - 5 * px} y={r.y + cy * r.height - 5 * px} width={10 * px} height={10 * px}
           style={{ cursor: cx === cy ? 'nwse-resize' : 'nesw-resize' }} onPointerDown={corner(cx, cy)} />
       ))}
     </g>

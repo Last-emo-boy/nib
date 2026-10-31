@@ -6,6 +6,7 @@ import { useT } from '../app/i18n.ts';
 import { store, useEditor, type Tool, toggleSide } from '../app/store.ts';
 import { boundsOf, fitView, importSvg, pickImages } from '../canvas/Canvas.tsx';
 import { maskSelection, releaseMask } from '../canvas/mask.ts';
+import { arrange, flipSelection } from '../canvas/arrange.ts';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
 import { layerName, typeIcon } from './LeftPanel.tsx';
@@ -28,7 +29,7 @@ export function Palette() {
   const commands = useMemo<Item[]>(() => {
     const tool = (id: Tool, label: string, icon: IconName, hint: string): Item => ({ key: `tool:${id}`, label, icon, hint, run: () => store.set({ tool: id }) });
     return [
-      tool('move', t.move, 'pointer', 'V'), tool('frame', t.frame, 'frame', 'F'), tool('rectangle', t.rectangle, 'square', 'R'),
+      tool('move', t.move, 'pointer', 'V'), tool('scale', t.scaleTool, 'scaling', 'K'), tool('frame', t.frame, 'frame', 'F'), tool('rectangle', t.rectangle, 'square', 'R'),
       tool('ellipse', t.ellipse, 'circle', 'O'), tool('polygon', t.polygon, 'hexagon', ''), tool('pen', t.pen, 'penTool', 'P'), tool('text', t.text, 'type', 'T'),
       tool('icon', t.iconTool, 'smile', 'I'), tool('note', t.note, 'note', 'N'), tool('hand', t.hand, 'hand', 'H'),
       { key: 'import-svg', label: t.importSvg, icon: 'penTool', run: () => {
@@ -38,6 +39,12 @@ export function Palette() {
         input.onchange = () => { const f = input.files?.[0]; if (f) void f.text().then((text) => importSvg(text, undefined, f.name.replace(/\.svg$/i, ''))); };
         input.click();
       } },
+      { key: 'bring-forward', label: t.bringForward, icon: 'bringToFront', hint: '⌘]', run: () => arrange('forward') },
+      { key: 'send-backward', label: t.sendBackward, icon: 'sendToBack', hint: '⌘[', run: () => arrange('backward') },
+      { key: 'bring-to-front', label: t.bringToFront, icon: 'bringToFront', hint: '⌥⌘]', run: () => arrange('front') },
+      { key: 'send-to-back', label: t.sendToBack, icon: 'sendToBack', hint: '⌥⌘[', run: () => arrange('back') },
+      { key: 'flip-h', label: t.flipHorizontal, icon: 'flipH', hint: '⇧H', run: () => flipSelection('x') },
+      { key: 'flip-v', label: t.flipVertical, icon: 'flipV', hint: '⇧V', run: () => flipSelection('y') },
       { key: 'place-image', label: t.placeImage, icon: 'image', hint: '⇧⌘K', run: pickImages },
       { key: 'mask', label: t.useAsMask, icon: 'mask', hint: '⌃⌘M', run: maskSelection },
       { key: 'release-mask', label: t.releaseMask, icon: 'mask', run: releaseMask },

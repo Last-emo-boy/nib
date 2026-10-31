@@ -31,9 +31,9 @@ input, select { font: inherit; color: var(--text); }
 .canvas.tool-text { cursor: text; }
 .overlay { position: absolute; inset: 0; pointer-events: none; }
 .overlay svg { position: absolute; inset: 0; overflow: visible; }
-.overlay rect.selected { fill: none; stroke: var(--accent); stroke-width: 1.5; }
-.overlay rect.ghost { stroke-dasharray: 4 3; }
-.overlay rect.hover { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0.8; }
+.overlay :is(rect, polygon).selected { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.overlay :is(rect, polygon).ghost { stroke-dasharray: 4 3; }
+.overlay :is(rect, polygon).hover { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0.8; }
 .overlay rect.marquee { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
 .overlay rect.handle { fill: #fff; stroke: var(--accent); stroke-width: 1.5; pointer-events: auto; }
 .overlay .pen-path { fill: none; stroke: var(--accent); stroke-width: 1.5; }
@@ -446,5 +446,5 @@ select:focus { border-color: var(--accent); }
 
 /* Crop mode: the whole image, faint outside the node; drag it or its corners. */
 .overlay .crop .crop-image { fill: transparent; pointer-events: all; cursor: move; }
-.overlay .crop .crop-box { fill: none; stroke: var(--accent); stroke-width: 1.5; pointer-events: none; }
-.overlay .crop .handle { pointer-events: all; }
+.overlay .crop .crop-box { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
+.overlay .crop .handle { pointer-events: all; vector-effect: non-scaling-stroke; }

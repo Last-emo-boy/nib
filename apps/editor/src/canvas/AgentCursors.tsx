@@ -11,7 +11,7 @@ const lerp = (a: Point, b: Point, t: number): Point => ({ x: a.x + (b.x - a.x) *
 
 /** Where a beat points (just inside its node's top-left corner), once the node has been laid out. */
 function target(b: Beat): { p: Point; box: Box } | undefined {
-  const box = b.id ? canvas.cache?.box(b.id) : undefined;
+  const box = b.id ? canvas.cache?.bounds(b.id) : undefined;
   if (!box) return undefined;
   return { p: { x: box.x + Math.min(box.width / 2, 24), y: box.y + Math.min(box.height / 2, 16) }, box };
 }

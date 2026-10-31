@@ -8,6 +8,7 @@ import { useT, type Strings } from '../app/i18n.ts';
 import { store, useEditor } from '../app/store.ts';
 import { boundsOf, canvas, fitView } from '../canvas/Canvas.tsx';
 import { resizeMesh } from '../canvas/gradient.ts';
+import { flipSelection, scaleSelection } from '../canvas/arrange.ts';
 import { Icon } from './Icon.tsx';
 import { layerName, typeIcon } from './LeftPanel.tsx';
 
@@ -46,7 +47,7 @@ export function Properties() {
       {ids.some((id) => isFree(doc, id)) && (
         <div className="align-row" title={t.align}>
           {([['left', 'alignLeft'], ['hcenter', 'alignHCenter'], ['right', 'alignRight'], ['top', 'alignTop'], ['vcenter', 'alignVCenter'], ['bottom', 'alignBottom']] as const).map(([how, icon]) => (
-            <button key={how} className="icon-button" onClick={() => align(how as Align, (id) => canvas.cache?.box(id))}><Icon name={icon} size={14} /></button>
+            <button key={how} className="icon-button" onClick={() => align(how as Align, (id) => canvas.cache?.bounds(id))}><Icon name={icon} size={14} /></button>
           ))}
         </div>
       )}
@@ -103,6 +104,7 @@ export function Properties() {
 
 function Geometry({ doc, n, t, shown, set }: { doc: PenDoc; n: Props; t: Strings; shown: (k: string) => any; set: (p: Props, l?: string) => void }) {
   const free = isFree(doc, n.id);
+  const tool = useEditor((s) => s.tool);
   const box = canvas.cache?.box(n.id);
   const sizeOf = (axis: 'width' | 'height') => {
     const v = shown(axis);
@@ -142,6 +144,11 @@ function Geometry({ doc, n, t, shown, set }: { doc: PenDoc; n: Props; t: Strings
         </div>
       )}
       {HAS_SIZE.has(n.type) && <div className="row">{sizeField('width', 'W')}{sizeField('height', 'H')}</div>}
+      <div className="row">
+        {tool === 'scale' && <Num label="%" title={t.scalePercent} value={100} onChange={(v) => scaleSelection(v / 100)} />}
+        <button className="icon-button" title={`${t.flipHorizontal} (⇧H)`} onClick={() => flipSelection('x')}><Icon name="flipH" size={14} /></button>
+        <button className="icon-button" title={`${t.flipVertical} (⇧V)`} onClick={() => flipSelection('y')}><Icon name="flipV" size={14} /></button>
+      </div>
     </Section>
   );
 }

@@ -9,6 +9,8 @@ import { canvas, rectOf, resizedBox } from './Canvas.tsx';
 import { PenOverlay } from './pen.tsx';
 import { GradientOverlay } from './GradientOverlay.tsx';
 import { CropOverlay } from './CropOverlay.tsx';
+import { angleOf, apply, boundsOf, isAxisAligned, mul, placement, quad, type M } from './affine.ts';
+import type { Placed } from './scenes.ts';
 
 type Point = { x: number; y: number };
 
@@ -19,19 +21,26 @@ export type Gesture =
   | { kind: 'drag'; start: Point; end: Point; ids: string[] }
   | { kind: 'marquee'; start: Point; end: Point; add: string[] }
   | { kind: 'create'; tool: Tool; start: Point; end: Point; parent: string | null }
-  | { kind: 'resize'; id: string; handle: string; box: Box; start: Point; end: Point | undefined; shift: boolean }
-  | { kind: 'rotate'; id: string; box: Box; start: number; angle: number; shift: boolean };
+  /** `box` and `end` are in the node's own coordinates; `matrix` takes them to the document's. */
+  | { kind: 'resize'; id: string; handle: string; box: Box; matrix: M; start: Point; end: Point | undefined; shift: boolean; scale?: boolean }
+  /** Turning a w × h node around `center` (document coordinates); `from` is the pointer's angle when pressed. */
+  | { kind: 'rotate'; id: string; w: number; h: number; center: Point; matrix: M; from: number; start: number; angle: number; shift: boolean };
 
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
-const CURSORS: Record<string, string> = { nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' };
+/** Each handle's direction from the centre, in screen degrees (clockwise from the right). */
+const DIRECTIONS: Record<string, number> = { e: 0, se: 45, s: 90, sw: 135, w: 180, nw: 225, n: 270, ne: 315 };
+const AXIS_CURSORS = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'];
+/** The resize cursor for a handle of a node turned `deg` degrees (counter-clockwise). */
+const cursorFor = (handle: string, deg: number) => AXIS_CURSORS[((Math.round((DIRECTIONS[handle] - deg) / 45) % 4) + 4) % 4];
 
 const screen = (v: View, b: Box) => ({ x: b.x * v.zoom + v.tx, y: b.y * v.zoom + v.ty, width: b.width * v.zoom, height: b.height * v.zoom });
 
 interface Props {
   gesture: RefObject<Gesture | undefined>;
   register: (force: () => void) => void;
-  startResize: (handle: string, box: Box) => void;
-  startRotate: (box: Box) => void;
+  startResize: (handle: string) => void;
+  /** `from`: where the rotate handle was pressed, in document coordinates. */
+  startRotate: (from: Point) => void;
 }
 
 export function Overlay({ gesture, register, startResize, startRotate }: Props) {
@@ -53,10 +62,14 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
   if (!doc || !cache) return null;
 
   const g = gesture.current;
-  const boxes = selection.map((id) => cache.box(id)).filter((b): b is Box => !!b);
-  const single = selection.length === 1 && boxes.length === 1 ? boxes[0] : undefined;
-  const all = boxes.length ? union(boxes) : undefined;
-  const hoverBox = hover && !selection.includes(hover) ? cache.box(hover) : undefined;
+  const placed = selection.map((id) => cache.placed(id)).filter((p): p is Placed => !!p);
+  const single = selection.length === 1 && placed.length === 1 ? placed[0] : undefined;
+  const all = placed.length ? union(placed.map((p) => p.bounds)) : undefined;
+  const hovered = hover && !selection.includes(hover) ? cache.placed(hover) : undefined;
+  const resized = g?.kind === 'resize' ? resizedBox(g) : undefined;
+  // The size shown under the selection: a single node's own width and height, else the box around it all.
+  const label = resized && g?.kind === 'resize' ? { at: boundsOf(quad(mul(g.matrix, [1, 0, 0, 1, resized.x, resized.y]), resized.width, resized.height)), real: resized }
+    : single ? { at: single.bounds, real: single.abs } : all ? { at: all, real: all } : undefined;
   const drag = g?.kind === 'drag' ? { dx: g.end.x - g.start.x, dy: g.end.y - g.start.y } : undefined;
 
   return (
@@ -87,34 +100,41 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
             </text>
           );
         })}
-        {hoverBox && <Outline box={screen(view, hoverBox)} className="hover" />}
-        {!drag && boxes.map((b, i) => <Outline key={i} box={screen(view, b)} className="selected" />)}
-        {drag && boxes.map((b, i) => <Outline key={i} box={screen(view, { ...b, x: b.x + drag.dx, y: b.y + drag.dy })} className="selected ghost" />)}
+        {hovered && <Frame m={hovered.matrix} w={hovered.abs.width} h={hovered.abs.height} view={view} className="hover" />}
+        {!drag && placed.map((p, i) => <Frame key={i} m={p.matrix} w={p.abs.width} h={p.abs.height} view={view} className="selected" />)}
+        {drag && placed.map((p, i) => <Frame key={i} m={mul([1, 0, 0, 1, drag.dx, drag.dy], p.matrix)} w={p.abs.width} h={p.abs.height} view={view} className="selected ghost" />)}
         {g?.kind === 'marquee' && <Outline box={screen(view, rectOf(g.start, g.end))} className="marquee" />}
         {g?.kind === 'create' && <Outline box={screen(view, rectOf(g.start, g.end))} className="selected" />}
-        {g?.kind === 'resize' && resizedBox(g) && <Outline box={screen(view, resizedBox(g)!)} className="selected ghost" />}
-        {single && !drag && !editing && HANDLES.map((h) => {
-          const s = screen(view, single);
-          const hx = h.includes('w') ? s.x : h.includes('e') ? s.x + s.width : s.x + s.width / 2;
-          const hy = h.includes('n') ? s.y : h.includes('s') ? s.y + s.height : s.y + s.height / 2;
-          if ((h === 'n' || h === 's') && s.width < 24) return null;
-          if ((h === 'e' || h === 'w') && s.height < 24) return null;
-          return (
-            <rect key={h} className="handle" x={hx - 4} y={hy - 4} width={8} height={8} style={{ cursor: CURSORS[h] }}
-              onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture(e.pointerId); startResize(h, single); }} />
-          );
-        })}
+        {g?.kind === 'resize' && resized && <Frame m={mul(g.matrix, [1, 0, 0, 1, resized.x, resized.y])} w={resized.width} h={resized.height} view={view} className="selected ghost" />}
+        {single && !drag && !editing && (() => {
+          const { matrix: m, abs: { width: w, height: h } } = single;
+          const deg = angleOf(m);
+          return HANDLES.map((hd) => {
+            if ((hd === 'n' || hd === 's') && w * view.zoom < 24) return null;
+            if ((hd === 'e' || hd === 'w') && h * view.zoom < 24) return null;
+            const d = apply(m, hd.includes('w') ? 0 : hd.includes('e') ? w : w / 2, hd.includes('n') ? 0 : hd.includes('s') ? h : h / 2);
+            const hx = d.x * view.zoom + view.tx, hy = d.y * view.zoom + view.ty;
+            return (
+              <rect key={hd} className="handle" x={hx - 4} y={hy - 4} width={8} height={8} style={{ cursor: cursorFor(hd, deg) }} transform={deg ? `rotate(${-deg} ${hx} ${hy})` : undefined}
+                onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture(e.pointerId); startResize(hd); }} />
+            );
+          });
+        })()}
         {single && !drag && !editing && g?.kind !== 'resize' && (() => {
-          const s = screen(view, single);
-          return <circle className="handle rotate" cx={s.x + s.width / 2} cy={s.y - 18} r={4.5}
-            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture(e.pointerId); startRotate(single); }} />;
+          // Above the middle of the node's top side, on its own up.
+          const d = apply(single.matrix, single.abs.width / 2, -18 / view.zoom);
+          return <circle className="handle rotate" cx={d.x * view.zoom + view.tx} cy={d.y * view.zoom + view.ty} r={4.5}
+            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture(e.pointerId); startRotate(d); }} />;
         })()}
         {g?.kind === 'rotate' && (() => {
-          const s = screen(view, g.box);
+          // The node as it was, turned around its centre by as much as the gesture has turned it.
+          const c = g.center;
+          const m = mul([1, 0, 0, 1, c.x, c.y], mul(placement(0, 0, g.angle - g.start), mul([1, 0, 0, 1, -c.x, -c.y], g.matrix)));
+          const top = boundsOf(quad(m, g.w, g.h));
           return (
             <g>
-              <rect className="selected ghost" x={s.x} y={s.y} width={s.width} height={s.height} transform={`rotate(${-g.angle} ${s.x + s.width / 2} ${s.y + s.height / 2})`} />
-              <text className="angle-label" x={s.x + s.width / 2} y={s.y - 30}>{Math.round(g.angle)}°</text>
+              <Frame m={m} w={g.w} h={g.h} view={view} className="selected ghost" />
+              <text className="angle-label" x={c.x * view.zoom + view.tx} y={top.y * view.zoom + view.ty - 14}>{Math.round(g.angle)}°</text>
             </g>
           );
         })()}
@@ -127,7 +147,7 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
           return <line key={`g${i}`} className="guide" x1={a.x * view.zoom + view.tx} y1={a.y * view.zoom + view.ty} x2={b.x * view.zoom + view.tx} y2={b.y * view.zoom + view.ty} />;
         })}
         {canvas.measures.map((m, i) => <MeasureLine key={`m${i}`} m={m} view={view} />)}
-        {all && !editing && <SizeLabel box={screen(view, g?.kind === 'resize' && resizedBox(g) ? resizedBox(g)! : all)} real={g?.kind === 'resize' && resizedBox(g) ? resizedBox(g)! : all} />}
+        {label && !editing && g?.kind !== 'rotate' && <SizeLabel box={screen(view, label.at)} real={label.real} />}
       </svg>
       {text && <TextEditor id={text} />}
     </div>
@@ -153,6 +173,13 @@ function MeasureLine({ m, view }: { m: { x1: number; y1: number; x2: number; y2:
       </g>
     </g>
   );
+}
+
+/** The outline of a w × h node placed by `m`: a crisp rectangle when it is not turned. */
+function Frame({ m, w, h, view, className }: { m: M; w: number; h: number; view: View; className: string }) {
+  if (isAxisAligned(m)) return <Outline box={screen(view, { x: m[4], y: m[5], width: w, height: h })} className={className} />;
+  const points = quad(m, w, h).map((p) => `${p.x * view.zoom + view.tx},${p.y * view.zoom + view.ty}`).join(' ');
+  return <polygon className={className} points={points} />;
 }
 
 function Outline({ box, className }: { box: Box; className: string }) {

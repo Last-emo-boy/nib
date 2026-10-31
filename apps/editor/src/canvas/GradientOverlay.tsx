@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { commit } from '../app/actions.ts';
 import { store, useEditor } from '../app/store.ts';
 import { canvas } from './Canvas.tsx';
+import { apply, invert } from './affine.ts';
 import { ellipseHandles, fromAxis, fromEnds, linearEnds, meshPoints, moveMeshPoint, offsetOn, type U } from './gradient.ts';
 
 /** The fill whose gradient is edited on the canvas: which node, fill or stroke, which entry. */
@@ -26,17 +27,20 @@ export function GradientOverlay() {
   const sent = useRef(0);
   if (!edit || !doc || selection.length !== 1 || selection[0] !== edit.id) return null;
   const node = doc.get(edit.id) as Record<string, unknown> | undefined;
-  const box = canvas.cache?.box(edit.id);
+  const placed = canvas.cache?.placed(edit.id);
+  const box = placed?.abs;
   const stored = node ? list(node[edit.prop])[edit.index] : undefined;
   const f = (live ?? stored) as Fill | undefined;
   if (!node || !box || !f || typeof f !== 'object' || (f.type !== 'gradient' && f.type !== 'mesh_gradient')) return null;
 
-  const sc = (u: U) => ({ x: (box.x + u.x * box.width) * view.zoom + view.tx, y: (box.y + u.y * box.height) * view.zoom + view.ty });
+  // The unit box is the node's own, as its fills are drawn: turned and mirrored with it.
+  const inner = placed!.inner;
+  const sc = (u: U) => { const d = apply(inner, u.x * box.width, u.y * box.height); return { x: d.x * view.zoom + view.tx, y: d.y * view.zoom + view.ty }; };
   const unit = (clientX: number, clientY: number): U => {
     const host = document.querySelector('.canvas')!.getBoundingClientRect();
     const v = store.get().view;
-    const x = (clientX - host.left - v.tx) / v.zoom, y = (clientY - host.top - v.ty) / v.zoom;
-    return { x: box.width ? (x - box.x) / box.width : 0, y: box.height ? (y - box.y) / box.height : 0 };
+    const q = apply(invert(inner), (clientX - host.left - v.tx) / v.zoom, (clientY - host.top - v.ty) / v.zoom);
+    return { x: box.width ? q.x / box.width : 0, y: box.height ? q.y / box.height : 0 };
   };
   const write = (next: Fill, merge: string) => {
     const value = node[edit.prop];

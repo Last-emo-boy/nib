@@ -8,6 +8,7 @@ import { store, toast, toggleSide, useEditor, type Tool } from '../app/store.ts'
 import { boundsOf, CanvasView, fitView, importImages, isImageFile, isTyping, pickImages } from '../canvas/Canvas.tsx';
 import { imageFillIndex } from '../canvas/crop.ts';
 import { isMask, maskSelection, releaseMask } from '../canvas/mask.ts';
+import { arrange, flipSelection } from '../canvas/arrange.ts';
 import { deletePoints, editPath, finishDrawing, finishEditing } from '../canvas/pen.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
@@ -89,7 +90,7 @@ function ToolStrip() {
   const tool = useEditor((s) => s.tool);
   const leftOpen = useEditor((s) => s.leftOpen);
   const tools: [Tool, IconName, string, string][] = [
-    ['move', 'pointer', t.move, 'V'], ['frame', 'frame', t.frame, 'F'], ['rectangle', 'square', t.rectangle, 'R'],
+    ['move', 'pointer', t.move, 'V'], ['scale', 'scaling', t.scaleTool, 'K'], ['frame', 'frame', t.frame, 'F'], ['rectangle', 'square', t.rectangle, 'R'],
     ['ellipse', 'circle', t.ellipse, 'O'], ['polygon', 'hexagon', t.polygon, ''], ['pen', 'penTool', t.pen, 'P'], ['text', 'type', t.text, 'T'], ['icon', 'smile', t.iconTool, 'I'],
     ['note', 'note', t.note, 'N'], ['hand', 'hand', t.hand, 'H'],
   ];
@@ -274,6 +275,12 @@ export function runCommand(name: string): void {
     case 'mask': if (!typing) { const one = s.selection.length === 1 ? s.doc?.get(s.selection[0]) : undefined; if (isMask(one)) releaseMask(); else maskSelection(); } break;
     case 'release-mask': if (!typing) releaseMask(); break;
     case 'place-image': pickImages(); break;
+    case 'bring-forward': if (!typing) arrange('forward'); break;
+    case 'send-backward': if (!typing) arrange('backward'); break;
+    case 'bring-to-front': if (!typing) arrange('front'); break;
+    case 'send-to-back': if (!typing) arrange('back'); break;
+    case 'flip-horizontal': if (!typing) flipSelection('x'); break;
+    case 'flip-vertical': if (!typing) flipSelection('y'); break;
     case 'toggle-pixel-grid': { const on = !s.pixelGrid; localStorage.setItem('nib-pixel-grid', on ? '1' : '0'); store.set({ pixelGrid: on }); break; }
   }
 }
@@ -288,10 +295,12 @@ function useShortcuts() {
       const s = store.get();
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
-      const tools: Record<string, Tool> = { v: 'move', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', p: 'pen', t: 'text', i: 'icon', n: 'note', h: 'hand' };
+      const tools: Record<string, Tool> = { v: 'move', k: 'scale', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', p: 'pen', t: 'text', i: 'icon', n: 'note', h: 'hand' };
       const chords: Record<string, string> = { z: e.shiftKey ? 'redo' : 'undo', y: 'redo', d: 'duplicate', k: 'palette', j: 'toggle-agent', a: 'select-all', '\\': 'toggle-panel', '0': 'zoom-100', '=': 'zoom-in', '-': 'zoom-out' };
       if (e.metaKey && e.ctrlKey && (key === 'm' || e.code === 'KeyM')) { e.preventDefault(); runCommand('mask'); return; }
       if (mod && e.shiftKey && key === 'k') { e.preventDefault(); runCommand('place-image'); return; }
+      // Stacking order: ⌘] ⌘[ one step, ⌥⌘] ⌥⌘[ all the way (e.code, since Alt changes the character).
+      if (mod && (e.code === 'BracketRight' || e.code === 'BracketLeft')) { e.preventDefault(); runCommand(`${e.code === 'BracketRight' ? (e.altKey ? 'bring-to-front' : 'bring-forward') : (e.altKey ? 'send-to-back' : 'send-backward')}`); return; }
       if (mod && e.altKey && key === 'g') { e.preventDefault(); runCommand('frame-selection'); return; }
       if (mod && e.altKey && key === 'k') { e.preventDefault(); runCommand('make-component'); return; }
       if (mod && e.shiftKey && key === 'c') { e.preventDefault(); runCommand('copy-png'); return; }
@@ -299,6 +308,7 @@ function useShortcuts() {
       if (mod && key === 's') { e.preventDefault(); toast(s.lang === 'zh' ? '已自动保存：每次修改都会立即写入文件。' : 'Saved: nib writes every change to the file right away.'); return; }
       if (mod && chords[key]) { e.preventDefault(); runCommand(chords[key]); return; }
       if (e.shiftKey && (key === '"' || e.code === 'Quote')) { runCommand('toggle-pixel-grid'); return; }
+      if (e.shiftKey && !mod && !e.altKey && (e.code === 'KeyH' || e.code === 'KeyV')) { runCommand(e.code === 'KeyH' ? 'flip-horizontal' : 'flip-vertical'); return; }
       if (e.shiftKey && key === '!') { runCommand('zoom-fit'); return; }
       if (e.shiftKey && (key === '1')) { runCommand('zoom-fit'); return; }
       if (e.shiftKey && (key === '2' || key === '@')) { runCommand('zoom-selection'); return; }

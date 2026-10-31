@@ -40,6 +40,11 @@ import arrowDown from 'lucide-static/icons/arrow-down.svg?raw';
 import scan from 'lucide-static/icons/scan.svg?raw';
 import crop from 'lucide-static/icons/crop.svg?raw';
 import mask from 'lucide-static/icons/squares-intersect.svg?raw';
+import scaling from 'lucide-static/icons/scaling.svg?raw';
+import flipH from 'lucide-static/icons/flip-horizontal-2.svg?raw';
+import flipV from 'lucide-static/icons/flip-vertical-2.svg?raw';
+import bringToFront from 'lucide-static/icons/bring-to-front.svg?raw';
+import sendToBack from 'lucide-static/icons/send-to-back.svg?raw';
 import command from 'lucide-static/icons/command.svg?raw';
 import link from 'lucide-static/icons/link.svg?raw';
 import search from 'lucide-static/icons/search.svg?raw';
@@ -61,5 +66,5 @@ import globe from 'lucide-static/icons/globe.svg?raw';
 import library from 'lucide-static/icons/library-big.svg?raw';
 import palette from 'lucide-static/icons/palette.svg?raw';
 
-export const ICONS = { check, settings, hexagon, alignLeft, alignHCenter, alignRight, alignTop, alignVCenter, alignBottom, pointer, hand, square, circle, type, frame, note, layers, component, variable, undo, redo, minus, plus, panelLeft, eye, eyeOff, chevronRight, chevronDown, activity, download, languages, bot, hash, image, smile, penTool, lock, box, grid, text, diamond, folder, file, x, alignStart, arrowRight, arrowDown, scan, command, link, search, user, sparkles, trash, copy, maximize, globe, library, palette, crop, mask };
+export const ICONS = { check, settings, hexagon, alignLeft, alignHCenter, alignRight, alignTop, alignVCenter, alignBottom, pointer, hand, square, circle, type, frame, note, layers, component, variable, undo, redo, minus, plus, panelLeft, eye, eyeOff, chevronRight, chevronDown, activity, download, languages, bot, hash, image, smile, penTool, lock, box, grid, text, diamond, folder, file, x, alignStart, arrowRight, arrowDown, scan, command, link, search, user, sparkles, trash, copy, maximize, globe, library, palette, crop, mask, scaling, flipH, flipV, bringToFront, sendToBack };
 export type IconName = keyof typeof ICONS;

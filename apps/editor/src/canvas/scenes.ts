@@ -4,13 +4,23 @@ import type { Node } from '@nib/format';
 import type { Box } from '@nib/layout';
 import { browserSnapshotUrl, type ImageLoader, type PreparedScene } from '@nib/render';
 import type { Engine } from './engine.ts';
+import { apply, boundsOf, flip, invert, mul, placement, quad, IDENTITY, type M } from './affine.ts';
 import { easeOut, FADE_MS } from './presence.ts';
 
-/** A drawn node with its box on the canvas (document coordinates, rotation ignored). */
+/** A drawn node: where it is on the canvas, in document coordinates. */
 export interface Placed {
   id: string;
   type: string;
+  /** Its own top-left corner (where it turns around) and its size. */
   abs: Box;
+  /** From its own coordinates (0..width, 0..height) to the document's: moved and turned, not mirrored. */
+  matrix: M;
+  /** From its children's coordinates to the document's (mirrored by its flipX/flipY too). */
+  inner: M;
+  /** Its parent's `inner`: the space its x/y are in. */
+  parent: M;
+  /** The box around it as drawn, turned or not. */
+  bounds: Box;
   /** Clip box from ancestors with `clip`, if any. */
   clip?: Box;
   depth: number;
@@ -142,8 +152,17 @@ export class SceneCache {
   }
 
   box(id: string): Box | undefined {
+    return this.placed(id)?.abs;
+  }
+
+  /** The box around a node as drawn (a turned node's box is larger than its own). */
+  bounds(id: string): Box | undefined {
+    return this.placed(id)?.bounds;
+  }
+
+  placed(id: string): Placed | undefined {
     const top = this.topOf(id);
-    return top ? this.entries.get(top)?.byId.get(id)?.abs : undefined;
+    return top ? this.entries.get(top)?.byId.get(id) : undefined;
   }
 
   /** The nodes under a document point, deepest first, ending with the top-level node. Instance parts map to their instance. */
@@ -154,7 +173,9 @@ export class SceneCache {
       if (!e?.bounds || !inside(e.bounds, x, y)) continue;
       for (let j = e.placed.length - 1; j >= 0; j--) {
         const p = e.placed[j];
-        if (!inside(p.abs, x, y) || (p.clip && !inside(p.clip, x, y))) continue;
+        if (!inside(p.bounds, x, y) || (p.clip && !inside(p.clip, x, y))) continue;
+        const q = apply(invert(p.matrix), x, y);
+        if (q.x < 0 || q.y < 0 || q.x > p.abs.width || q.y > p.abs.height) continue;
         return this.chain(p.id);
       }
     }
@@ -167,7 +188,7 @@ export class SceneCache {
     for (const n of this.doc.data.children) {
       const e = this.entries.get(n.id);
       if (!e) continue;
-      for (const p of e.placed) if (p.depth === depth && !p.id.includes('/') && intersects(p.abs, r)) out.push(p.id);
+      for (const p of e.placed) if (p.depth === depth && !p.id.includes('/') && intersects(p.bounds, r)) out.push(p.id);
     }
     return out;
   }
@@ -229,15 +250,19 @@ export class SceneCache {
     }
     const prepared = await renderer.prepare(scene, this.images);
     const placed: Placed[] = [];
-    const walk = (n: SceneNode, ox: number, oy: number, depth: number, clip: Box | undefined) => {
+    const walk = (n: SceneNode, parent: M, depth: number, clip: Box | undefined) => {
       const b = prepared.layout.box(n);
-      const abs = { x: ox + b.x, y: oy + b.y, width: b.width, height: b.height };
-      placed.push({ id: n.id, type: n.type, abs, clip, depth });
-      const inner = n.clip === true ? intersect(abs, clip) : clip;
-      for (const c of n.children ?? []) walk(c, abs.x, abs.y, depth + 1, inner);
+      const matrix = mul(parent, placement(b.x, b.y, typeof n.rotation === 'number' ? n.rotation : 0));
+      const inner = n.flipX === true || n.flipY === true ? mul(matrix, flip(b.width, b.height, n.flipX === true, n.flipY === true)) : matrix;
+      const bounds = boundsOf(quad(matrix, b.width, b.height));
+      placed.push({ id: n.id, type: n.type, abs: { x: matrix[4], y: matrix[5], width: b.width, height: b.height }, matrix, inner, parent, bounds, clip, depth });
+      const within = n.clip === true ? intersect(bounds, clip) : clip;
+      for (const c of n.children ?? []) walk(c, inner, depth + 1, within);
     };
-    walk(scene, 0, 0, 0, undefined);
-    const entry: Entry = { bounds: placed[0].abs, placed, byId: new Map(placed.map((p) => [p.id, p])) };
+    walk(scene, IDENTITY, 0, undefined);
+    // Turned children can reach past the top-level node unless it clips them.
+    const bounds = scene.clip === true ? placed[0].bounds : boundsOf(placed.flatMap((p) => [{ x: p.bounds.x, y: p.bounds.y }, { x: p.bounds.x + p.bounds.width, y: p.bounds.y + p.bounds.height }]));
+    const entry: Entry = { bounds, placed, byId: new Map(placed.map((p) => [p.id, p])) };
     if (revealing.size) {
       entry.live = { prepared, nodes: revealing, states: '', fading: new Map() };
       this.step(entry, performance.now());
@@ -286,11 +311,10 @@ export class SceneCache {
       if (states[i] !== 'a') { live.fading.get(id)?.delete(); live.fading.delete(id); return; }
       const p = e.byId.get(id);
       if (live.fading.has(id) || !p) return;
-      const rel = live.prepared.layout.box(n.node);
       set(n, true);
       live.fading.set(id, this.record((c) => {
         if (p.clip) c.clipRect(ck.LTRBRect(p.clip.x, p.clip.y, p.clip.x + p.clip.width, p.clip.y + p.clip.height), ck.ClipOp.Intersect, true);
-        c.translate(p.abs.x - rel.x, p.abs.y - rel.y);
+        c.concat([p.parent[0], p.parent[2], p.parent[4], p.parent[1], p.parent[3], p.parent[5], 0, 0, 1]);
         renderer.drawTarget(c, live.prepared, n.node, this.images);
       }));
       set(n, false);

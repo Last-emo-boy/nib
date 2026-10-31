@@ -14,6 +14,8 @@ import { SceneCache } from './scenes.ts';
 import { editPath, finishEditing, penDown, penHover } from './pen.tsx';
 import { imageFillIndex } from './crop.ts';
 import { measure, snap, snapPoint, type Guide, type Lines, type Measure } from './snap.ts';
+import { apply, applyLinear, invert, isAxisAligned, placement, type P } from './affine.ts';
+import { scaleTree } from '../app/geometry.ts';
 
 /** What other parts of the editor need from the canvas. */
 export const canvas = {
@@ -41,8 +43,8 @@ function snapTargets(doc: PenDoc, parent: string | null, exclude: string[]): Box
   if (!cache) return [];
   const skip = new Set(exclude);
   const kids = parent ? (doc.get(parent) as { children?: { id: string; enabled?: unknown }[] } | undefined)?.children ?? [] : doc.data.children;
-  const boxes = kids.filter((n) => !skip.has(n.id) && n.enabled !== false).map((n) => cache.box(n.id)).filter((b): b is Box => !!b);
-  const own = parent ? cache.box(parent) : undefined;
+  const boxes = kids.filter((n) => !skip.has(n.id) && n.enabled !== false).map((n) => cache.bounds(n.id)).filter((b): b is Box => !!b);
+  const own = parent ? cache.bounds(parent) : undefined;
   if (own) boxes.push(own);
   if (!parent) {
     // Of many top-level layers, those on screen.
@@ -100,7 +102,7 @@ export function boundsOf(ids?: string[]): Box | undefined {
   const { doc } = store.get();
   const cache = canvas.cache;
   if (!doc || !cache) return undefined;
-  const boxes = (ids ?? doc.data.children.map((n) => n.id)).map((id) => cache.box(id)).filter((b): b is Box => !!b);
+  const boxes = (ids ?? doc.data.children.map((n) => n.id)).map((id) => cache.bounds(id)).filter((b): b is Box => !!b);
   if (!boxes.length) return undefined;
   const x0 = Math.min(...boxes.map((b) => b.x)), y0 = Math.min(...boxes.map((b) => b.y));
   const x1 = Math.max(...boxes.map((b) => b.x + b.width)), y1 = Math.max(...boxes.map((b) => b.y + b.height));
@@ -144,8 +146,8 @@ export async function insertInstance(ref: string, screen?: { sx: number; sy: num
   const parent = screen ? containerAt(s.doc, cache.hit(p.x, p.y)) : selected;
   const parentNode = parent ? s.doc.get(parent) : undefined;
   const flow = !!parentNode && parentNode.type === 'frame' && parentNode.layout !== 'none';
-  const parentBox = parent ? cache.box(parent) : undefined;
-  const pos = flow ? {} : parentBox ? { x: Math.round(p.x - parentBox.x), y: Math.round(p.y - parentBox.y) } : { x: Math.round(p.x), y: Math.round(p.y) };
+  const at = toParent(parent, p);
+  const pos = flow ? {} : { x: Math.round(at.x), y: Math.round(at.y) };
   const name = s.doc.get(ref)?.name ?? 'component';
   await insertNode(parent, { type: 'ref', ref, ...pos }, `Insert ${name}`);
 }
@@ -167,9 +169,15 @@ export async function placeNode(node: Record<string, unknown>, label: string, sc
   const origin = parent ? cache.box(parent) : undefined;
   const w = Number(node.width) || 0, h = Number(node.height) || 0;
   // Dropped or pasted into a frame without a point: its middle.
-  const at = !screen && origin ? { x: origin.x + origin.width / 2, y: origin.y + origin.height / 2 } : p;
-  const pos = flow ? {} : { x: Math.round(at.x - w / 2 - (origin?.x ?? 0)), y: Math.round(at.y - h / 2 - (origin?.y ?? 0)) };
+  const at = !screen && origin ? { x: origin.width / 2, y: origin.height / 2 } : toParent(parent, p);
+  const pos = flow ? {} : { x: Math.round(at.x - w / 2), y: Math.round(at.y - h / 2) };
   return insertNode(parent, { ...node, ...pos }, label);
+}
+
+/** A document point in the space a child of `parent` (null: the canvas) is placed in. */
+export function toParent(parent: string | null, p: P): P {
+  const placed = parent ? canvas.cache?.placed(parent) : undefined;
+  return placed ? apply(invert(placed.inner), p.x, p.y) : p;
 }
 
 /** Whether a file is a picture nib places as an image (SVG is imported as layers instead). */
@@ -391,7 +399,8 @@ export function CanvasView() {
     if (s.tool === 'pen') { penDown(p, e, containerAt(s.doc, chain)); return; }
     // A press on the canvas (not on a point or handle) ends point editing.
     if (s.pen?.mode === 'edit') finishEditing();
-    if (s.tool !== 'move') {
+    // The scale tool selects and moves like the move tool; only its handles differ.
+    if (s.tool !== 'move' && s.tool !== 'scale') {
       const parent = containerAt(s.doc, chain);
       const start = e.metaKey || e.ctrlKey ? p : snapPoint(p, snapTargets(s.doc, parent, []), SNAP_PX / s.view.zoom);
       gesture.current = { kind: 'create', tool: s.tool, start: { x: start.x, y: start.y }, end: { x: start.x, y: start.y }, parent };
@@ -418,7 +427,7 @@ export function CanvasView() {
     const g = gesture.current;
     if (!g) {
       if (s.tool === 'pen') { penHover(p, e.shiftKey); return; }
-      if (s.tool === 'move' && !space.current) {
+      if ((s.tool === 'move' || s.tool === 'scale') && !space.current) {
         const hover = pick(s.doc, canvas.cache.hit(p.x, p.y), s.selection, e.metaKey || e.ctrlKey);
         if (hover !== s.hover) store.set({ hover });
         // Alt: distances from the selection to the layer under the pointer, or to its parent.
@@ -443,7 +452,7 @@ export function CanvasView() {
         canvas.guides = [];
         const free = g.ids.filter((id) => isFree(s.doc!, id));
         if (free.length && !e.metaKey && !e.ctrlKey) {
-          const boxes = free.map((id) => canvas.cache!.box(id)).filter((b): b is Box => !!b);
+          const boxes = free.map((id) => canvas.cache!.bounds(id)).filter((b): b is Box => !!b);
           if (boxes.length) {
             const u = unionOf(boxes);
             const parent = s.doc.locate(free[0])?.parent?.id ?? null;
@@ -468,26 +477,27 @@ export function CanvasView() {
         break;
       }
       case 'resize': {
-        g.end = p;
+        // In the node's own coordinates, so a turned node resizes along its own sides.
+        const q = apply(invert(g.matrix), p.x, p.y);
+        g.end = q;
         g.shift = e.shiftKey;
         canvas.guides = [];
         const b = resizedBox(g);
-        if (b && !e.metaKey && !e.ctrlKey) {
+        if (b && isAxisAligned(g.matrix) && !e.metaKey && !e.ctrlKey) {
           // Only the edges the handle moves snap.
           const which: Lines = { x: g.handle.includes('w') ? ['start'] : g.handle.includes('e') ? ['end'] : [], y: g.handle.includes('n') ? ['start'] : g.handle.includes('s') ? ['end'] : [] };
           const parent = s.doc.locate(g.id)?.parent?.id ?? null;
-          const r = snap(b, snapTargets(s.doc, parent, [g.id]), SNAP_PX / s.view.zoom, which);
-          g.end = { x: p.x + r.dx, y: p.y + r.dy };
+          const r = snap({ ...b, x: b.x + g.matrix[4], y: b.y + g.matrix[5] }, snapTargets(s.doc, parent, [g.id]), SNAP_PX / s.view.zoom, which);
+          g.end = { x: q.x + r.dx, y: q.y + r.dy };
           canvas.guides = r.guides;
         }
         break;
       }
       case 'rotate': {
-        // Screen angles grow clockwise (y points down); .pen rotation is counter-clockwise.
-        const c = { x: g.box.x + g.box.width / 2, y: g.box.y + g.box.height / 2 };
-        const pointer = (Math.atan2(p.y - c.y, p.x - c.x) * 180) / Math.PI;
-        // The handle starts straight above the centre (pointer angle -90°): turn the start rotation by as much.
-        let angle = g.start - (pointer + 90);
+        // Screen angles grow clockwise (y points down); .pen rotation is counter-clockwise. The node turns as
+        // far as the pointer has turned around its centre since the handle was pressed.
+        const pointer = (Math.atan2(p.y - g.center.y, p.x - g.center.x) * 180) / Math.PI;
+        let angle = g.start + (g.from - pointer);
         angle = ((angle % 360) + 540) % 360 - 180;
         if (e.shiftKey) angle = Math.round(angle / 15) * 15;
         g.angle = angle;
@@ -552,14 +562,20 @@ export function CanvasView() {
       }}>
       <canvas ref={el} />
       <AgentCursors />
-      <Overlay gesture={gesture} register={(f) => { forceOverlayRef.current = f; }} startResize={(handle, box) => {
+      <Overlay gesture={gesture} register={(f) => { forceOverlayRef.current = f; }} startResize={(handle) => {
         const s = store.get();
-        gesture.current = { kind: 'resize', id: s.selection[0], handle, box, start: { x: 0, y: 0 }, end: undefined, shift: false };
-      }} startRotate={(box) => {
+        const placed = canvas.cache?.placed(s.selection[0]);
+        if (!placed) return;
+        gesture.current = { kind: 'resize', id: s.selection[0], handle, box: { x: 0, y: 0, width: placed.abs.width, height: placed.abs.height }, matrix: placed.matrix, start: { x: 0, y: 0 }, end: undefined, shift: false, scale: s.tool === 'scale' };
+      }} startRotate={(from) => {
         const s = store.get();
+        const placed = canvas.cache?.placed(s.selection[0]);
+        if (!placed) return;
         const r = s.doc?.get(s.selection[0])?.rotation;
         const start = typeof r === 'number' ? r : 0;
-        gesture.current = { kind: 'rotate', id: s.selection[0], box, start, angle: start, shift: false };
+        const { width: w, height: h } = placed.abs;
+        const center = apply(placed.matrix, w / 2, h / 2);
+        gesture.current = { kind: 'rotate', id: s.selection[0], w, h, center, matrix: placed.matrix, from: (Math.atan2(from.y - center.y, from.x - center.x) * 180) / Math.PI, start, angle: start, shift: false };
       }} />
     </div>
   );
@@ -573,7 +589,10 @@ function finishDrag(doc: PenDoc, g: Extract<Gesture, { kind: 'drag' }>): void {
   void commit('Move', (ed) => {
     for (const id of free) {
       const n = doc.get(id)!;
-      ed.set(id, { x: Math.round((n.x ?? 0) + dx), y: Math.round((n.y ?? 0) + dy) });
+      // The move on screen, in the space the node's x/y are in (its parent may be turned or mirrored).
+      const placed = canvas.cache?.placed(id);
+      const d = placed ? applyLinear(invert(placed.parent), dx, dy) : { x: dx, y: dy };
+      ed.set(id, { x: Math.round((n.x ?? 0) + d.x), y: Math.round((n.y ?? 0) + d.y) });
     }
     // Nodes in a flex flow move to the position among their siblings nearest the pointer.
     if (flow.length === 1) {
@@ -599,9 +618,9 @@ async function finishCreate(doc: PenDoc, g: Extract<Gesture, { kind: 'create' }>
   const dragged = r.width > 2 || r.height > 2;
   const parent = g.parent;
   const parentNode = parent ? doc.get(parent) : undefined;
-  const parentBox = parent ? canvas.cache?.box(parent) : undefined;
   const flow = !!parentNode && parentNode.type === 'frame' && parentNode.layout !== 'none';
-  const pos = parentBox ? { x: Math.round(r.x - parentBox.x), y: Math.round(r.y - parentBox.y) } : { x: Math.round(r.x), y: Math.round(r.y) };
+  const at = toParent(parent, r);
+  const pos = { x: Math.round(at.x), y: Math.round(at.y) };
   const size = (w: number, h: number) => (dragged ? { width: Math.round(r.width), height: Math.round(r.height) } : { width: w, height: h });
   const place = flow ? {} : pos;
   const names: Record<string, string> = { frame: 'Frame', rectangle: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', icon: 'Icon', text: 'Text', note: 'Note' };
@@ -626,9 +645,21 @@ function finishResize(doc: PenDoc, g: Extract<Gesture, { kind: 'resize' }>): voi
   const node = doc.get(g.id);
   if (!node) return;
   const props: Record<string, unknown> = { width: Math.round(b.width), height: Math.round(b.height) };
+  if (g.scale) {
+    // Everything inside scales too; the node's own corner moves as the handle chose.
+    const k = b.width / g.box.width;
+    const tree = scaleTree(node, k);
+    const d = applyLinear(placement(0, 0, typeof node.rotation === 'number' ? node.rotation : 0), b.x, b.y);
+    const own = { ...tree.get(g.id), ...(isFree(doc, g.id) ? { x: Math.round(((node.x ?? 0) + d.x) * 100) / 100, y: Math.round(((node.y ?? 0) + d.y) * 100) / 100 } : {}) };
+    tree.set(g.id, own);
+    void commit('Scale', (ed) => { for (const [id, p] of tree) ed.set(id, p); });
+    return;
+  }
   if (isFree(doc, g.id)) {
-    props.x = Math.round((node.x ?? 0) + (b.x - g.box.x));
-    props.y = Math.round((node.y ?? 0) + (b.y - g.box.y));
+    // The top-left corner moved along the node's own sides.
+    const d = applyLinear(placement(0, 0, typeof node.rotation === 'number' ? node.rotation : 0), b.x, b.y);
+    props.x = Math.round((node.x ?? 0) + d.x);
+    props.y = Math.round((node.y ?? 0) + d.y);
   }
   if (node.type === 'text') {
     // Dragging a text box's height fixes both sides; its width alone makes it wrap.
@@ -647,7 +678,7 @@ function finishRotate(doc: PenDoc, g: Extract<Gesture, { kind: 'rotate' }>): voi
   if (!node || Math.abs(g.angle - g.start) < 0.01) return;
   const props: Record<string, unknown> = { rotation: Math.round(g.angle * 10) / 10 || undefined };
   if (isFree(doc, g.id)) {
-    const { width: w, height: h } = g.box;
+    const { w, h } = g;
     // Centre of a w×h box rotated by a (counter-clockwise on screen) about its top-left corner.
     const centre = (deg: number) => { const a = (deg * Math.PI) / 180; return { x: (w / 2) * Math.cos(a) + (h / 2) * Math.sin(a), y: -(w / 2) * Math.sin(a) + (h / 2) * Math.cos(a) }; };
     const before = centre(g.start), after = centre(g.angle);
@@ -657,7 +688,7 @@ function finishRotate(doc: PenDoc, g: Extract<Gesture, { kind: 'rotate' }>): voi
   void commit('Rotate', (ed) => ed.set(g.id, props));
 }
 
-/** The box a resize gesture would give, in document coordinates. */
+/** The box a resize gesture would give, in the node's own coordinates (its top-left corner was at 0, 0). */
 export function resizedBox(g: Extract<Gesture, { kind: 'resize' }>): Box | undefined {
   if (!g.end) return undefined;
   let { x, y, width, height } = g.box;
@@ -666,6 +697,16 @@ export function resizedBox(g: Extract<Gesture, { kind: 'resize' }>): Box | undef
   if (g.handle.includes('e')) width = Math.max(1, g.end.x - x);
   if (g.handle.includes('n')) { y = Math.min(g.end.y, bottom - 1); height = bottom - y; }
   if (g.handle.includes('s')) height = Math.max(1, g.end.y - y);
+  if (g.scale && g.box.width && g.box.height) {
+    // The scale tool keeps proportions: the side the handle moves sets the size, the opposite side (or, from an
+    // edge handle, the middle of the other axis) stays.
+    const k = g.handle.includes('e') || g.handle.includes('w') ? width / g.box.width : height / g.box.height;
+    width = g.box.width * k;
+    height = g.box.height * k;
+    x = g.handle.includes('w') ? right - width : g.handle.includes('e') ? g.box.x : g.box.x + (g.box.width - width) / 2;
+    y = g.handle.includes('n') ? bottom - height : g.handle.includes('s') ? g.box.y : g.box.y + (g.box.height - height) / 2;
+    return { x, y, width, height };
+  }
   if (g.shift && g.box.width && g.box.height) {
     const ratio = g.box.width / g.box.height;
     if (g.handle.length === 2) height = width / ratio;
@@ -678,10 +719,10 @@ export function resizedBox(g: Extract<Gesture, { kind: 'resize' }>): Box | undef
 function measuresTo(doc: PenDoc, selection: string[], to: string | undefined): Measure[] {
   const cache = canvas.cache;
   if (!cache || !selection.length) return [];
-  const boxes = selection.map((id) => cache.box(id)).filter((b): b is Box => !!b);
+  const boxes = selection.map((id) => cache.bounds(id)).filter((b): b is Box => !!b);
   if (!boxes.length) return [];
   const target = to && !selection.includes(to) ? to : doc.locate(selection[0])?.parent?.id;
-  const b = target ? cache.box(target) : undefined;
+  const b = target ? cache.bounds(target) : undefined;
   return b ? measure(unionOf(boxes), b) : [];
 }
 

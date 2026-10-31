@@ -4,3 +4,6 @@ dist/
 *.log
 .cache/
 /out/
+
+# Maestro workflow state (local indexes and caches)
+.workflow/

@@ -107,6 +107,10 @@ Everything pen.dev has that nib lacks, the pain points seen while using nib's ag
 - D3. Share by link: a static, self-hostable viewer of the design, served read-only on the local network by the daemon.
 - Status 2026-10-31: phase D done. Slides are the top-level frames (components left out) in reading order, nothing stored: the Slides tab reorders them by swapping the frames' places, presents from one, and saves them as one PDF. Present mode is the live canvas full screen, fitted to a slide with black around it (agent edits show, cursors hidden). Prototype links are `nib-link` metadata on any layer (a frame, next, previous; instant, dissolve, or a glide across the canvas), drawn as arrows on the canvas. Share writes a read-only snapshot (2× PNG per frame, share.json with link hotspots, a self-contained viewer page) under a stable unguessable id, served at /share/<id>/ by the daemon without the token; "Also on the local network" starts a second server that serves the shares folder and nothing else, off until switched on.
 
+**W. Publishing to w33d** (asked 2026-10-31, before E)
+- W1. Sign in with w33d SSO in nib; publish a design as a website on nib.w33d.xyz, public or for w33d users only; republish, switch, take down. Status 2026-10-31: done and checked through the edge (public page anonymous, private page as a signed-in user). Keystone client `nib-desktop` (public, PKCE, loopback redirects on ports 7451 and 7471); service `services/publish` (nib-publish) on OVH behind Sluice (/api bearer, /p sso, /s public), files kept as Siteflow prebuilt deployments on internal hosts. Export format `site` (a page per frame, prototype links as links, assets copied).
+- W2 (next, not started). Sites with a database and a backend: a Loom repository per site, Cistern for data, Siteflow functions; needs a repository-creation API in Loom.
+
 **E. Agent features**
 - E1. Variants: several agents at once on copies of a frame, side by side; keep one.
 - E2. Attachments: reference images and files in the chat.
@@ -117,6 +121,7 @@ Everything pen.dev has that nib lacks, the pain points seen while using nib's ag
 - E7. Responsive versions: tablet and phone frames from a desktop frame, checked.
 - E8. Implementation check: a running app (localhost) in the browser compared with its design frame, differences listed for a coding agent.
 - E9. `spawn_agents` and macros (save an agent turn as a reusable command).
+- Status 2026-10-31: E2 done (images and text files attached in the chat, shown to models that see). Paused here at the user's request; E3 has its picture comparison in packages/render/src/compare.ts, not yet an API call.
 
 **F. Images, code on canvas, data**
 - F1. `Generate`: images (person's image API key), SVG (any chat model), stock photos (Openverse, no key).

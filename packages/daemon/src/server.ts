@@ -16,6 +16,7 @@ import { tokensFromCss, tokensFromJson, tokensToCss, tokensToJson, tokensToTailw
 import type { BrowserService } from './browser/service.ts';
 import { buildShare, exportSite, lanAddress, serveShare, sharedId, ShareServer } from './share.ts';
 import { slugFor, W33d, W33dError, type W33dConfig } from './w33d.ts';
+import { planVariants, variantPrompt } from './agent/variants.ts';
 import type { Exporter } from '@nib/exec';
 import type { AgentService } from './agent/service.ts';
 
@@ -248,6 +249,36 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         } catch (e) {
           return send(res, 409, { error: (e as Error).message });
         }
+      }
+      case 'POST /api/agent/variants': {
+        // Several agents at once, each on its own copy of a top-level frame, side by side.
+        if (!opts.agent) return send(res, 404, { error: 'this nib has no agent' });
+        const body = await readJson(req);
+        const count = Number(body.count);
+        if (typeof body.doc !== 'string' || typeof body.frame !== 'string' || typeof body.provider !== 'string' || typeof body.text !== 'string' || !body.text.trim()) return send(res, 400, { error: 'doc, frame, provider and text are required' });
+        if (!Number.isInteger(count) || count < 2 || count > 4) return send(res, 400, { error: 'count is 2 to 4' });
+        const open = await host.open(body.doc);
+        const original = open.session.doc.get(body.frame);
+        let plan: ReturnType<typeof planVariants>;
+        try {
+          plan = planVariants(open.session.doc, body.frame, count, (id) => open.session.box(id));
+        } catch (e) {
+          return send(res, 400, { error: (e as Error).message });
+        }
+        await host.edit(open.path, plan.ops, { kind: 'user' }, `Make ${count} variants`);
+        const group = randomBytes(6).toString('hex');
+        const title = body.text.replace(/\s+/g, ' ').slice(0, 48);
+        const sessions = [];
+        for (const [index, f] of plan.frames.entries()) {
+          sessions.push(await opts.agent.send({
+            doc: open.path, provider: body.provider, model: typeof body.model === 'string' ? body.model : undefined,
+            text: body.text, instructions: variantPrompt({ index, count, frame: f.id, name: f.name, original: String(original?.name ?? body.frame) }),
+            title: `${title} · ${index + 1}/${count}`, selection: [f.id], context: describeSelection(open, [f.id]),
+            variant: { group, of: body.frame, frame: f.id, index, count },
+            attachments: Array.isArray(body.attachments) ? (body.attachments as { name: string; type: string; data: string }[]) : undefined,
+          }));
+        }
+        return send(res, 200, { group, frames: plan.frames, sessions: sessions as unknown as Json[] });
       }
       case 'GET /api/agent/attachment': {
         // A file attached to a message, from the session's own folder only.

@@ -10,7 +10,8 @@ export type ChatItem =
   | { kind: 'error'; id: string; at: number; text: string }
   | { kind: 'usage'; id: string; at: number; costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number; durationMs: number; changed?: string[] };
 
-export interface SessionSummary { id: string; title: string; doc: string; provider: string; model: string; created: number; updated: number; running: boolean }
+export interface VariantInfo { group: string; of: string; frame: string; index: number; count: number }
+export interface SessionSummary { id: string; title: string; doc: string; provider: string; model: string; created: number; updated: number; running: boolean; variant?: VariantInfo }
 export interface ModelChoice { id: string; label: string; vision?: boolean }
 export interface ProviderInfo { id: string; name: string; auth: 'app' | 'key' | 'none'; available: boolean; note?: string; models: ModelChoice[]; vision: boolean; signIn?: string }
 export type AgentEvent = { t: 'agent'; session: SessionSummary; item?: ChatItem; removed?: boolean };
@@ -98,6 +99,16 @@ export async function sendMessage(doc: string, text: string, selection: string[]
   if (!state.items[session.id]) set({ items: { ...state.items, [session.id]: [] } });
   upsert(session);
   set({ current: session.id });
+}
+
+/** Several agents at once, each on its own copy of top-level frame `frame`; the first variant is shown. */
+export async function sendVariants(doc: string, frame: string, count: number, text: string, attachments: Outgoing[] = []): Promise<void> {
+  const r = await post<{ sessions: SessionSummary[] }>('/api/agent/variants', {
+    doc, frame, count, text, provider: state.provider, model: state.model, ...(attachments.length ? { attachments } : {}),
+  });
+  const items = { ...state.items };
+  for (const s of r.sessions) { items[s.id] ??= []; upsert(s); }
+  set({ items, current: r.sessions[0]?.id });
 }
 
 /** Put the design back to how it was before a message of the current session. */

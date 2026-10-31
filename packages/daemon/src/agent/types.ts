@@ -25,9 +25,11 @@ export interface AgentSession {
   resume?: string;
   /** The conversation as an OpenAI-compatible API sees it (providers that nib drives itself). */
   transcript?: unknown[];
+  /** One of several variants made at once, each on its own copy of a frame. */
+  variant?: { group: string; of: string; frame: string; index: number; count: number };
 }
 
-export type SessionSummary = Pick<AgentSession, 'id' | 'title' | 'doc' | 'provider' | 'model' | 'created' | 'updated'> & { running: boolean };
+export type SessionSummary = Pick<AgentSession, 'id' | 'title' | 'doc' | 'provider' | 'model' | 'created' | 'updated' | 'variant'> & { running: boolean };
 
 /** How to start nib's MCP server, which gives an agent its tools. */
 export interface McpLaunch {

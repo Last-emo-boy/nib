@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { choose, deleteSession, loadAgent, openSession, refreshProviders, restoreBefore, saveKey, sendMessage, signIn, stopSession, useAgent, type ChatItem, type Outgoing, type ProviderInfo } from '../app/agent.ts';
+import { choose, deleteSession, loadAgent, openSession, refreshProviders, restoreBefore, saveKey, sendMessage, sendVariants, signIn, stopSession, useAgent, type ChatItem, type Outgoing, type ProviderInfo } from '../app/agent.ts';
+import { commit } from '../app/actions.ts';
+import { discardVariants, keepVariant } from '../app/variants.ts';
 import { authHeaders, token } from '../app/connection.ts';
 import { useT } from '../app/i18n.ts';
 import { post } from '../app/libraries.ts';
@@ -20,6 +22,7 @@ export function AgentPanel() {
     <div className="panel agent-panel" style={{ width }}>
       <Resizer />
       <Header />
+      <VariantsBar />
       <Chat />
       <Composer doc={conn.path} />
       <UsageFooter />
@@ -57,6 +60,44 @@ function Header() {
       <button className="icon-button" title={t.newChat} onClick={() => void openSession(undefined)}><Icon name="plus" size={14} /></button>
       {current && <button className="icon-button" title={t.deleteChat} onClick={() => { if (confirm(t.deleteChatConfirm)) void deleteSession(current); }}><Icon name="trash" size={13} /></button>}
       <button className="icon-button" title={t.close} onClick={() => store.set({ agentOpen: false })}><Icon name="x" size={14} /></button>
+    </div>
+  );
+}
+
+/** The set of variants the shown session belongs to: switch between them, keep one, or discard them. */
+function VariantsBar() {
+  const t = useT();
+  const doc = useEditor((s) => s.doc);
+  useEditor((s) => s.version);
+  const current = useAgent((s) => s.current);
+  const sessions = useAgent((s) => s.sessions);
+  const variant = sessions.find((s) => s.id === current)?.variant;
+  if (!variant || !doc) return null;
+  const set = sessions.filter((s) => s.variant?.group === variant.group).sort((a, b) => a.variant!.index - b.variant!.index);
+  const frames = set.map((s) => s.variant!.frame);
+  // Settled (one kept in the original's place, or all discarded): nothing left to choose.
+  if (!doc.has(variant.of) || !frames.some((f) => doc.has(f))) return null;
+  const show = (id: string, frame: string) => {
+    void openSession(id);
+    if (doc.has(frame)) { store.set({ selection: [frame] }); const b = boundsOf([variant.of, ...frames].filter((f) => doc.has(f))); if (b) store.set({ view: fitView(b, 1.1) }); }
+  };
+  const settle = (label: string, fn: Parameters<typeof commit>[1]) => {
+    for (const s of set) if (s.running) stopSession(s.id);
+    void commit(label, fn);
+  };
+  const original = doc.get(variant.of);
+  return (
+    <div className="agent-variants-bar">
+      <span className="dim">{t.variantsOf(String(original?.name ?? t.untitledChat))}</span>
+      <div className="agent-variant-tabs">
+        {set.map((s) => (
+          <button key={s.id} className={`${s.id === current ? 'on' : ''}${doc.has(s.variant!.frame) ? '' : ' gone'}`} title={s.title} onClick={() => show(s.id, s.variant!.frame)}>
+            {s.running && <span className="spinner" />}{s.variant!.index + 1}
+          </button>
+        ))}
+      </div>
+      <button className="link" disabled={!doc.has(variant.frame)} onClick={() => settle('Keep variant', (ed, d) => keepVariant(ed, d, variant.of, frames, variant.frame))}>{t.keepVariant}</button>
+      <button className="link danger" onClick={() => { if (confirm(t.discardVariantsConfirm)) settle('Discard variants', (ed, d) => discardVariants(ed, d, frames)); }}>{t.discardVariants}</button>
     </div>
   );
 }
@@ -272,13 +313,17 @@ async function outgoing(files: File[]): Promise<Outgoing[]> {
   return out;
 }
 
-function Composer({ doc }: { doc: string }) {
+function Composer({ doc: docPath }: { doc: string }) {
   const t = useT();
   const [text, setText] = useState('');
   const [files, setFiles] = useState<Outgoing[]>([]);
   const attach = async (list: File[]) => { const next = await outgoing(list); if (next.length) setFiles((f) => [...f, ...next].slice(0, 8)); };
   const [sending, setSending] = useState(false);
   const selection = useEditor((s) => s.selection);
+  const [variants, setVariants] = useState(1);
+  const doc = useEditor((s) => s.doc);
+  // Variants are made of one selected top-level frame.
+  const frame = selection.length === 1 && doc?.locate(selection[0]) && !doc.locate(selection[0])!.parent && doc.get(selection[0])?.type === 'frame' ? selection[0] : undefined;
   const providers = useAgent((s) => s.providers);
   const provider = useAgent((s) => s.provider);
   const model = useAgent((s) => s.model);
@@ -296,7 +341,8 @@ function Composer({ doc }: { doc: string }) {
     if (!message || running || sending || !info?.available) return;
     setSending(true);
     try {
-      await sendMessage(doc, message, selection, files);
+      if (frame && variants > 1) { await sendVariants(docPath, frame, variants, message, files); setVariants(1); }
+      else await sendMessage(docPath, message, selection, files);
       setText('');
       setFiles([]);
     } catch (e) {
@@ -328,6 +374,12 @@ function Composer({ doc }: { doc: string }) {
         }} />
       <div className="agent-bar">
         <ModelPicker />
+        {frame && (
+          <select className="agent-variants" title={t.variantsHint} value={variants} onChange={(e) => setVariants(Number(e.target.value))}>
+            <option value={1}>{t.oneTake}</option>
+            {[2, 3, 4].map((n) => <option key={n} value={n}>{t.nVariants(n)}</option>)}
+          </select>
+        )}
         <button className="icon-button" title={t.attachFiles} onClick={() => {
           const i = document.createElement('input');
           i.type = 'file';

@@ -35,6 +35,12 @@ export interface SendRequest {
   context?: string;
   /** Files attached to the message: images the model sees, text it reads. */
   attachments?: { name: string; type: string; data: string }[];
+  /** Told to the model with the message, not shown in the chat. */
+  instructions?: string;
+  /** For a new session: it makes one of several variants (see variants.ts). */
+  variant?: AgentSession['variant'];
+  /** The session's title, when not the message's start. */
+  title?: string;
 }
 
 const MAX_ATTACHMENTS = 8;
@@ -44,7 +50,7 @@ const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp
 const isText = (a: { name: string; type: string }) => a.type.startsWith('text/') || /\.(md|txt|json|csv|tsv|svg|html|css|js|ts|tsx|jsx|yaml|yml|xml)$/i.test(a.name);
 
 const newId = () => `${Date.now().toString(36)}${randomBytes(3).toString('hex')}`;
-const summary = (s: AgentSession, running: boolean): SessionSummary => ({ id: s.id, title: s.title, doc: s.doc, provider: s.provider, model: s.model, created: s.created, updated: s.updated, running });
+const summary = (s: AgentSession, running: boolean): SessionSummary => ({ id: s.id, title: s.title, doc: s.doc, provider: s.provider, model: s.model, created: s.created, updated: s.updated, ...(s.variant ? { variant: s.variant } : {}), running });
 
 /**
  * nib's own agent: chat sessions about a document, each run by a provider (the person's Claude or Codex
@@ -114,7 +120,7 @@ export class AgentService {
     const now = Date.now();
     if (!s || s.provider !== req.provider) {
       // Another provider cannot continue a conversation it did not have: start a new session.
-      s = { id: newId(), title: req.text.replace(/\s+/g, ' ').slice(0, 60), doc: resolvePath(req.doc), provider: req.provider, model: req.model ?? '', created: now, updated: now, items: [] };
+      s = { id: newId(), title: req.title ?? req.text.replace(/\s+/g, ' ').slice(0, 60), doc: resolvePath(req.doc), provider: req.provider, model: req.model ?? '', created: now, updated: now, items: [], ...(req.variant ? { variant: req.variant } : {}) };
       this.sessions.set(s.id, s);
     }
     s.model = req.model ?? s.model;
@@ -308,7 +314,7 @@ export class AgentService {
       const texts = await Promise.all(attached.filter(isText).map(async (a) => `<attachment name="${a.name}">\n${(await readFile(a.file, 'utf8')).slice(0, MAX_INLINE_TEXT)}\n</attachment>`));
       const images = attached.filter((a) => IMAGE_TYPES.has(a.type));
       const imageNote = images.length ? `The person attached ${images.length === 1 ? 'an image' : `${images.length} images`}${info.vision ? ' (shown to you with this message)' : ', which you cannot see (this model reads text only)'}; files: ${images.map((a) => a.file).join(', ')}.` : '';
-      const body = [req.text, ...texts, imageNote].filter(Boolean).join('\n\n');
+      const body = [req.text, req.instructions, ...texts, imageNote].filter(Boolean).join('\n\n');
       const prompt = context ? `${body}\n\n<context>\n${context}\n</context>` : body;
       // The system prompt stays the same through a session (provider caches key on it).
       const libraries = Object.keys(await this.imports(s.doc)).length > 0;
@@ -328,7 +334,8 @@ export class AgentService {
       for (const i of s.items) if (i.kind === 'tool' && i.status === 'running') { i.status = 'error'; i.output = abort.signal.aborted ? 'Stopped.' : i.output; this.update(s, i); }
       if (overBudget) this.push(s, { kind: 'error', id: newId(), at: Date.now(), text: `Stopped: this message used more than its budget of ${budget.tokensPerMessage} tokens.` });
       const after = before && (await this.document?.read(s.doc).catch(() => undefined));
-      const changed = before && after ? changedFrames(before, after) : undefined;
+      // A variant reports its own frame: the others change beside it at the same time.
+      const changed = before && after ? changedFrames(before, after, s.variant ? [s.variant.frame] : undefined) : undefined;
       this.push(s, { kind: 'usage', id: newId(), at: Date.now(), durationMs: Date.now() - started, ...usage, ...(changed?.length ? { changed } : {}) });
       this.running.delete(s.id);
       this.changed(s);
@@ -381,14 +388,15 @@ export class AgentService {
   }
 }
 
-/** Names of the top-level frames that differ between two versions of a document (added, changed, removed). */
-function changedFrames(before: PenDocument, after: PenDocument): string[] {
+/** Names of the top-level frames that differ between two versions of a document (added, changed, removed), of `only` if given. */
+function changedFrames(before: PenDocument, after: PenDocument, only?: string[]): string[] {
   const was = new Map(before.children.map((n) => [n.id, JSON.stringify(n)]));
   const is = new Map(after.children.map((n) => [n.id, JSON.stringify(n)]));
   const name = (n: { id: string; name?: string }) => n.name ?? n.id;
   const out: string[] = [];
-  for (const n of after.children) if (was.get(n.id) !== is.get(n.id)) out.push(name(n));
-  for (const n of before.children) if (!is.has(n.id)) out.push(name(n));
+  const counts = (id: string) => !only || only.includes(id);
+  for (const n of after.children) if (counts(n.id) && was.get(n.id) !== is.get(n.id)) out.push(name(n));
+  for (const n of before.children) if (counts(n.id) && !is.has(n.id)) out.push(name(n));
   return out.slice(0, 20);
 }
 

@@ -121,7 +121,7 @@ Everything pen.dev has that nib lacks, the pain points seen while using nib's ag
 - E7. Responsive versions: tablet and phone frames from a desktop frame, checked.
 - E8. Implementation check: a running app (localhost) in the browser compared with its design frame, differences listed for a coding agent.
 - E9. `spawn_agents` and macros (save an agent turn as a reusable command).
-- Status 2026-10-31: E2 done (images and text files attached in the chat, shown to models that see). Paused here at the user's request; E3 has its picture comparison in packages/render/src/compare.ts, not yet an API call.
+- Status 2026-11-01: E1 done (2–4 agents at once on copies of the selected frame, side by side; switch between them, keep one in the original's place, or discard them). E2 done (images and text files attached in the chat, shown to models that see).
 
 **F. Images, code on canvas, data**
 - F1. `Generate`: images (person's image API key), SVG (any chat model), stock photos (Openverse, no key).

@@ -42,6 +42,7 @@ import crop from 'lucide-static/icons/crop.svg?raw';
 import mask from 'lucide-static/icons/squares-intersect.svg?raw';
 import scaling from 'lucide-static/icons/scaling.svg?raw';
 import play from 'lucide-static/icons/play.svg?raw';
+import paperclip from 'lucide-static/icons/paperclip.svg?raw';
 import presentation from 'lucide-static/icons/presentation.svg?raw';
 import flipH from 'lucide-static/icons/flip-horizontal-2.svg?raw';
 import flipV from 'lucide-static/icons/flip-vertical-2.svg?raw';
@@ -68,5 +69,5 @@ import globe from 'lucide-static/icons/globe.svg?raw';
 import library from 'lucide-static/icons/library-big.svg?raw';
 import palette from 'lucide-static/icons/palette.svg?raw';
 
-export const ICONS = { check, settings, hexagon, alignLeft, alignHCenter, alignRight, alignTop, alignVCenter, alignBottom, pointer, hand, square, circle, type, frame, note, layers, component, variable, undo, redo, minus, plus, panelLeft, eye, eyeOff, chevronRight, chevronDown, activity, download, languages, bot, hash, image, smile, penTool, lock, box, grid, text, diamond, folder, file, x, alignStart, arrowRight, arrowDown, scan, command, link, search, user, sparkles, trash, copy, maximize, globe, library, palette, crop, mask, scaling, flipH, flipV, bringToFront, sendToBack, play, presentation };
+export const ICONS = { check, settings, hexagon, alignLeft, alignHCenter, alignRight, alignTop, alignVCenter, alignBottom, pointer, hand, square, circle, type, frame, note, layers, component, variable, undo, redo, minus, plus, panelLeft, eye, eyeOff, chevronRight, chevronDown, activity, download, languages, bot, hash, image, smile, penTool, lock, box, grid, text, diamond, folder, file, x, alignStart, arrowRight, arrowDown, scan, command, link, search, user, sparkles, trash, copy, maximize, globe, library, palette, crop, mask, scaling, flipH, flipV, bringToFront, sendToBack, play, presentation, paperclip };
 export type IconName = keyof typeof ICONS;

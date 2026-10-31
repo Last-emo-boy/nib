@@ -4,7 +4,7 @@ import { post } from './libraries.ts';
 
 // The daemon's agent types, as the editor receives them (see packages/daemon/src/agent/types.ts).
 export type ChatItem =
-  | { kind: 'user'; id: string; at: number; text: string; selection?: string[]; checkpoint?: boolean }
+  | { kind: 'user'; id: string; at: number; text: string; selection?: string[]; checkpoint?: boolean; attachments?: { name: string; type: string; file: string }[] }
   | { kind: 'assistant'; id: string; at: number; text: string; streaming?: boolean }
   | { kind: 'tool'; id: string; at: number; name: string; input?: string; status: 'running' | 'done' | 'error'; output?: string }
   | { kind: 'error'; id: string; at: number; text: string }
@@ -86,11 +86,14 @@ export function choose(provider: string, model: string): void {
 }
 
 /** Send a message to the current session (a new one when there is none, or when the provider changed). */
-export async function sendMessage(doc: string, text: string, selection: string[]): Promise<void> {
+/** A file to send with a message: base64 bytes. */
+export interface Outgoing { name: string; type: string; data: string }
+
+export async function sendMessage(doc: string, text: string, selection: string[], attachments: Outgoing[] = []): Promise<void> {
   const current = state.sessions.find((s) => s.id === state.current);
   const same = current && current.provider === state.provider;
   const { session } = await post<{ session: SessionSummary }>('/api/agent/send', {
-    doc, text, selection, provider: state.provider, model: state.model, ...(same ? { session: current.id } : {}),
+    doc, text, selection, provider: state.provider, model: state.model, ...(same ? { session: current.id } : {}), ...(attachments.length ? { attachments } : {}),
   });
   if (!state.items[session.id]) set({ items: { ...state.items, [session.id]: [] } });
   upsert(session);

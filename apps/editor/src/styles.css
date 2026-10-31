@@ -556,3 +556,11 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .dash-card-menu button:hover { background: var(--panel-2); }
 .dash-card-menu button.danger { color: #f87171; }
 .dash-rename { height: 22px; padding: 0 6px; margin: -2px 0; background: var(--panel-2); border: 1px solid var(--accent); border-radius: 5px; outline: none; font-weight: 500; }
+
+/* Agent attachments */
+.agent-files { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; margin-bottom: 6px; }
+.agent-files.pending { justify-content: flex-start; margin: 0 0 6px; }
+.agent-file-thumb { width: 88px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); display: block; }
+.agent-file-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 220px; height: 26px; padding: 0 8px; border-radius: 7px; background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.agent-file-chip button { display: inline-flex; color: var(--faint); }
+.agent-file-mini { width: 18px; height: 18px; object-fit: cover; border-radius: 3px; }

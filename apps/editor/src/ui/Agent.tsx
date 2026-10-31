@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { choose, deleteSession, loadAgent, openSession, refreshProviders, restoreBefore, saveKey, sendMessage, signIn, stopSession, useAgent, type ChatItem, type ProviderInfo } from '../app/agent.ts';
-import { authHeaders } from '../app/connection.ts';
+import { choose, deleteSession, loadAgent, openSession, refreshProviders, restoreBefore, saveKey, sendMessage, signIn, stopSession, useAgent, type ChatItem, type Outgoing, type ProviderInfo } from '../app/agent.ts';
+import { authHeaders, token } from '../app/connection.ts';
 import { useT } from '../app/i18n.ts';
 import { post } from '../app/libraries.ts';
 import { store, toast, useEditor } from '../app/store.ts';
@@ -100,10 +100,19 @@ function Suggestions() {
 function Item({ item }: { item: ChatItem }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  const session = useAgent((s) => s.current) ?? '';
   switch (item.kind) {
     case 'user':
       return (
         <div className="agent-user">
+          {item.attachments?.length ? (
+            <div className="agent-files">
+              {item.attachments.map((a) => {
+                const src = `/api/agent/attachment?${new URLSearchParams({ session, file: a.file.split('/').pop() ?? '', t: token() })}`;
+                return a.type.startsWith('image/') ? <a key={a.file} href={src} target="_blank" rel="noreferrer"><img className="agent-file-thumb" src={src} alt={a.name} title={a.name} /></a> : <span key={a.file} className="agent-file-chip"><Icon name="file" size={11} />{a.name}</span>;
+              })}
+            </div>
+          ) : null}
           <div className="bubble">{item.text}</div>
           <div className="agent-user-row">
             {item.selection?.length ? <button className="agent-sel" onClick={() => select(item.selection!)}><Icon name="diamond" size={11} />{t.selectedCount(item.selection.length)}</button> : null}
@@ -247,9 +256,27 @@ function inline(s: string): ReactNode[] {
   });
 }
 
+const ATTACHABLE = /^image\/(png|jpeg|gif|webp)$/;
+const TEXTUAL = /\.(md|txt|json|csv|tsv|svg|html|css|js|ts|tsx|jsx|yaml|yml|xml)$/i;
+
+/** Files as the daemon takes them: images and text files, at most 10 MB each. */
+async function outgoing(files: File[]): Promise<Outgoing[]> {
+  const out: Outgoing[] = [];
+  for (const f of files) {
+    if (!(ATTACHABLE.test(f.type) || f.type.startsWith('text/') || TEXTUAL.test(f.name)) || f.size > 10 * 1024 * 1024) { toast(`${f.name}: only images and text files up to 10 MB can be attached`); continue; }
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    out.push({ name: f.name || 'pasted.png', type: f.type || 'text/plain', data: btoa(bin) });
+  }
+  return out;
+}
+
 function Composer({ doc }: { doc: string }) {
   const t = useT();
   const [text, setText] = useState('');
+  const [files, setFiles] = useState<Outgoing[]>([]);
+  const attach = async (list: File[]) => { const next = await outgoing(list); if (next.length) setFiles((f) => [...f, ...next].slice(0, 8)); };
   const [sending, setSending] = useState(false);
   const selection = useEditor((s) => s.selection);
   const providers = useAgent((s) => s.providers);
@@ -269,8 +296,9 @@ function Composer({ doc }: { doc: string }) {
     if (!message || running || sending || !info?.available) return;
     setSending(true);
     try {
-      await sendMessage(doc, message, selection);
+      await sendMessage(doc, message, selection, files);
       setText('');
+      setFiles([]);
     } catch (e) {
       toast((e as Error).message);
     } finally {
@@ -278,15 +306,36 @@ function Composer({ doc }: { doc: string }) {
     }
   };
   return (
-    <div className="agent-composer">
+    <div className="agent-composer" onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
+      onDrop={(e) => { if (!e.dataTransfer.files.length) return; e.preventDefault(); void attach([...e.dataTransfer.files]); }}>
       {info && !info.available && <ProviderSetup info={info} />}
+      {files.length > 0 && (
+        <div className="agent-files pending">
+          {files.map((f, i) => (
+            <span key={i} className="agent-file-chip">
+              {f.type.startsWith('image/') ? <img className="agent-file-mini" src={`data:${f.type};base64,${f.data}`} alt="" /> : <Icon name="file" size={11} />}
+              {f.name}
+              <button title={t.delete} onClick={() => setFiles(files.filter((_, j) => j !== i))}><Icon name="x" size={10} /></button>
+            </span>
+          ))}
+        </div>
+      )}
       <textarea ref={input} value={text} rows={3} placeholder={t.askAgent} onChange={(e) => setText(e.target.value)}
+        onPaste={(e) => { const list = [...e.clipboardData.files]; if (list.length) { e.preventDefault(); void attach(list); } }}
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); }
         }} />
       <div className="agent-bar">
         <ModelPicker />
+        <button className="icon-button" title={t.attachFiles} onClick={() => {
+          const i = document.createElement('input');
+          i.type = 'file';
+          i.multiple = true;
+          i.accept = 'image/png,image/jpeg,image/gif,image/webp,text/*,.md,.json,.csv,.svg,.html,.css,.js,.ts,.tsx,.yaml,.yml,.xml';
+          i.onchange = () => void attach([...(i.files ?? [])]);
+          i.click();
+        }}><Icon name="paperclip" size={14} /></button>
         {selection.length > 0 && <span className="agent-sel static" title={t.selectionContext}><Icon name="diamond" size={11} />{t.selectedCount(selection.length)}</span>}
         <span className="grow" />
         {running && current

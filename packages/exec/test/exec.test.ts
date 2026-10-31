@@ -265,6 +265,18 @@ Compare("box", ${JSON.stringify(join(dir, 'tall.png'))})`);
     expect(items.find((i) => i.kind === 'spacing')!.message).toBe('The row of r1, r2, r3 in "Phone" has gaps of 10, 12px: make them equal (or use a layout with a gap).');
   });
 
+  it('reviews a frame from a snippet, after its changes', async () => {
+    const { s } = await session([{ type: 'frame', id: 'card', name: 'Card', x: 0, y: 0, width: 300, height: 200, fill: '#FFFFFF', layout: 'none', children: [] }]);
+    const r = await s.execute({ input: 't = Insert("card", {type: "text", x: 250, y: 20, content: "Runs past the edge", fontSize: 14, fill: "#BBBBBB"}); Review(t)' });
+    expect(r.ok, r.text).toBe(true);
+    const review = r.text.slice(r.text.indexOf('## Review'));
+    expect(review).toContain('card "Card":');
+    expect(review).toMatch(/- contrast `\w+`/);
+    expect(review).toMatch(/- overflow `\w+`: "Runs past the edge" runs out of "Card"/);
+    const clean = await s.execute({ input: 'Update(t, {x: 20, fill: "#111111"}); Review("card")' });
+    expect(clean.text).toContain('card "Card": nothing to point out.');
+  });
+
   it('stops endless loops', async () => {
     const doc = new PenDoc({ version: '2.20', children: [] } as unknown as PenDocument);
     const s = await ExecSession.open(doc, { renderer, images: noImages, baseDir: tmpdir(), timeoutMs: 200 });

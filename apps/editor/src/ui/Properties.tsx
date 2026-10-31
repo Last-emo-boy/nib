@@ -14,7 +14,7 @@ import { Icon } from './Icon.tsx';
 import { FontPicker } from './FontPicker.tsx';
 import { LINK, linkOf } from '../canvas/links.ts';
 import { imageFillIndex } from '../canvas/crop.ts';
-import { agent, loadAgent, openSession, sendMessage } from '../app/agent.ts';
+import { agent, loadAgent, openSession, sendMessage, sendResponsive } from '../app/agent.ts';
 import { layerName, typeIcon } from './LeftPanel.tsx';
 
 type Props = Record<string, any>;
@@ -115,6 +115,11 @@ export function Properties() {
       {nodes.length === 1 && !parts.length && imageFillIndex(n) >= 0 && (
         <Section title={t.agent}>
           <button className="link" onClick={() => void recreate(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {t.recreateAsLayers}</button>
+        </Section>
+      )}
+      {nodes.length === 1 && !parts.length && n.type === 'frame' && !doc.locate(n.id)?.parent && !hasSketch(n as Node) && (canvas.cache?.box(n.id)?.width ?? 0) > 430 && (
+        <Section title={t.agent}>
+          <button className="link" title={t.responsiveHint} onClick={() => void makeResponsive(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {(canvas.cache?.box(n.id)?.width ?? 0) > 808 ? t.makeResponsive : t.makePhoneVersion}</button>
         </Section>
       )}
       {nodes.length === 1 && !parts.length && hasSketch(n as Node) && (
@@ -529,6 +534,23 @@ async function recreate(doc: PenDoc, n: Node, t: Strings): Promise<void> {
     if (!(model?.vision ?? info?.vision)) { toast(t.needsVision); return; }
     await openSession(undefined);
     await sendMessage(conn.path, t.recreatePrompt(layerName(doc, n), n.id), [n.id]);
+  } catch (e) {
+    toast((e as Error).message);
+  }
+}
+
+/** Tablet and phone copies of top-level frame `n`, each adapted by its own agent; then show them all. */
+async function makeResponsive(doc: PenDoc, n: Node, t: Strings): Promise<void> {
+  const conn = store.get().conn;
+  if (!conn) return;
+  store.set({ agentOpen: true, activityOpen: false, browserOpen: false });
+  try {
+    await loadAgent(conn.path);
+    const frames = await sendResponsive(conn.path, n.id, t.responsiveText(layerName(doc, n)));
+    const ids = [n.id, ...frames];
+    for (let i = 0; i < 60 && !ids.every((id) => boundsOf([id])); i++) await new Promise((res) => setTimeout(res, 50));
+    const b = boundsOf(ids);
+    if (b) store.set({ view: fitView(b) });
   } catch (e) {
     toast((e as Error).message);
   }

@@ -248,8 +248,13 @@ export class ExecSession {
     const shots: string[] = [];
     const exported: string[] = [];
     const compared: string[] = [];
+    const reviewed: string[] = [];
     for (const c of out.captures) {
-      if (c.kind === 'compare') {
+      if (c.kind === 'review') {
+        const items = await this.review(c.id, { overflow: true });
+        const name = this.doc.get(c.id)?.name;
+        reviewed.push(`${c.id}${name ? ` "${name}"` : ''}: ${items.length ? `\n${items.map((i) => `- ${i.kind} \`${i.id}\`: ${i.message}`).join('\n')}` : 'nothing to point out.'}`);
+      } else if (c.kind === 'compare') {
         try {
           const r = await this.compare(c.scene, c.reference);
           images.push({ data: r.png, mimeType: 'image/png' });
@@ -286,6 +291,7 @@ export class ExecSession {
     if (out.prints.length) sections.push(`## Print output\n${out.prints.join('  \n')}`);
     if (exported.length) sections.push(`## Exported\n${exported.join('\n')}`);
     if (compared.length) sections.push(`## Comparisons\n${compared.join('\n')}`);
+    if (reviewed.length) sections.push(`## Review\n${reviewed.join('\n\n')}`);
     if (issues.length) sections.push(`## Issues\n${issues.map((i) => `- ${i}`).join('\n')}\n\nFix these in your next call.`);
     if (shots.length) sections.push(`## Screenshots\nAttached, in order: ${shots.join(', ')}. Check each against the request, and look for collapsed, overflowing, clipped or overlapping elements.`);
     return { ok: true, text: sections.join('\n\n'), images, ops, undo };

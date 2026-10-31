@@ -111,6 +111,15 @@ export async function sendVariants(doc: string, frame: string, count: number, te
   set({ items, current: r.sessions[0]?.id });
 }
 
+/** Tablet and phone versions of top-level frame `frame`, each adapted by its own agent; the first is shown. */
+export async function sendResponsive(doc: string, frame: string, text: string): Promise<string[]> {
+  const r = await post<{ frames: { id: string }[]; sessions: SessionSummary[] }>('/api/agent/responsive', { doc, frame, text, provider: state.provider, model: state.model });
+  const items = { ...state.items };
+  for (const s of r.sessions) { items[s.id] ??= []; upsert(s); }
+  set({ items, current: r.sessions[0]?.id });
+  return r.frames.map((f) => f.id);
+}
+
 /** Put the design back to how it was before a message of the current session. */
 export async function restoreBefore(item: string): Promise<void> {
   if (state.current) await post('/api/agent/restore', { session: state.current, item });

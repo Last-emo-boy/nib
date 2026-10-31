@@ -51,6 +51,8 @@ export type CompareReference = { scene: CapturedScene } | { file: string };
 export type Capture =
   | { kind: 'screenshot'; scenes: CapturedScene[] }
   | { kind: 'compare'; scene: CapturedScene; reference: CompareReference }
+  /** A design review of a top-level frame, once the snippet's changes are laid out. */
+  | { kind: 'review'; id: string }
   | { kind: 'export'; scenes: CapturedScene[]; format: ExportFormat; outputPath: string; options: ExportOptions };
 
 export interface ApiOutput {
@@ -304,6 +306,13 @@ export class PenApi {
     else if (/\.(png|jpe?g|webp|gif)$/i.test(reference)) ref = { file: reference };
     else throw new ExecError(`Compare: "${reference}" is neither a node of this document nor an image file (.png, .jpg, .webp, .gif)`);
     this.out.captures.push({ kind: 'compare', scene, reference: ref });
+  }
+
+  review(id: unknown): void {
+    if (typeof id !== 'string' || !id) throw new ExecError('Review: the argument is the id of a frame to review');
+    const top = this.doc.topLevel(id.split('/')[0]);
+    if (!top) throw new ExecError(`Review: there is no node "${id}"`);
+    this.out.captures.push({ kind: 'review', id: top.id });
   }
 
   export(ids: unknown, format: unknown, outputPath: unknown, options?: unknown): void {

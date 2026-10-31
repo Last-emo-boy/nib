@@ -61,4 +61,26 @@ describe('variants', () => {
     await host.undo(path);
     expect(doc.data.children.map((n) => n.id)).toEqual(['home', 'block']);
   });
+
+  it('makes tablet and phone versions beside a desktop frame, one agent each, told to check with Review', async () => {
+    requests.length = 0;
+    const path = join(dir, 'r.pen');
+    await writeFile(path, serializePen({ version: '2.20', children: [
+      { type: 'frame', id: 'site', name: 'Landing', x: 0, y: 0, width: 1440, height: 900, children: [{ type: 'text', id: 't', content: 'Hi' }] },
+      { type: 'frame', id: 'small', name: 'Small', x: 0, y: 1200, width: 400, height: 300 },
+    ] } as unknown as PenDocument));
+    expect((await api('/api/agent/responsive', { doc: path, frame: 'small', provider: 'fake', text: 'x' })).json.error).toMatch(/already phone-sized/);
+    const r = await api('/api/agent/responsive', { doc: path, frame: 'site', provider: 'fake', text: 'Make responsive versions of “Landing”.' });
+    expect(r.status).toBe(200);
+    const doc = (await host.open(path)).session.doc;
+    const copies = doc.data.children.slice(2) as { id: string; name: string; x: number; y: number; width: number; height: number }[];
+    expect(copies.map((c) => [c.name, c.x, c.y, c.width, c.height])).toEqual([['Landing · Tablet', 1560, 0, 768, 1024], ['Landing · Phone', 2448, 0, 390, 900]]);
+    expect(r.json.sessions.map((s: { title: string }) => s.title)).toEqual(['Tablet · Landing', 'Phone · Landing']);
+    for (let i = 0; i < 100 && requests.length < 2; i++) await new Promise((res) => setTimeout(res, 10));
+    const phone = requests.find((q) => q.prompt.includes(`(id ${copies[1].id})`))!;
+    expect(phone.prompt).toContain('for a phone screen 390 wide');
+    expect(phone.prompt).toContain(`call Review("${copies[1].id}")`);
+    expect(phone.prompt).toContain('menu button');
+    expect(requests.find((q) => q.prompt.includes(`(id ${copies[0].id})`))!.prompt).not.toContain('menu button');
+  });
 });

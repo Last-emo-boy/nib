@@ -99,6 +99,7 @@ const PRELUDE = String.raw`
     Print,
     TakeScreenshot: (ids) => { call('takeScreenshot', [ids]); },
     Compare: (id, reference) => { call('compare', [id, reference]); },
+    Review: (id) => { call('review', [id]); },
     Export: (ids, format, outputPath, options) => { call('export', [ids, format, outputPath, options]); },
     console: { log: Print, info: Print, warn: Print, error: Print },
   };

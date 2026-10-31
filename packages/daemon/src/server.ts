@@ -18,6 +18,7 @@ import type { BrowserService } from './browser/service.ts';
 import { buildShare, exportSite, lanAddress, serveShare, sharedId, ShareServer } from './share.ts';
 import { slugFor, W33d, W33dError, type W33dConfig } from './w33d.ts';
 import { planVariants, variantPrompt } from './agent/variants.ts';
+import { planResponsive, responsivePrompt } from './agent/responsive.ts';
 import { planStress, SCENARIOS, type Scenario } from './stress.ts';
 import type { Exporter } from '@nib/exec';
 import type { AgentService } from './agent/service.ts';
@@ -313,6 +314,30 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           }));
         }
         return send(res, 200, { group, frames: plan.frames, sessions: sessions as unknown as Json[] });
+      }
+      case 'POST /api/agent/responsive': {
+        // Tablet and phone versions of a top-level frame, each adapted by its own agent at the same time.
+        if (!opts.agent) return send(res, 404, { error: 'this nib has no agent' });
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || typeof body.frame !== 'string' || typeof body.provider !== 'string' || typeof body.text !== 'string' || !body.text.trim()) return send(res, 400, { error: 'doc, frame, provider and text are required' });
+        const open = await host.open(body.doc);
+        const original = String(open.session.doc.get(body.frame)?.name ?? body.frame);
+        let plan: ReturnType<typeof planResponsive>;
+        try {
+          plan = planResponsive(open.session.doc, body.frame, (id) => open.session.box(id));
+        } catch (e) {
+          return send(res, 400, { error: (e as Error).message });
+        }
+        await host.edit(open.path, plan.ops, { kind: 'user' }, 'Make responsive versions');
+        const sessions = [];
+        for (const f of plan.frames) {
+          sessions.push(await opts.agent.send({
+            doc: open.path, provider: body.provider, model: typeof body.model === 'string' ? body.model : undefined,
+            text: body.text, instructions: responsivePrompt({ device: f.device, frame: f.id, name: f.name, of: body.frame, original, others: plan.frames.length - 1 }),
+            title: `${f.device.label} · ${original}`.slice(0, 60), selection: [f.id], context: describeSelection(open, [f.id]),
+          }));
+        }
+        return send(res, 200, { frames: plan.frames.map((f) => ({ id: f.id, name: f.name, device: f.device.id })), sessions: sessions as unknown as Json[] });
       }
       case 'GET /api/agent/attachment': {
         // A file attached to a message, from the session's own folder only.

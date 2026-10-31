@@ -206,9 +206,9 @@ export class DocumentHost {
     return this.enqueue(open, () => open.session.problems());
   }
 
-  review(path: string, scope?: string): Promise<ReviewItem[]> {
+  review(path: string, scope?: string, opts: { overflow?: boolean } = {}): Promise<ReviewItem[]> {
     const open = this.require(path);
-    return this.enqueue(open, () => open.session.review(scope));
+    return this.enqueue(open, () => open.session.review(scope, opts));
   }
 
   /** Write a copy of the document to `target` (not overwriting a file) and return its absolute path. */

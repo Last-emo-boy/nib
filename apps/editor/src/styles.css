@@ -590,4 +590,6 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .review-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .review-actions { display: flex; gap: 10px; }
 .review-kind { color: var(--dim); font-size: 11px; padding: 6px 8px 2px; }
+.stress-scenario { display: block; width: 100%; text-align: left; background: none; border: 0; cursor: pointer; }
+.stress-scenario:hover { color: var(--text); }
 .empty.small { padding: 4px 8px 8px; font-size: 11px; }

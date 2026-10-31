@@ -1,5 +1,5 @@
 import type { Node } from '@nib/format';
-import { childrenOf, inheritedTheme, resolveDeep, type PenDoc } from '@nib/core';
+import { childrenOf, inheritedTheme, resolveDeep, withTheme, type PenDoc } from '@nib/core';
 import { parseColor, type RGBA } from '@nib/render';
 import { problemOf } from './bounds.ts';
 
@@ -10,7 +10,7 @@ import { problemOf } from './bounds.ts';
  * clips it, layers almost but not quite aligned, and gaps almost but not quite equal.
  */
 
-export type ReviewKind = 'contrast' | 'small-text' | 'touch-target' | 'cut-off' | 'alignment' | 'spacing';
+export type ReviewKind = 'contrast' | 'small-text' | 'touch-target' | 'cut-off' | 'overflow' | 'alignment' | 'spacing';
 export interface ReviewItem { id: string; kind: ReviewKind; message: string }
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -51,9 +51,11 @@ const contains = (o: Box, i: Box) => i.x >= o.x - 0.5 && i.y >= o.y - 0.5 && i.x
 const PAINTED = new Set(['frame', 'rectangle', 'ellipse', 'polygon', 'path']);
 const TAPPABLE = /button|btn|link|tab\b|toggle|switch|checkbox|radio|chip/i;
 
-export function reviewIssues(doc: PenDoc, box: (id: string) => Box | undefined, scope?: string): ReviewItem[] {
+/** `overflow`: also layers that run out of their container where nothing clips them (for stress tests). */
+export function reviewIssues(doc: PenDoc, box: (id: string) => Box | undefined, scope?: string, opts: { overflow?: boolean } = {}): ReviewItem[] {
   const out: ReviewItem[] = [];
-  const val = (n: Node, k: string) => resolveDeep(doc, (n as Props)[k], inheritedTheme(doc, n.id));
+  // A layer's own theme applies to its own properties, as when it is drawn.
+  const val = (n: Node, k: string) => resolveDeep(doc, (n as Props)[k], withTheme(inheritedTheme(doc, n.id), n.theme));
   const tops = scope ? doc.data.children.filter((n) => n.id === scope) : doc.data.children;
 
   /** The opaque color right behind `n`: a painted layer under it in its parent, or an ancestor's own fill. */
@@ -91,10 +93,18 @@ export function reviewIssues(doc: PenDoc, box: (id: string) => Box | undefined, 
         if (ratio < need) out.push({ id: n.id, kind: 'contrast', message: `${label(n)} is hard to read: its contrast with what is behind it is ${ratio.toFixed(1)}:1, and ${large ? 'large ' : ''}text needs ${need}:1 (WCAG AA). Darken or lighten the text or its background.` });
       }
       if (size < 11) out.push({ id: n.id, kind: 'small-text', message: `${label(n)} is ${size}px: text under 11px is hard to read. Make it at least 12px.` });
-      if (parent && parent.type === 'frame' && val(parent, 'clip') === true) {
+      if (parent && parent.type === 'frame') {
         const pb = box(parent.id);
-        if (pb && problemOf(b, pb) === 'partially clipped') out.push({ id: n.id, kind: 'cut-off', message: `${label(n)} is cut off: it reaches past ${label(parent)}, which clips what is outside it. Give the text room or let it wrap.` });
+        const problem = pb && problemOf(b, pb);
+        if (problem === 'partially clipped' && val(parent, 'clip') === true) out.push({ id: n.id, kind: 'cut-off', message: `${label(n)} is cut off: it reaches past ${label(parent)}, which clips what is outside it. Give the text room or let it wrap.` });
+        else if (problem && opts.overflow) out.push({ id: n.id, kind: 'overflow', message: problem === 'fully clipped' ? `${label(n)} is outside ${label(parent)}: place it relative to the container's size, or in a layout.` : `${label(n)} runs out of ${label(parent)}. Let it wrap, or let its container grow with it.` });
       }
+    }
+    // Other layers past the edge of their frame (a card wider than a narrowed screen).
+    if (opts.overflow && n.type !== 'text' && b && (b.width > 0 || b.height > 0) && parent?.type === 'frame') {
+      const pb = box(parent.id);
+      const problem = pb && problemOf(b, pb);
+      if (problem) out.push({ id: n.id, kind: 'overflow', message: `${label(n)} ${problem === 'fully clipped' ? 'is outside' : 'runs past the edge of'} ${label(parent)}${val(parent, 'clip') === true ? ', which cuts it off' : ''}. Size it to its container, or put it in a layout that wraps.` });
     }
     // Things people tap: prototype links, and instances or frames named like controls.
     const meta = (n as Props).metadata as Props | undefined;

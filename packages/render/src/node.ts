@@ -20,10 +20,10 @@ export { faceInfo, faceOffsets } from './sfnt.ts';
 export function platformFallbacks(): FallbackFamilies {
   const N = NOTO_FALLBACKS;
   if (process.platform === 'darwin') {
-    return { han: ['PingFang SC', ...N.han], fullwidth: ['Hiragino Sans', 'PingFang SC', ...N.fullwidth], hangul: ['Apple SD Gothic Neo', ...N.hangul], emoji: ['Apple Color Emoji', ...N.emoji], symbols: ['Apple Symbols', ...N.symbols] };
+    return { han: ['PingFang SC', ...N.han], fullwidth: ['Hiragino Sans', 'PingFang SC', ...N.fullwidth], hangul: ['Apple SD Gothic Neo', ...N.hangul], emoji: ['Apple Color Emoji', ...N.emoji], symbols: ['Apple Symbols', ...N.symbols], arabic: ['Geeza Pro', ...N.arabic], hebrew: ['Arial Hebrew', ...N.hebrew] };
   }
   if (process.platform === 'win32') {
-    return { han: ['Microsoft YaHei', ...N.han], fullwidth: ['Microsoft YaHei', ...N.fullwidth], hangul: ['Malgun Gothic', ...N.hangul], emoji: ['Segoe UI Emoji', ...N.emoji], symbols: ['Segoe UI Symbol', ...N.symbols] };
+    return { han: ['Microsoft YaHei', ...N.han], fullwidth: ['Microsoft YaHei', ...N.fullwidth], hangul: ['Malgun Gothic', ...N.hangul], emoji: ['Segoe UI Emoji', ...N.emoji], symbols: ['Segoe UI Symbol', ...N.symbols], arabic: ['Segoe UI', ...N.arabic], hebrew: ['Segoe UI', ...N.hebrew] };
   }
   return NOTO_FALLBACKS;
 }

@@ -253,6 +253,12 @@ function VarValue({ v, value, onChange }: { v: Variable; value: unknown; onChang
 /** Problems the daemon finds in the whole document; refreshed after changes. */
 type Finding = { id: string; message: string; kind?: string };
 
+type Scenario = 'long' | 'cjk' | 'rtl' | 'dark' | 'narrow';
+/** A stress test's copies with what broke on each (`of`: the layer in the original). */
+type Stress = { frame: string; copies: { scenario: Scenario; frame: string; findings: (Finding & { of: string })[] }[]; skipped: { scenario: Scenario; reason: string }[] };
+/** The last stress test per document, so it outlives switching tabs. */
+const stressByDoc = new Map<string, Stress>();
+
 function Problems() {
   const t = useT();
   const conn = useEditor((s) => s.conn);
@@ -261,6 +267,8 @@ function Problems() {
   const selection = useEditor((s) => s.selection);
   const [problems, setProblems] = useState<Finding[] | undefined>();
   const [review, setReview] = useState<Finding[]>([]);
+  const [stress, setStressState] = useState<Stress | 'running' | undefined>(() => (conn ? stressByDoc.get(conn.path) : undefined));
+  const setStress = (s: Stress | undefined) => { if (conn) { if (s) stressByDoc.set(conn.path, s); else stressByDoc.delete(conn.path); } setStressState(s); };
   // The review covers the selected top-level frame, else the whole document.
   const top = selection.length === 1 ? doc?.topLevel(selection[0])?.id : undefined;
   useEffect(() => {
@@ -293,7 +301,35 @@ function Problems() {
       toast((e as Error).message);
     }
   };
-  const kinds = ['contrast', 'small-text', 'touch-target', 'cut-off', 'alignment', 'spacing'] as const;
+  const kinds = ['contrast', 'small-text', 'touch-target', 'cut-off', 'overflow', 'alignment', 'spacing'] as const;
+  const runStress = async () => {
+    if (!conn || !top) return;
+    setStressState('running');
+    try {
+      const r = await fetch('/api/stress', { method: 'POST', headers: { ...authHeaders(), 'content-type': 'application/json' }, body: JSON.stringify({ doc: conn.path, frame: top }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? r.statusText);
+      const result: Stress = { frame: top, copies: j.copies, skipped: j.skipped };
+      setStress(result);
+      // Show the original with its copies once they have arrived.
+      const ids = [top, ...result.copies.map((c) => c.frame)];
+      for (let i = 0; i < 60 && !ids.every((id) => boundsOf([id])); i++) await new Promise((res) => setTimeout(res, 50));
+      const b = boundsOf(ids);
+      if (b) store.set({ view: fitView(b) });
+    } catch (e) {
+      setStress(undefined);
+      toast((e as Error).message);
+    }
+  };
+  const stressDone = stress && stress !== 'running' ? stress : undefined;
+  const stressName = stressDone && doc?.get(stressDone.frame) ? layerName(doc, doc.get(stressDone.frame)!) : '';
+  const fixStress = (s: Stress) => {
+    const lines = s.copies.flatMap((c) => c.findings.slice(0, 12).map((f) => `- ${t.stressScenarios[c.scenario]} · ${f.of}: ${f.message}`));
+    void ask(t.stressFixPrompt(stressName, s.frame, lines.slice(0, 40).join('\n')), [s.frame, ...new Set(s.copies.flatMap((c) => c.findings.map((f) => f.of)))].filter((id) => doc?.has(id)));
+  };
+  const removeStress = async (s: Stress) => {
+    if (await commit('Remove stress copies', (ed, d) => { for (const c of s.copies) if (d.has(c.frame)) ed.remove(c.frame); })) setStress(undefined);
+  };
   return (
     <div className="problems">
       <div className="review-head">
@@ -301,6 +337,7 @@ function Problems() {
         <div className="review-actions">
           {review.length > 0 && <button className="link" onClick={() => void ask(t.fixReviewPrompt(scope, review.slice(0, 30).map((r) => `- ${r.id}: ${r.message}`).join('\n')), [...new Set(review.slice(0, 30).map((r) => r.id))])}>{t.fixWithAgent}</button>}
           <button className="link" onClick={() => void ask(t.reviewPrompt(scope, top), top ? [top] : [])}>{t.askAgentReview}</button>
+          {top && <button className="link" title={t.stressHint} disabled={stress === 'running'} onClick={() => void runStress()}>{stress === 'running' ? t.stressRunning : t.stressTest}</button>}
         </div>
       </div>
       {!review.length && <p className="empty small">{t.reviewClean}</p>}
@@ -308,6 +345,24 @@ function Problems() {
         const items = review.filter((r) => r.kind === k);
         return items.length ? <div key={k}><div className="review-kind">{t.reviewKinds[k]} · {items.length}</div>{items.map(row)}</div> : null;
       })}
+      {stressDone && (
+        <>
+          <div className="review-head">
+            <span className="review-title">{t.stressOf(stressName || stressDone.frame)}</span>
+            <div className="review-actions">
+              {stressDone.copies.some((c) => c.findings.length) && <button className="link" onClick={() => fixStress(stressDone)}>{t.fixWithAgent}</button>}
+              <button className="link danger" onClick={() => void removeStress(stressDone)}>{t.removeStressCopies}</button>
+            </div>
+          </div>
+          {stressDone.copies.map((c) => (
+            <div key={c.frame}>
+              <button className="review-kind stress-scenario" onClick={() => show(c.frame)}>{t.stressScenarios[c.scenario]} · {c.findings.length || t.stressHolds}</button>
+              {c.findings.map(row)}
+            </div>
+          ))}
+          {stressDone.skipped.map((s) => <div key={s.scenario} className="review-kind" title={s.reason}>{t.stressScenarios[s.scenario]} · {t.stressSkipped}</div>)}
+        </>
+      )}
       <div className="review-head"><span className="review-title">{t.problems}</span></div>
       {problems.length ? problems.map(row) : <p className="empty small">{t.noProblems}</p>}
     </div>

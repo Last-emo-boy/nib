@@ -123,11 +123,11 @@ export class ExecSession {
   }
 
   /** A design review of the document, or of one top-level frame (see review.ts). */
-  async review(scope?: string): Promise<ReviewItem[]> {
+  async review(scope?: string, opts: { overflow?: boolean } = {}): Promise<ReviewItem[]> {
     const doc = this.current;
     await this.loadScenes(scope ? doc.data.children.filter((n) => n.id === scope) : doc.data.children);
     try {
-      return reviewIssues(doc, (id) => this.bounds.box(id), scope);
+      return reviewIssues(doc, (id) => this.bounds.box(id), scope, opts);
     } catch (e) {
       if (e instanceof FontsNotLoaded) return [];
       throw e;

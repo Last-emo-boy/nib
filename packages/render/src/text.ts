@@ -15,11 +15,13 @@ export interface FallbackFamilies {
   emoji: string[];
   /** Arrows, math, technical symbols and shapes (⌘ ⇧ ⌥ → ≠ ▲ ✓), which UI fonts often lack. */
   symbols?: string[];
+  arabic?: string[];
+  hebrew?: string[];
 }
 
 export const NOTO_FALLBACKS: Required<FallbackFamilies> = {
   han: ['Noto Sans SC'], fullwidth: ['Noto Sans SC'], hangul: ['Noto Sans KR'], emoji: ['Noto Color Emoji'],
-  symbols: ['Noto Sans Symbols 2', 'Noto Sans Math'],
+  symbols: ['Noto Sans Symbols 2', 'Noto Sans Math'], arabic: ['Noto Sans Arabic'], hebrew: ['Noto Sans Hebrew'],
 };
 
 const SCRIPTS: [RegExp, keyof FallbackFamilies][] = [
@@ -27,6 +29,8 @@ const SCRIPTS: [RegExp, keyof FallbackFamilies][] = [
   [/[\uff00-\uffef]/, 'fullwidth'],
   [/[\uac00-\ud7af\u1100-\u11ff]/, 'hangul'],
   [/\p{Extended_Pictographic}/u, 'emoji'],
+  [/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufefc]/, 'arabic'],
+  [/[\u0590-\u05ff\ufb1d-\ufb4f]/, 'hebrew'],
   [/[\u2190-\u23ff\u2400-\u243f\u2500-\u27bf\u27f0-\u27ff\u2900-\u297f\u2b00-\u2bff]/, 'symbols'],
 ];
 

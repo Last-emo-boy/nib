@@ -17,6 +17,7 @@ import type { BrowserService } from './browser/service.ts';
 import { buildShare, exportSite, lanAddress, serveShare, sharedId, ShareServer } from './share.ts';
 import { slugFor, W33d, W33dError, type W33dConfig } from './w33d.ts';
 import { planVariants, variantPrompt } from './agent/variants.ts';
+import { planStress, SCENARIOS, type Scenario } from './stress.ts';
 import type { Exporter } from '@nib/exec';
 import type { AgentService } from './agent/service.ts';
 
@@ -182,6 +183,32 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const doc = q.get('doc') ?? '';
         if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
         return send(res, 200, { items: (await host.review(doc, q.get('frame') ?? undefined)) as unknown as Json[] });
+      }
+      case 'POST /api/stress': {
+        // Copies of a frame with long text, other scripts, the dark theme and a narrow width, reviewed for
+        // what breaks (findings the original already has are left out).
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || typeof body.frame !== 'string') return send(res, 400, { error: 'doc and frame are required' });
+        const scenarios = (Array.isArray(body.scenarios) ? body.scenarios : SCENARIOS).filter((s): s is Scenario => SCENARIOS.includes(s as Scenario));
+        const open = await host.open(body.doc);
+        let plan: ReturnType<typeof planStress>;
+        try {
+          plan = planStress(open.session.doc, body.frame, scenarios, (id) => open.session.box(id));
+        } catch (e) {
+          return send(res, 400, { error: (e as Error).message });
+        }
+        if (plan.ops.length) await host.edit(open.path, plan.ops, { kind: 'user' }, 'Stress test');
+        const known = new Set((await host.review(open.path, body.frame, { overflow: true })).map((i) => `${i.kind}|${i.id}`));
+        const copies = [];
+        for (const c of plan.copies) {
+          const back = new Map([...c.map].map(([from, to]) => [to, from]));
+          const findings = (await host.review(open.path, c.id, { overflow: true }))
+            .map((i) => ({ ...i, of: back.get(i.id) ?? i.id }))
+            // Gaps and edges move with the text on every copy: only what breaks is news.
+            .filter((i) => i.kind !== 'alignment' && i.kind !== 'spacing' && !known.has(`${i.kind}|${i.of}`));
+          copies.push({ scenario: c.scenario, label: c.label, frame: c.id, name: c.name, findings });
+        }
+        return send(res, 200, { copies: copies as unknown as Json[], skipped: plan.skipped as unknown as Json[] });
       }
       case 'GET /api/tokens': {
         // The document's variables as CSS variables, a Tailwind theme, or W3C design tokens JSON.

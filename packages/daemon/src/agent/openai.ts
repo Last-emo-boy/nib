@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import type OpenAI from 'openai';
 import type { Keys } from './keys.ts';
 import { textOf } from './util.ts';
@@ -83,7 +84,9 @@ export class CompatibleProvider implements Provider {
       }));
       const transcript = (req.session.transcript ?? []) as Message[];
       trimEarlierTurns(transcript);
-      transcript.push({ role: 'user', content: req.prompt });
+      // Attached images go with the message to models that see; earlier turns drop them (trimEarlierTurns).
+      const images = vision && req.images?.length ? await Promise.all(req.images.map(async (i) => ({ type: 'image_url' as const, image_url: { url: `data:${i.mimeType};base64,${(await readFile(i.path)).toString('base64')}` } }))) : [];
+      transcript.push(images.length ? { role: 'user', content: [{ type: 'text', text: req.prompt }, ...images] } : { role: 'user', content: req.prompt });
       req.session.transcript = transcript;
       let input = 0, output = 0, cached = 0;
       for (let step = 0; step < MAX_STEPS; step++) {

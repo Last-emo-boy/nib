@@ -208,11 +208,21 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           const session = await opts.agent.send({
             session: typeof body.session === 'string' ? body.session : undefined, doc: open.path, provider: body.provider,
             model: typeof body.model === 'string' ? body.model : undefined, text: body.text, selection, context: describeSelection(open, selection),
+            attachments: Array.isArray(body.attachments) ? (body.attachments as { name: string; type: string; data: string }[]) : undefined,
           });
           return send(res, 200, { session: session as unknown as Json });
         } catch (e) {
           return send(res, 409, { error: (e as Error).message });
         }
+      }
+      case 'GET /api/agent/attachment': {
+        // A file attached to a message, from the session's own folder only.
+        if (!opts.agent) return send(res, 404, { error: 'this nib has no agent' });
+        const dir = resolvePath(opts.agent.attachmentsDir(q.get('session') ?? ''));
+        const file = resolvePath(dir, basename(q.get('file') ?? ''));
+        const bytes = file.startsWith(dir + '/') ? await readFile(file).catch(() => undefined) : undefined;
+        const type = /\.png$/i.test(file) ? 'image/png' : /\.jpe?g$/i.test(file) ? 'image/jpeg' : /\.gif$/i.test(file) ? 'image/gif' : /\.webp$/i.test(file) ? 'image/webp' : 'text/plain; charset=utf-8';
+        return bytes ? sendBytes(res, bytes, type, 'private, max-age=3600') : send(res, 404, { error: 'no such attachment' });
       }
       case 'GET /api/agent/usage':
         return send(res, 200, opts.agent ? { usage: await opts.agent.usage() as unknown as Json, settings: await opts.agent.settings() as unknown as Json } : { usage: {}, settings: {} });

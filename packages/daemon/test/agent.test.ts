@@ -65,6 +65,31 @@ describe('agent', () => {
     expect(await new AgentService({ home, providers: [provider] }).list('/tmp/a.pen')).toMatchObject([{ id: s.id, title: 'Make a card' }]);
   });
 
+  it('keeps attached files with the session: text goes into the message, images to models that see', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'nib-agent-'));
+    const provider = fake();
+    const seeing = Object.assign(fake(), { id: 'eyes', info: async () => ({ id: 'eyes', name: 'Eyes', auth: 'none' as const, available: true, models: [], vision: true }) });
+    const agent = new AgentService({ home, providers: [provider, seeing] });
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const files = [
+      { name: 'brief.md', type: 'text/markdown', data: Buffer.from('# Brief\nA pricing page.').toString('base64') },
+      { name: 'ref.png', type: 'image/png', data: png },
+      { name: 'tool.exe', type: 'application/octet-stream', data: 'AAAA' },
+    ];
+    const s = await agent.send({ doc: '/tmp/b.pen', provider: 'fake', text: 'Build this', attachments: files });
+    await settle(agent, s.id);
+    const user = (await agent.get(s.id))!.items[0] as { attachments?: { name: string; file: string }[] };
+    // Only images and text files are kept.
+    expect(user.attachments?.map((a) => a.name)).toEqual(['brief.md', 'ref.png']);
+    expect(provider.requests[0].prompt).toContain('<attachment name="brief.md">\n# Brief\nA pricing page.\n</attachment>');
+    expect(provider.requests[0].prompt).toContain('which you cannot see');
+    expect(provider.requests[0].images).toBeUndefined();
+    const t = await agent.send({ doc: '/tmp/b.pen', provider: 'eyes', text: 'Look', attachments: [files[1]] });
+    await settle(agent, t.id);
+    expect(seeing.requests[0].images).toEqual([{ path: expect.stringContaining(join(home, 'agent', 'attachments', t.id)), mimeType: 'image/png' }]);
+    expect(seeing.requests[0].prompt).toContain('shown to you with this message');
+  });
+
   it('stops a run, and refuses a message while one is running', async () => {
     const agent = new AgentService({ home: await mkdtemp(join(tmpdir(), 'nib-agent-')), providers: [fake()] });
     const s = await agent.send({ doc: '/tmp/b.pen', provider: 'fake', text: 'wait for me' });

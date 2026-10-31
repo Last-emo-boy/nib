@@ -62,7 +62,8 @@ export class CodexProvider implements Provider {
       workingDirectory: dirname(req.session.doc), skipGitRepoCheck: true,
     };
     const thread = req.session.resume ? codex.resumeThread(req.session.resume, options) : codex.startThread(options);
-    const { events } = await thread.runStreamed(req.prompt, { signal: req.signal });
+    const input = req.images?.length ? [{ type: 'text' as const, text: req.prompt }, ...req.images.map((i) => ({ type: 'local_image' as const, path: i.path }))] : req.prompt;
+    const { events } = await thread.runStreamed(input, { signal: req.signal });
     const said = new Map<string, number>();
     const message = (item: ThreadItem, done: boolean) => {
       if (item.type !== 'agent_message') return;

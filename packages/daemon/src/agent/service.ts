@@ -10,7 +10,7 @@ import { CompatibleProvider, PRESETS } from './openai.ts';
 import { systemPrompt } from './prompt.ts';
 import { forgetSignIns } from './util.ts';
 import type { PenDocument } from '@nib/format';
-import type { AgentSession, AgentSettings, ChatItem, McpLaunch, Provider, ProviderInfo, RunEvent, SessionSummary, UsageTotals } from './types.ts';
+import type { AgentSession, AgentSettings, Attachment, ChatItem, McpLaunch, Provider, ProviderInfo, RunEvent, SessionSummary, UsageTotals } from './types.ts';
 
 /** nib's MCP server, which the agent's runtime starts to get nib's tools. */
 const MCP_MAIN = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'mcp', 'src', 'main.ts');
@@ -33,7 +33,15 @@ export interface SendRequest {
   selection?: string[];
   /** What the selected nodes are, for the agent (the daemon describes them). */
   context?: string;
+  /** Files attached to the message: images the model sees, text it reads. */
+  attachments?: { name: string; type: string; data: string }[];
 }
+
+const MAX_ATTACHMENTS = 8;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const MAX_INLINE_TEXT = 200_000;
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+const isText = (a: { name: string; type: string }) => a.type.startsWith('text/') || /\.(md|txt|json|csv|tsv|svg|html|css|js|ts|tsx|jsx|yaml|yml|xml)$/i.test(a.name);
 
 const newId = () => `${Date.now().toString(36)}${randomBytes(3).toString('hex')}`;
 const summary = (s: AgentSession, running: boolean): SessionSummary => ({ id: s.id, title: s.title, doc: s.doc, provider: s.provider, model: s.model, created: s.created, updated: s.updated, running });
@@ -112,6 +120,8 @@ export class AgentService {
     s.model = req.model ?? s.model;
     const first = !s.items.some((i) => i.kind === 'user');
     const user: ChatItem = { kind: 'user', id: newId(), at: now, text: req.text, ...(req.selection?.length ? { selection: req.selection } : {}) };
+    const attachments = await this.keep(s.id, user.id, req.attachments ?? []);
+    if (attachments.length) user.attachments = attachments;
     const before = await this.document?.read(s.doc).catch(() => undefined);
     if (before) {
       await mkdir(join(this.checkpoints, s.id), { recursive: true });
@@ -124,6 +134,29 @@ export class AgentService {
     this.changed(s);
     void this.run(s, provider, req, first, abort, before);
     return summary(s, true);
+  }
+
+  /** Folder of a session's attached files. */
+  attachmentsDir(session: string): string {
+    return join(this.home, 'agent', 'attachments', session);
+  }
+
+  /** Save a message's attached files with the session (images and text files; others are left out). */
+  private async keep(session: string, item: string, files: { name: string; type: string; data: string }[]): Promise<Attachment[]> {
+    const out: Attachment[] = [];
+    for (const [i, f] of files.slice(0, MAX_ATTACHMENTS).entries()) {
+      if (typeof f?.name !== 'string' || typeof f.data !== 'string') continue;
+      const type = typeof f.type === 'string' ? f.type : '';
+      if (!IMAGE_TYPES.has(type) && !isText({ name: f.name, type })) continue;
+      const bytes = Buffer.from(f.data, 'base64');
+      if (bytes.length > MAX_ATTACHMENT_BYTES) continue;
+      const dir = this.attachmentsDir(session);
+      await mkdir(dir, { recursive: true });
+      const file = join(dir, `${item}-${i}-${f.name.replace(/[^\w.-]+/g, '_').slice(-80)}`);
+      await writeFile(file, bytes);
+      out.push({ name: f.name, type, file });
+    }
+    return out;
   }
 
   /** Put the session's document back to how it was before message `itemId`. */
@@ -269,12 +302,22 @@ export class AgentService {
       // The first message carries the whole document's state; later ones only what is selected.
       const state = first && this.describe ? await this.describe(s.doc).catch(() => undefined) : undefined;
       const context = [state && `Document state:\n${state}`, req.context].filter(Boolean).join('\n\n');
-      const prompt = context ? `${req.text}\n\n<context>\n${context}\n</context>` : req.text;
+      // Attached text is read into the message; attached images go to the model as images, and their files
+      // are named so tools (Compare) can use them.
+      const attached = (s.items.at(-1)?.kind === 'user' ? (s.items.at(-1) as Extract<ChatItem, { kind: 'user' }>).attachments : undefined) ?? [];
+      const texts = await Promise.all(attached.filter(isText).map(async (a) => `<attachment name="${a.name}">\n${(await readFile(a.file, 'utf8')).slice(0, MAX_INLINE_TEXT)}\n</attachment>`));
+      const images = attached.filter((a) => IMAGE_TYPES.has(a.type));
+      const imageNote = images.length ? `The person attached ${images.length === 1 ? 'an image' : `${images.length} images`}${info.vision ? ' (shown to you with this message)' : ', which you cannot see (this model reads text only)'}; files: ${images.map((a) => a.file).join(', ')}.` : '';
+      const body = [req.text, ...texts, imageNote].filter(Boolean).join('\n\n');
+      const prompt = context ? `${body}\n\n<context>\n${context}\n</context>` : body;
       // The system prompt stays the same through a session (provider caches key on it).
       const libraries = Object.keys(await this.imports(s.doc)).length > 0;
       if (abort.signal.aborted) return;
       const rules = before ? contextNotes(before) : [];
-      await provider.run({ session: s, prompt, system: systemPrompt(s.doc, info.vision, libraries, rules), first, mcp: this.mcp(info.name), signal: abort.signal, emit, budgetUsd: budget.usdPerMessage });
+      await provider.run({
+        session: s, prompt, system: systemPrompt(s.doc, info.vision, libraries, rules), first, mcp: this.mcp(info.name), signal: abort.signal, emit, budgetUsd: budget.usdPerMessage,
+        ...(images.length && info.vision ? { images: images.map((a) => ({ path: a.file, mimeType: a.type })) } : {}),
+      });
     } catch (e) {
       close();
       if (!abort.signal.aborted) this.push(s, { kind: 'error', id: newId(), at: Date.now(), text: (e as Error).message || String(e) });

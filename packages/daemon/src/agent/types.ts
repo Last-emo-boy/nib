@@ -1,7 +1,10 @@
+/** A file the person attached to a message, kept with the session. */
+export interface Attachment { name: string; type: string; file: string }
+
 /** What a chat with nib's agent shows, item by item. */
 export type ChatItem =
   /** `checkpoint`: the document as it was before this message is saved, so the design can go back to it. */
-  | { kind: 'user'; id: string; at: number; text: string; selection?: string[]; checkpoint?: boolean }
+  | { kind: 'user'; id: string; at: number; text: string; selection?: string[]; checkpoint?: boolean; attachments?: Attachment[] }
   | { kind: 'assistant'; id: string; at: number; text: string; streaming?: boolean }
   | { kind: 'tool'; id: string; at: number; name: string; input?: string; status: 'running' | 'done' | 'error'; output?: string }
   | { kind: 'error'; id: string; at: number; text: string }
@@ -61,6 +64,8 @@ export interface RunRequest {
   emit: (e: RunEvent) => void;
   /** At most this many dollars for this message, where the provider can hold to it (Claude). */
   budgetUsd?: number;
+  /** Images attached to this message, to show the model (files on disk). */
+  images?: { path: string; mimeType: string }[];
 }
 
 /** What the person set for the agent: budgets per message. */

@@ -73,8 +73,15 @@ export class ClaudeProvider implements Provider {
     const abort = new AbortController();
     req.signal.addEventListener('abort', () => abort.abort(), { once: true });
     const env = await claudeEnv();
+    // With images, the message goes as content blocks: the images, then the text.
+    const prompt = req.images?.length
+      ? (async function* () {
+          const images = await Promise.all(req.images!.map(async (i) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: i.mimeType as 'image/png', data: (await readFile(i.path)).toString('base64') } })));
+          yield { type: 'user' as const, message: { role: 'user' as const, content: [...images, { type: 'text' as const, text: req.prompt }] }, parent_tool_use_id: null };
+        })()
+      : req.prompt;
     const q = query({
-      prompt: req.prompt,
+      prompt,
       options: {
         model: req.session.model || undefined,
         systemPrompt: req.system,

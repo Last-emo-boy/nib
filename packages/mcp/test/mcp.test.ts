@@ -27,6 +27,24 @@ function client(env: Record<string, string>) {
   return { request, call, close: () => proc.stdin.end() };
 }
 
+describe('nib-mcp for nib\'s own agent', () => {
+  it('also offers spawn_agents and wait_agents', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nib-mcp-'));
+    const c = client({ NIB_HOME: join(dir, 'home'), NIB_HEADLESS: '1', NIB_SESSION: 's1', NIB_AGENT: 'claude' });
+    try {
+      await c.request('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } });
+      const tools = (await c.request('tools/list')).result.tools.map((t: { name: string }) => t.name);
+      expect(tools).toEqual(['get_app_state', 'execute', 'browser', 'read_skill', 'get_style', 'spawn_agents', 'wait_agents']);
+      // Headless there is no agent service to start them in.
+      const r = await c.call('spawn_agents', { tasks: [{ task: 'x' }] });
+      expect(r.isError).toBe(true);
+      expect(r.content[0].text).toBe('spawn_agents is for nib\'s own agent.');
+    } finally {
+      c.close();
+    }
+  });
+});
+
 describe.each([['through the daemon', false], ['headless', true]])('nib-mcp %s', (_mode, headless) => {
   it('speaks MCP and edits a .pen file on disk', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'nib-mcp-'));

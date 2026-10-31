@@ -3,13 +3,14 @@ import { childrenOf } from '@nib/core';
 import type { Node } from '@nib/format';
 import { copyAsHtml, copyAsPng, copyAsReact, copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, paste, saveAs } from '../app/actions.ts';
 import { useT } from '../app/i18n.ts';
-import { store, useEditor, type Tool, toggleSide } from '../app/store.ts';
+import { store, toast, useEditor, type Tool, toggleSide } from '../app/store.ts';
 import { boundsOf, fitView, importSvg, pickImages } from '../canvas/Canvas.tsx';
 import { maskSelection, releaseMask } from '../canvas/mask.ts';
 import { arrange, flipSelection } from '../canvas/arrange.ts';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
 import { layerName, typeIcon } from './LeftPanel.tsx';
+import { loadAgent, sendMessage, useAgent } from '../app/agent.ts';
 
 interface Item { key: string; label: string; hint?: string; icon: IconName; run: () => void }
 
@@ -21,6 +22,7 @@ export function Palette() {
   const open = useEditor((s) => s.paletteOpen);
   const doc = useEditor((s) => s.doc);
   const version = useEditor((s) => s.version);
+  const macros = useAgent((s) => s.macros);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -70,8 +72,15 @@ export function Palette() {
       { key: 'browser', label: t.toggleBrowser, icon: 'globe', run: () => toggleSide('browserOpen') },
       { key: 'problems', label: t.problems, icon: 'scan', run: () => store.set({ leftOpen: true, leftTab: 'problems' }) },
       { key: 'lang', label: t.switchLanguage, icon: 'languages', run: () => { const lang = store.get().lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', lang); store.set({ lang }); } },
+      // Saved commands: their message, sent to the agent with what is selected now.
+      ...macros.map((m): Item => ({ key: `macro:${m.name}`, label: `${t.runCommand}: ${m.name}`, icon: 'command', run: () => {
+        const { conn, selection } = store.get();
+        if (!conn) return;
+        store.set({ agentOpen: true, activityOpen: false, browserOpen: false });
+        void loadAgent(conn.path).then(() => sendMessage(conn.path, m.text, selection)).catch((e: Error) => toast(e.message));
+      } })),
     ];
-  }, [t]);
+  }, [t, macros]);
 
   const layers = useMemo<Item[]>(() => {
     if (!doc) return [];

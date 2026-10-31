@@ -11,7 +11,7 @@ export type ChatItem =
   | { kind: 'usage'; id: string; at: number; costUsd?: number; inputTokens?: number; cachedTokens?: number; outputTokens?: number; durationMs: number; changed?: string[] };
 
 export interface VariantInfo { group: string; of: string; frame: string; index: number; count: number }
-export interface SessionSummary { id: string; title: string; doc: string; provider: string; model: string; created: number; updated: number; running: boolean; variant?: VariantInfo }
+export interface SessionSummary { id: string; title: string; doc: string; provider: string; model: string; created: number; updated: number; running: boolean; variant?: VariantInfo; /** The session whose agent started this one as a helper. */ parent?: string }
 export interface ModelChoice { id: string; label: string; vision?: boolean }
 export interface ProviderInfo { id: string; name: string; auth: 'app' | 'key' | 'none'; available: boolean; note?: string; models: ModelChoice[]; vision: boolean; signIn?: string }
 export type AgentEvent = { t: 'agent'; session: SessionSummary; item?: ChatItem; removed?: boolean };
@@ -26,10 +26,14 @@ interface AgentState {
   providers: ProviderInfo[];
   provider: string;
   model: string;
+  /** Saved commands: messages to send again by name. */
+  macros: Macro[];
 }
 
+export interface Macro { name: string; text: string; created: number }
+
 let state: AgentState = {
-  sessions: [], items: {}, providers: [],
+  sessions: [], items: {}, providers: [], macros: [],
   provider: localStorage.getItem('nib-agent-provider') ?? 'claude',
   model: localStorage.getItem('nib-agent-model') ?? '',
 };
@@ -50,11 +54,12 @@ const get = async <T>(path: string): Promise<T> => (await fetch(path, { headers:
 /** Load the providers and this document's sessions (the newest one shown). */
 export async function loadAgent(doc: string): Promise<void> {
   if (state.doc !== doc) set({ doc, sessions: [], items: {}, current: undefined });
-  const [{ providers }, { sessions }] = await Promise.all([
+  const [{ providers }, { sessions }, { macros }] = await Promise.all([
     get<{ providers: ProviderInfo[] }>('/api/agent/providers'),
     get<{ sessions: SessionSummary[] }>(`/api/agent/sessions?${new URLSearchParams({ doc })}`),
+    get<{ macros: Macro[] }>('/api/agent/macros'),
   ]);
-  set({ providers, sessions });
+  set({ providers, sessions, macros: macros ?? [] });
   // Keep a provider that can run; else the first that can.
   if (!providers.some((p) => p.id === state.provider && p.available)) {
     const first = providers.find((p) => p.available);
@@ -118,6 +123,15 @@ export async function sendResponsive(doc: string, frame: string, text: string): 
   for (const s of r.sessions) { items[s.id] ??= []; upsert(s); }
   set({ items, current: r.sessions[0]?.id });
   return r.frames.map((f) => f.id);
+}
+
+/** Save `text` as the command `name`. */
+export async function saveMacro(name: string, text: string): Promise<void> {
+  set({ macros: (await post<{ macros: Macro[] }>('/api/agent/macros', { name, text })).macros });
+}
+
+export async function deleteMacro(name: string): Promise<void> {
+  set({ macros: (await post<{ macros: Macro[] }>('/api/agent/macros/delete', { name })).macros });
 }
 
 /** Put the design back to how it was before a message of the current session. */

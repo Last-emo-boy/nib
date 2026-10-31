@@ -1,6 +1,9 @@
 import { createInterface } from 'node:readline';
 import type { McpHost } from './hosts.ts';
-import { TOOLS } from './tools.ts';
+import { AGENT_TOOLS, TOOLS } from './tools.ts';
+
+/** The tools this server offers: nib's own agent also gets the ones for helpers. */
+const tools = () => (process.env.NIB_SESSION ? [...TOOLS, ...AGENT_TOOLS] : TOOLS);
 
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 export const SERVER_VERSION = '0.1.0';
@@ -55,10 +58,10 @@ export async function handle(host: McpHost, msg: Request): Promise<Reply | undef
       case 'ping':
         return ok({});
       case 'tools/list':
-        return ok({ tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
+        return ok({ tools: tools().map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
       case 'tools/call': {
         const name = String(msg.params?.name ?? '');
-        const tool = TOOLS.find((t) => t.name === name);
+        const tool = tools().find((t) => t.name === name);
         if (!tool) return fail(-32602, `unknown tool "${name}"`);
         try {
           return ok(await tool.call((msg.params?.arguments ?? {}) as Record<string, unknown>, host));

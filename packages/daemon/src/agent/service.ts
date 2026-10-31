@@ -10,7 +10,7 @@ import { CompatibleProvider, PRESETS } from './openai.ts';
 import { systemPrompt } from './prompt.ts';
 import { forgetSignIns } from './util.ts';
 import type { PenDocument } from '@nib/format';
-import type { AgentSession, AgentSettings, Attachment, ChatItem, McpLaunch, Provider, ProviderInfo, RunEvent, SessionSummary, UsageTotals } from './types.ts';
+import type { AgentSession, AgentSettings, Attachment, ChatItem, Macro, McpLaunch, Provider, ProviderInfo, RunEvent, SessionSummary, UsageTotals } from './types.ts';
 
 /** nib's MCP server, which the agent's runtime starts to get nib's tools. */
 const MCP_MAIN = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'mcp', 'src', 'main.ts');
@@ -41,6 +41,8 @@ export interface SendRequest {
   variant?: AgentSession['variant'];
   /** The session's title, when not the message's start. */
   title?: string;
+  /** For a new session: the session whose agent starts it as a helper. */
+  parent?: string;
 }
 
 const MAX_ATTACHMENTS = 8;
@@ -50,7 +52,7 @@ const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp
 const isText = (a: { name: string; type: string }) => a.type.startsWith('text/') || /\.(md|txt|json|csv|tsv|svg|html|css|js|ts|tsx|jsx|yaml|yml|xml)$/i.test(a.name);
 
 const newId = () => `${Date.now().toString(36)}${randomBytes(3).toString('hex')}`;
-const summary = (s: AgentSession, running: boolean): SessionSummary => ({ id: s.id, title: s.title, doc: s.doc, provider: s.provider, model: s.model, created: s.created, updated: s.updated, ...(s.variant ? { variant: s.variant } : {}), running });
+const summary = (s: AgentSession, running: boolean): SessionSummary => ({ id: s.id, title: s.title, doc: s.doc, provider: s.provider, model: s.model, created: s.created, updated: s.updated, ...(s.variant ? { variant: s.variant } : {}), ...(s.parent ? { parent: s.parent } : {}), running });
 
 /**
  * nib's own agent: chat sessions about a document, each run by a provider (the person's Claude or Codex
@@ -120,7 +122,7 @@ export class AgentService {
     const now = Date.now();
     if (!s || s.provider !== req.provider) {
       // Another provider cannot continue a conversation it did not have: start a new session.
-      s = { id: newId(), title: req.title ?? req.text.replace(/\s+/g, ' ').slice(0, 60), doc: resolvePath(req.doc), provider: req.provider, model: req.model ?? '', created: now, updated: now, items: [], ...(req.variant ? { variant: req.variant } : {}) };
+      s = { id: newId(), title: req.title ?? req.text.replace(/\s+/g, ' ').slice(0, 60), doc: resolvePath(req.doc), provider: req.provider, model: req.model ?? '', created: now, updated: now, items: [], ...(req.variant ? { variant: req.variant } : {}), ...(req.parent ? { parent: req.parent } : {}) };
       this.sessions.set(s.id, s);
     }
     s.model = req.model ?? s.model;
@@ -216,8 +218,60 @@ export class AgentService {
     return out;
   }
 
+  private get macrosFile(): string {
+    return join(this.home, 'agent', 'macros.json');
+  }
+
+  /** Saved commands, by name. */
+  async macros(): Promise<Macro[]> {
+    try {
+      const list = JSON.parse(await readFile(this.macrosFile, 'utf8')) as Macro[];
+      return Array.isArray(list) ? list.filter((m) => typeof m?.name === 'string' && typeof m.text === 'string').sort((a, b) => a.name.localeCompare(b.name)) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Save `text` as the command `name` (replacing one of that name). */
+  async saveMacro(name: string, text: string): Promise<Macro[]> {
+    const n = name.replace(/\s+/g, ' ').trim().slice(0, 60), body = text.trim().slice(0, 20_000);
+    if (!n || !body) throw new Error('a command needs a name and a message');
+    const list = (await this.macros()).filter((m) => m.name.toLowerCase() !== n.toLowerCase());
+    if (list.length >= 200) throw new Error('at most 200 commands');
+    return this.writeMacros([...list, { name: n, text: body, created: Date.now() }]);
+  }
+
+  async deleteMacro(name: string): Promise<Macro[]> {
+    return this.writeMacros((await this.macros()).filter((m) => m.name !== name));
+  }
+
+  private async writeMacros(list: Macro[]): Promise<Macro[]> {
+    await mkdir(dirname(this.macrosFile), { recursive: true });
+    await writeFile(this.macrosFile, JSON.stringify(list, null, 2));
+    return this.macros();
+  }
+
+  /** Stop a session's agent, and the helpers it started. */
   stop(id: string): void {
     this.running.get(id)?.abort();
+    for (const s of this.sessions.values()) if (s.parent === id) this.running.get(s.id)?.abort();
+  }
+
+  /** Helper sessions `ids` once none of them is working (or after `ms`), each with how its last message went. */
+  async wait(ids: string[], ms: number): Promise<{ id: string; title: string; running: boolean; reply?: string; error?: string; changed?: string[] }[]> {
+    await this.load();
+    const until = Date.now() + ms;
+    while (ids.some((id) => this.running.has(id)) && Date.now() < until) await new Promise((res) => setTimeout(res, 250));
+    return ids.map((id) => {
+      const s = this.sessions.get(id);
+      if (!s) return { id, title: '', running: false, error: 'no such agent' };
+      const since = s.items.findLastIndex((i) => i.kind === 'user');
+      const last = s.items.slice(since + 1);
+      const reply = last.findLast((i) => i.kind === 'assistant') as Extract<ChatItem, { kind: 'assistant' }> | undefined;
+      const error = last.findLast((i) => i.kind === 'error') as Extract<ChatItem, { kind: 'error' }> | undefined;
+      const usage = last.findLast((i) => i.kind === 'usage') as Extract<ChatItem, { kind: 'usage' }> | undefined;
+      return { id, title: s.title, running: this.running.has(id), ...(reply?.text ? { reply: reply.text.slice(-2000) } : {}), ...(error ? { error: error.text } : {}), ...(usage?.changed?.length ? { changed: usage.changed } : {}) };
+    });
   }
 
   async remove(id: string): Promise<void> {
@@ -249,11 +303,12 @@ export class AgentService {
   }
 
   /** How the agent's runtime starts nib's MCP server: this runtime, named after the provider. */
-  private mcp(provider: string): McpLaunch {
+  private mcp(provider: string, session: string): McpLaunch {
     return {
       command: process.execPath,
       args: [MCP_MAIN],
-      env: { NIB_HOME: this.home, NIB_AGENT: provider, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) },
+      // NIB_SESSION: which session's agent this is, so the helpers it starts belong to it.
+      env: { NIB_HOME: this.home, NIB_AGENT: provider, NIB_SESSION: session, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) },
     };
   }
 
@@ -321,7 +376,7 @@ export class AgentService {
       if (abort.signal.aborted) return;
       const rules = before ? contextNotes(before) : [];
       await provider.run({
-        session: s, prompt, system: systemPrompt(s.doc, info.vision, libraries, rules), first, mcp: this.mcp(info.name), signal: abort.signal, emit, budgetUsd: budget.usdPerMessage,
+        session: s, prompt, system: systemPrompt(s.doc, info.vision, libraries, rules), first, mcp: this.mcp(info.name, s.id), signal: abort.signal, emit, budgetUsd: budget.usdPerMessage,
         ...(images.length && info.vision ? { images: images.map((a) => ({ path: a.file, mimeType: a.type })) } : {}),
       });
     } catch (e) {

@@ -7,7 +7,7 @@ import { findExecutable, signedIn, textOf } from './util.ts';
 import type { Provider, ProviderInfo, RunRequest } from './types.ts';
 
 /** nib's tools as Claude Code names them. */
-const TOOLS = ['get_app_state', 'execute', 'browser', 'read_skill', 'get_style'].map((t) => `mcp__nib__${t}`);
+const TOOLS = ['get_app_state', 'execute', 'browser', 'read_skill', 'get_style', 'spawn_agents', 'wait_agents'].map((t) => `mcp__nib__${t}`);
 
 /** Claude Code's own binary from the SDK's platform package, when it is installed. */
 function bundledBinary(): boolean {

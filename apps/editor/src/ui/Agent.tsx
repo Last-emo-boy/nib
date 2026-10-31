@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { choose, deleteSession, loadAgent, openSession, refreshProviders, restoreBefore, saveKey, sendMessage, sendVariants, signIn, stopSession, useAgent, type ChatItem, type Outgoing, type ProviderInfo } from '../app/agent.ts';
+import { choose, deleteMacro, deleteSession, loadAgent, openSession, refreshProviders, restoreBefore, saveKey, saveMacro, sendMessage, sendVariants, signIn, stopSession, useAgent, type ChatItem, type Outgoing, type ProviderInfo } from '../app/agent.ts';
 import { commit } from '../app/actions.ts';
 import { discardVariants, keepVariant } from '../app/variants.ts';
 import { authHeaders, token } from '../app/connection.ts';
@@ -23,6 +23,7 @@ export function AgentPanel() {
       <Resizer />
       <Header />
       <VariantsBar />
+      <HelpersBar />
       <Chat />
       <Composer doc={conn.path} />
       <UsageFooter />
@@ -53,7 +54,10 @@ function Header() {
       <Icon name="sparkles" size={14} />
       <select className="agent-sessions" value={current ?? ''} onChange={(e) => void openSession(e.target.value || undefined)}>
         <option value="">{t.newChat}</option>
-        {sessions.map((s) => <option key={s.id} value={s.id}>{s.running ? '● ' : ''}{s.title || t.untitledChat}</option>)}
+        {/* Helpers under the agent that started them. */}
+        {sessions.filter((s) => !s.parent || !sessions.some((p) => p.id === s.parent)).flatMap((s) => [s, ...sessions.filter((h) => h.parent === s.id)]).map((s) => (
+          <option key={s.id} value={s.id}>{s.parent ? '  ↳ ' : ''}{s.running ? '● ' : ''}{s.title || t.untitledChat}</option>
+        ))}
       </select>
       <button className="icon-button" title={t.rulesHint} onClick={() => void openRules(t.rulesPlaceholder)}><Icon name="note" size={14} /></button>
       <button className={`icon-button${follow ? ' on' : ''}`} title={follow ? t.followOn : t.followOff} onClick={() => { localStorage.setItem('nib-follow-agent', follow ? '0' : '1'); store.set({ followAgent: !follow }); }}><Icon name={follow ? 'eye' : 'eyeOff'} size={14} /></button>
@@ -102,6 +106,29 @@ function VariantsBar() {
   );
 }
 
+/** An agent and the helpers it started (spawn_agents): switch between their chats. */
+function HelpersBar() {
+  const t = useT();
+  const current = useAgent((s) => s.current);
+  const sessions = useAgent((s) => s.sessions);
+  const me = sessions.find((s) => s.id === current);
+  const lead = me?.parent ? sessions.find((s) => s.id === me.parent) : me;
+  const helpers = lead ? sessions.filter((s) => s.parent === lead.id).sort((a, b) => a.created - b.created) : [];
+  if (!lead || !helpers.length) return null;
+  return (
+    <div className="agent-variants-bar">
+      <span className="dim">{t.helpers}</span>
+      <div className="agent-variant-tabs">
+        {[lead, ...helpers].map((s, i) => (
+          <button key={s.id} className={s.id === current ? 'on' : ''} title={s.title} onClick={() => void openSession(s.id)}>
+            {s.running && <span className="spinner" />}{i === 0 ? t.leadAgent : i}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Chat() {
   const t = useT();
   const current = useAgent((s) => s.current);
@@ -141,6 +168,7 @@ function Suggestions() {
 function Item({ item }: { item: ChatItem }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  const [naming, setNaming] = useState(false);
   const session = useAgent((s) => s.current) ?? '';
   switch (item.kind) {
     case 'user':
@@ -158,7 +186,21 @@ function Item({ item }: { item: ChatItem }) {
           <div className="agent-user-row">
             {item.selection?.length ? <button className="agent-sel" onClick={() => select(item.selection!)}><Icon name="diamond" size={11} />{t.selectedCount(item.selection.length)}</button> : null}
             {item.checkpoint && <button className="agent-restore" title={t.restoreHint} onClick={() => { if (confirm(t.restoreConfirm)) restoreBefore(item.id).catch((e: Error) => toast(e.message)); }}><Icon name="undo" size={11} />{t.restore}</button>}
+            {!naming && <button className="agent-restore" title={t.saveAsCommandHint} onClick={() => setNaming(true)}><Icon name="command" size={11} />{t.saveAsCommand}</button>}
           </div>
+          {naming && (
+            <input className="agent-macro-name" autoFocus placeholder={t.commandName} defaultValue={item.text.replace(/\s+/g, ' ').slice(0, 40)}
+              onBlur={() => setNaming(false)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Escape') setNaming(false);
+                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                  const name = e.currentTarget.value.trim();
+                  saveMacro(name, item.text).then(() => toast(t.commandSaved(name))).catch((err: Error) => toast(err.message));
+                  setNaming(false);
+                }
+              }} />
+          )}
         </div>
       );
     case 'assistant':
@@ -329,7 +371,12 @@ function Composer({ doc: docPath }: { doc: string }) {
   const model = useAgent((s) => s.model);
   const running = useAgent((s) => s.sessions.find((x) => x.id === s.current)?.running ?? false);
   const current = useAgent((s) => s.current);
+  const macros = useAgent((s) => s.macros);
   const input = useRef<HTMLTextAreaElement>(null);
+  // Typing "/" at the start lists saved commands; choosing one puts its message in the box.
+  const [pick, setPick] = useState(0);
+  const slash = /^\/[^\n]*$/.test(text) ? macros.filter((m) => m.name.toLowerCase().includes(text.slice(1).trim().toLowerCase())) : [];
+  const pickMacro = (m: { text: string }) => { setText(m.text); setPick(0); input.current?.focus(); };
   useEffect(() => {
     const fill = (e: Event) => { setText((e as CustomEvent<string>).detail); input.current?.focus(); };
     window.addEventListener('nib-agent-prompt', fill);
@@ -366,10 +413,25 @@ function Composer({ doc: docPath }: { doc: string }) {
           ))}
         </div>
       )}
-      <textarea ref={input} value={text} rows={3} placeholder={t.askAgent} onChange={(e) => setText(e.target.value)}
+      {slash.length > 0 && (
+        <div className="agent-macros">
+          {slash.slice(0, 8).map((m, i) => (
+            <div key={m.name} className={`agent-macro${i === Math.min(pick, slash.length - 1) ? ' on' : ''}`} onMouseDown={(e) => { e.preventDefault(); pickMacro(m); }}>
+              <span className="agent-macro-title">/{m.name}</span>
+              <span className="agent-macro-text">{m.text.split('\n')[0]}</span>
+              <button title={t.delete} onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); void deleteMacro(m.name); }}><Icon name="x" size={10} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      <textarea ref={input} value={text} rows={3} placeholder={t.askAgent} onChange={(e) => { setText(e.target.value); setPick(0); }}
         onPaste={(e) => { const list = [...e.clipboardData.files]; if (list.length) { e.preventDefault(); void attach(list); } }}
         onKeyDown={(e) => {
           e.stopPropagation();
+          if (slash.length) {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setPick((p) => (Math.min(p, slash.length - 1) + (e.key === 'ArrowDown' ? 1 : slash.length - 1)) % Math.min(slash.length, 8)); return; }
+            if ((e.key === 'Enter' || e.key === 'Tab') && !e.nativeEvent.isComposing) { e.preventDefault(); pickMacro(slash[Math.min(pick, slash.length - 1)]); return; }
+          }
           if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); }
         }} />
       <div className="agent-bar">

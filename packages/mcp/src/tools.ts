@@ -18,6 +18,60 @@ export const SKILL_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'sk
 
 const text = (t: string, isError = false): ToolResult => ({ content: [{ type: 'text', text: t }], ...(isError ? { isError } : {}) });
 
+/** Tools only nib's own agent gets (it runs as a session of nib: NIB_SESSION). */
+export const AGENT_TOOLS: Tool[] = [
+  {
+    name: 'spawn_agents',
+    description: 'Start up to 6 helper agents that work at the same time as you, each on its own part of the request (a screen, a section, a set of components), and get their ids. Use it when a request has parts that do not depend on each other, such as five screens of an app: make an empty frame for each part first, then give each helper its frameId so it works only there. A helper sees the document but not this conversation, so write each task to stand on its own: what to make, the style and components to use, what done looks like. Then call wait_agents, and check their work with screenshots.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tasks: {
+          type: 'array', maxItems: 6,
+          items: {
+            type: 'object',
+            properties: {
+              task: { type: 'string', description: 'The helper\'s complete task.' },
+              frameId: { type: 'string', description: 'The layer the helper may change (usually a frame you made for it).' },
+              title: { type: 'string', description: 'A short name for its chat.' },
+            },
+            required: ['task'],
+          },
+        },
+      },
+      required: ['tasks'],
+    },
+    async call(args, host) {
+      const parent = process.env.NIB_SESSION;
+      if (!parent || !host.spawnAgents) return text('spawn_agents is for nib\'s own agent.', true);
+      const r = await host.spawnAgents(parent, args.tasks);
+      if (!r.agents) return text(r.error ?? 'could not start the helpers', true);
+      return text(`Started ${r.agents.length} helper${r.agents.length === 1 ? '' : 's'}:\n${r.agents.map((a) => `- ${a.id}: ${a.title}`).join('\n')}\n\nCall wait_agents with these ids to learn when they are done.`);
+    },
+  },
+  {
+    name: 'wait_agents',
+    description: 'Wait for helpers you started with spawn_agents (at most 50 seconds per call; call again while any is still working), then read what each did: its last reply, the frames it changed, or its error.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ids: { type: 'array', items: { type: 'string' }, description: 'Helper ids from spawn_agents.' },
+        seconds: { type: 'number', description: 'How long to wait at most, up to 50 (default 45).' },
+      },
+      required: ['ids'],
+    },
+    async call(args, host) {
+      const parent = process.env.NIB_SESSION;
+      if (!parent || !host.waitAgents) return text('wait_agents is for nib\'s own agent.', true);
+      const r = await host.waitAgents(parent, args.ids, args.seconds);
+      if (!r.agents) return text(r.error ?? 'could not read the helpers', true);
+      const working = r.agents.filter((a) => a.running).length;
+      const lines = r.agents.map((a) => `## ${a.id}: ${a.title}\n${a.running ? 'Still working.' : a.error ? `Failed: ${a.error}` : 'Done.'}${a.changed?.length ? ` Changed: ${a.changed.join(', ')}.` : ''}${a.reply ? `\n${a.reply}` : ''}`);
+      return text(`${working ? `${working} still working: call wait_agents again.` : 'All done.'}\n\n${lines.join('\n\n')}`);
+    },
+  },
+];
+
 export const TOOLS: Tool[] = [
   {
     name: 'get_app_state',

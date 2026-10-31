@@ -600,3 +600,10 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .impl-item { font-size: 11px; color: var(--dim); line-height: 1.35; overflow-wrap: anywhere; }
 .impl-diff { width: 100%; border-radius: 4px; border: 1px solid var(--line); margin: 4px 0; }
 .impl-head { font-size: 11px; font-weight: 600; margin-top: 4px; }
+.agent-macro-name { margin-top: 4px; width: 100%; }
+.agent-macros { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); margin-bottom: 6px; overflow: hidden; }
+.agent-macro { display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer; font-size: 12px; }
+.agent-macro.on, .agent-macro:hover { background: var(--hover); }
+.agent-macro-title { font-weight: 600; flex: none; }
+.agent-macro-text { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.agent-macro button { flex: none; background: none; border: 0; color: var(--dim); cursor: pointer; padding: 2px; }

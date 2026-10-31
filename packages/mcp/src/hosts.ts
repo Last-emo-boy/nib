@@ -16,7 +16,12 @@ export interface McpHost {
   appState(filePath?: string): Promise<string>;
   execute(filePath: string, req: ExecuteRequest): Promise<ExecuteReply>;
   browser(filePath: string, args: BrowserArgs): Promise<BrowserResult>;
+  /** Helpers for nib's own agent (session `parent`): start them, and wait for them. */
+  spawnAgents?(parent: string, tasks: unknown): Promise<{ agents?: { id: string; title: string }[]; error?: string }>;
+  waitAgents?(parent: string, ids: unknown, seconds: unknown): Promise<{ agents?: HelperState[]; error?: string }>;
 }
+
+export interface HelperState { id: string; title: string; running: boolean; reply?: string; error?: string; changed?: string[] }
 
 /** Documents held in this process. */
 export class LocalHost implements McpHost {
@@ -67,6 +72,14 @@ export class DaemonHost implements McpHost {
 
   async browser(filePath: string, args: BrowserArgs): Promise<BrowserResult> {
     return (await this.post('/api/browser', { filePath, ...args, agent: this.agent ?? 'agent' })) as BrowserResult;
+  }
+
+  async spawnAgents(parent: string, tasks: unknown): Promise<{ agents?: { id: string; title: string }[]; error?: string }> {
+    return (await this.post('/api/agent/spawn', { parent, tasks })) as { agents?: { id: string; title: string }[]; error?: string };
+  }
+
+  async waitAgents(parent: string, ids: unknown, seconds: unknown): Promise<{ agents?: HelperState[]; error?: string }> {
+    return (await this.post('/api/agent/wait', { parent, ids, seconds })) as { agents?: HelperState[]; error?: string };
   }
 
   private async post(path: string, body: unknown): Promise<unknown> {

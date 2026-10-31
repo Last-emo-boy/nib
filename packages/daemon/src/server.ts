@@ -19,6 +19,7 @@ import { buildShare, exportSite, lanAddress, serveShare, sharedId, ShareServer }
 import { slugFor, W33d, W33dError, type W33dConfig } from './w33d.ts';
 import { planVariants, variantPrompt } from './agent/variants.ts';
 import { planResponsive, responsivePrompt } from './agent/responsive.ts';
+import { helperPrompt, helperTasks } from './agent/helpers.ts';
 import { planStress, SCENARIOS, type Scenario } from './stress.ts';
 import type { Exporter } from '@nib/exec';
 import type { AgentService } from './agent/service.ts';
@@ -338,6 +339,57 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           }));
         }
         return send(res, 200, { frames: plan.frames.map((f) => ({ id: f.id, name: f.name, device: f.device.id })), sessions: sessions as unknown as Json[] });
+      }
+      case 'POST /api/agent/spawn': {
+        // Helpers an agent starts (spawn_agents): same document, provider and model as its own session.
+        if (!opts.agent) return send(res, 404, { error: 'this nib has no agent' });
+        const body = await readJson(req);
+        const parent = typeof body.parent === 'string' ? await opts.agent.get(body.parent) : undefined;
+        if (!parent?.running) return send(res, 400, { error: 'helpers are started by a working agent of nib' });
+        if (parent.parent) return send(res, 400, { error: 'a helper cannot start helpers of its own: do the work yourself' });
+        const tasks = helperTasks(body.tasks);
+        if (typeof tasks === 'string') return send(res, 400, { error: tasks });
+        const open = await host.open(parent.doc);
+        const unknown = tasks.find((t) => t.frameId && !open.session.doc.has(t.frameId));
+        if (unknown) return send(res, 400, { error: `there is no layer with id ${unknown.frameId}` });
+        const agents = [];
+        for (const t of tasks) {
+          const selection = t.frameId ? [t.frameId] : [];
+          const s = await opts.agent.send({
+            doc: open.path, provider: parent.provider, model: parent.model || undefined, text: t.task, instructions: helperPrompt(t, parent.title, tasks.length),
+            title: (t.title ?? t.task.replace(/\s+/g, ' ')).slice(0, 60), selection, context: describeSelection(open, selection), parent: parent.id,
+          });
+          agents.push({ id: s.id, title: s.title });
+        }
+        return send(res, 200, { agents });
+      }
+      case 'GET /api/agent/macros':
+        return send(res, 200, { macros: (opts.agent ? await opts.agent.macros() : []) as unknown as Json[] });
+      case 'POST /api/agent/macros': {
+        // Save a message as a command (replacing one of the same name).
+        if (!opts.agent) return send(res, 404, { error: 'this nib has no agent' });
+        const body = await readJson(req);
+        if (typeof body.name !== 'string' || typeof body.text !== 'string') return send(res, 400, { error: 'name and text are required' });
+        try {
+          return send(res, 200, { macros: await opts.agent.saveMacro(body.name, body.text) as unknown as Json[] });
+        } catch (e) {
+          return send(res, 400, { error: (e as Error).message });
+        }
+      }
+      case 'POST /api/agent/macros/delete': {
+        if (!opts.agent) return send(res, 404, { error: 'this nib has no agent' });
+        const body = await readJson(req);
+        return send(res, 200, { macros: await opts.agent.deleteMacro(String(body.name ?? '')) as unknown as Json[] });
+      }
+      case 'POST /api/agent/wait': {
+        // How the helpers a session started are doing: once none works (or after at most 50 s).
+        if (!opts.agent) return send(res, 404, { error: 'this nib has no agent' });
+        const body = await readJson(req);
+        const ids = Array.isArray(body.ids) ? body.ids.filter((x): x is string => typeof x === 'string').slice(0, 20) : [];
+        const mine = await Promise.all(ids.map(async (id) => (await opts.agent!.get(id))?.parent === body.parent));
+        if (!ids.length || mine.includes(false)) return send(res, 400, { error: 'ids must be helpers this agent started' });
+        const seconds = Math.min(50, Math.max(0, Number(body.seconds ?? 45) || 0));
+        return send(res, 200, { agents: await opts.agent.wait(ids, seconds * 1000) as unknown as Json[] });
       }
       case 'GET /api/agent/attachment': {
         // A file attached to a message, from the session's own folder only.

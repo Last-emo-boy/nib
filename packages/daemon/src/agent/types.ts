@@ -27,9 +27,11 @@ export interface AgentSession {
   transcript?: unknown[];
   /** One of several variants made at once, each on its own copy of a frame. */
   variant?: { group: string; of: string; frame: string; index: number; count: number };
+  /** The session whose agent started this one as a helper (spawn_agents). */
+  parent?: string;
 }
 
-export type SessionSummary = Pick<AgentSession, 'id' | 'title' | 'doc' | 'provider' | 'model' | 'created' | 'updated' | 'variant'> & { running: boolean };
+export type SessionSummary = Pick<AgentSession, 'id' | 'title' | 'doc' | 'provider' | 'model' | 'created' | 'updated' | 'variant' | 'parent'> & { running: boolean };
 
 /** How to start nib's MCP server, which gives an agent its tools. */
 export interface McpLaunch {
@@ -69,6 +71,9 @@ export interface RunRequest {
   /** Images attached to this message, to show the model (files on disk). */
   images?: { path: string; mimeType: string }[];
 }
+
+/** A command: a message to the agent saved under a name, to send again (on another selection, another day). */
+export interface Macro { name: string; text: string; created: number }
 
 /** What the person set for the agent: budgets per message. */
 export interface AgentSettings {

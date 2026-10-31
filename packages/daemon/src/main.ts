@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXPORTERS } from '@nib/export';
-import { createNodeRenderer, FallbackFontLoader, GoogleFontsLoader, imagesFor, PackageIconSource, platformFallbacks, SystemFontLoader } from '@nib/render/node';
+import { createNodeRenderer, FallbackFontLoader, FolderFontLoader, GoogleFontsLoader, imagesFor, PackageIconSource, platformFallbacks, SystemFontLoader } from '@nib/render/node';
 import { AgentService } from './agent/service.ts';
 import { BrowserService } from './browser/service.ts';
 import { DocumentHost } from './host.ts';
@@ -14,7 +14,10 @@ import { DAEMON_VERSION, DEFAULT_PORT, startDaemon } from './server.ts';
 // The daemon exits after this long without editors connected or API calls.
 const IDLE_MS = Number(process.env.NIB_IDLE_MS ?? 30 * 60_000);
 
-const fonts = new FallbackFontLoader(new GoogleFontsLoader(), new SystemFontLoader());
+// A design's own fonts (its fonts/ folder) come first, then Google Fonts, then installed fonts.
+const projectFonts = new FolderFontLoader(() => host.list().map((d) => join(dirname(d.path), 'fonts')));
+const systemFonts = new SystemFontLoader();
+const fonts = new FallbackFontLoader(projectFonts, new GoogleFontsLoader(), systemFonts);
 const icons = new PackageIconSource();
 const fallbacks = platformFallbacks();
 const renderer = await createNodeRenderer({ fonts, icons, fallbacks });
@@ -43,7 +46,7 @@ const editorDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..'
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 const daemon = await startDaemon({
-  host, renderer, browser, agent, fonts, icons, images, fallbacks,
+  host, renderer, browser, agent, fonts, projectFonts, systemFonts, icons, images, fallbacks,
   port: Number(process.env.NIB_PORT ?? DEFAULT_PORT),
   editorDir: existsSync(editorDir) ? editorDir : undefined,
   devOrigins: process.env.NIB_DEV_ORIGIN ? process.env.NIB_DEV_ORIGIN.split(',') : undefined,

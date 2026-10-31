@@ -17,6 +17,7 @@ import { measure, snap, snapPoint, type Guide, type Lines, type Measure } from '
 import { apply, applyLinear, invert, isAxisAligned, placement, type P } from './affine.ts';
 import { scaleTree } from '../app/geometry.ts';
 import { isPart, layerOf } from '../app/parts.ts';
+import { addFontFiles, isFontFile } from '../app/fonts.ts';
 
 /** What other parts of the editor need from the canvas. */
 export const canvas = {
@@ -563,6 +564,8 @@ export function CanvasView() {
         for (const f of files) if (/\.svg$/i.test(f.name) || f.type === 'image/svg+xml') void f.text().then((text) => importSvg(text, at, f.name.replace(/\.svg$/i, '')));
         const images = files.filter(isImageFile);
         if (images.length) void importImages(images, at);
+        const fonts = files.filter(isFontFile);
+        if (fonts.length) void addFontFiles(fonts);
       }}>
       <canvas ref={el} />
       <AgentCursors />

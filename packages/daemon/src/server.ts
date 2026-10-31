@@ -5,6 +5,7 @@ import { basename, dirname, extname, join, normalize, relative, resolve as resol
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { Op } from '@nib/core';
 import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } from '@nib/render';
+import { faceInfo, faceOffsets, type FolderFontLoader, type SystemFontLoader } from '@nib/render/node';
 import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
 import { DRAFTS_DIR, drafts, newDraft, nodePreview, recents, thumbnail } from './library.ts';
 import { aliasFor, brandLibrary, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
@@ -26,6 +27,9 @@ export interface DaemonOptions {
   /** nib's own agent; without it the agent endpoints answer that there is none. */
   agent?: AgentService;
   fonts: FontLoader;
+  /** Fonts kept beside designs (`fonts/`) and installed ones, for the font list; without them it is empty. */
+  projectFonts?: FolderFontLoader;
+  systemFonts?: SystemFontLoader;
   icons: IconSource;
   images: (penFile: string) => ImageLoader;
   fallbacks: FallbackFamilies;
@@ -292,6 +296,42 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         await writeFile(join(dir, name), bytes);
         return send(res, 200, { url: `images/${name}`, width, height });
       }
+      case 'GET /api/fonts': {
+        // The families a design can use: those in its fonts/ folder, and those installed on this computer.
+        const doc = q.get('doc');
+        const project = doc && opts.projectFonts ? await opts.projectFonts.faces(join(dirname(resolvePath(doc)), 'fonts')) : [];
+        const families = new Map<string, { family: string; faces: { weight: number; italic: boolean }[] }>();
+        for (const f of project) {
+          const e = families.get(f.family) ?? { family: f.family, faces: [] };
+          e.faces.push({ weight: f.weight, italic: f.italic });
+          families.set(f.family, e);
+        }
+        return send(res, 200, { project: [...families.values()], installed: opts.systemFonts ? await opts.systemFonts.list() : [] });
+      }
+      case 'POST /api/font-file': {
+        // A font file added to a design: kept in fonts/ beside it, so the design takes it along.
+        const body = await readJson(req);
+        if (typeof body.path !== 'string' || typeof body.data !== 'string') return send(res, 400, { error: 'path and data (base64) are required' });
+        const open = await host.open(body.path);
+        const bytes = new Uint8Array(Buffer.from(body.data, 'base64'));
+        let families: string[];
+        try {
+          families = [...new Set(faceOffsets(bytes).map((o) => faceInfo(bytes, o)?.family).filter((f): f is string => !!f))];
+        } catch {
+          families = [];
+        }
+        if (!families.length) return send(res, 422, { error: 'not a font nib can read (TrueType or OpenType: .ttf, .otf, .ttc)' });
+        const ext = (/\.(ttf|otf|ttc|otc)$/i.exec(String(body.name ?? ''))?.[1] ?? 'ttf').toLowerCase();
+        const stem = String(body.name ?? families[0]).replace(/\.[^.]+$/, '').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'font';
+        const dir = join(dirname(open.path), 'fonts');
+        await mkdir(dir, { recursive: true });
+        let name = `${stem}.${ext}`;
+        for (let i = 2; await stat(join(dir, name)).catch(() => undefined); i++) name = `${stem}-${i}.${ext}`;
+        await writeFile(join(dir, name), bytes);
+        // Text in these families that was drawn with a fallback is laid out again with the new font.
+        for (const f of families) opts.renderer.fonts.forget(f);
+        return send(res, 200, { file: `fonts/${name}`, families });
+      }
       case 'POST /api/brand/read': {
         // A brand read from a website ({url}) or a logo ({image: base64, name}).
         const body = await readJson(req);
@@ -392,7 +432,8 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         return send(res, 200, { fallbacks: opts.fallbacks, version: DAEMON_VERSION });
       case 'GET /api/font': {
         const bytes = await opts.fonts.load({ family: q.get('family') ?? '', weight: Number(q.get('weight') ?? 400), italic: q.get('italic') === '1' });
-        return bytes ? sendBytes(res, bytes, 'font/ttf') : send(res, 404, { error: 'font not found' });
+        // Not kept by the browser: a design's own font files can be replaced (editors keep faces in memory anyway).
+        return bytes ? sendBytes(res, bytes, 'font/ttf', 'no-cache') : send(res, 404, { error: 'font not found' });
       }
       case 'GET /api/icon': {
         const weight = q.get('weight');

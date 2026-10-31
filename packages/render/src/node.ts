@@ -10,7 +10,8 @@ import { NOTO_FALLBACKS, type FallbackFamilies } from './text.ts';
 export { GoogleFontsLoader } from './fonts-node.ts';
 export { PackageIconSource } from './icons-node.ts';
 export { FileImageLoader } from './images-node.ts';
-export { FallbackFontLoader, SystemFontLoader } from './fonts-system.ts';
+export { FallbackFontLoader, FolderFontLoader, SystemFontLoader, type FolderFace } from './fonts-system.ts';
+export { faceInfo, faceOffsets } from './sfnt.ts';
 
 /**
  * What a Chromium-based app shows on this platform for CJK and emoji when the design's font lacks them,

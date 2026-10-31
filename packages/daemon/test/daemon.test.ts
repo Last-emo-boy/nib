@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { applyOp, buildScene, PenDoc, type Op, type SceneNode } from '@nib/core';
 import { parsePen, serializePen, type PenDocument } from '@nib/format';
-import { createNodeRenderer, PackageIconSource } from '@nib/render/node';
+import { createNodeRenderer, FolderFontLoader, PackageIconSource } from '@nib/render/node';
 import { DocumentHost, startDaemon, type Daemon } from '../src/index.ts';
 
 let daemon: Daemon;
@@ -20,7 +20,8 @@ beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'nib-daemon-'));
   const renderer = await createNodeRenderer();
   host = new DocumentHost({ renderer, images: () => counting });
-  daemon = await startDaemon({ host, renderer, fonts: none, icons: new PackageIconSource(), images: () => none, fallbacks: renderer.fallbacks, port: 0 });
+  const projectFonts = new FolderFontLoader(() => host.list().map((d) => join(dirname(d.path), 'fonts')));
+  daemon = await startDaemon({ host, renderer, fonts: none, projectFonts, icons: new PackageIconSource(), images: () => none, fallbacks: renderer.fallbacks, port: 0 });
 });
 afterAll(async () => {
   await daemon.close();
@@ -254,6 +255,17 @@ describe('library', () => {
     expect((await (await api('/api/asset', { path, name: 'My Photo.png', data: png })).json()).url).toBe('images/My-Photo-2.png');
     expect(await readFile(join(dir, 'images', 'My-Photo.png'))).toEqual(Buffer.from(png, 'base64'));
     expect((await api('/api/asset', { path, name: 'x.png', data: Buffer.from('not an image').toString('base64') })).status).toBe(422);
+  });
+
+  it('keeps font files beside the design and lists their families', async () => {
+    const path = join(dir, 'fonts.pen');
+    await writeFile(path, serializePen({ version: '2.20', children: [] } as unknown as PenDocument));
+    const ttf = await readFile(join(import.meta.dirname, '..', '..', '..', 'apps', 'editor', 'node_modules', 'lucide-static', 'font', 'lucide.ttf'));
+    const r = await (await api('/api/font-file', { path, name: 'lucide.ttf', data: ttf.toString('base64') })).json();
+    expect(r).toEqual({ file: 'fonts/lucide.ttf', families: ['lucide'] });
+    const list = await (await fetch(`http://127.0.0.1:${daemon.port}/api/fonts?doc=${encodeURIComponent(path)}`, { headers: { authorization: `Bearer ${daemon.token}` } })).json();
+    expect(list.project).toEqual([{ family: 'lucide', faces: [{ weight: 400, italic: false }] }]);
+    expect((await api('/api/font-file', { path, name: 'x.ttf', data: Buffer.from('not a font').toString('base64') })).status).toBe(422);
   });
 
   it('makes a design system from a logo: reads its colors, writes a themed copy beside the design and imports it', async () => {

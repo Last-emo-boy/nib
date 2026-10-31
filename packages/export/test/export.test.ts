@@ -1,3 +1,4 @@
+import { copyFile, mkdir, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -44,6 +45,20 @@ describe('html export', () => {
     expect(out).toContain('cdn.jsdelivr.net/npm/@tailwindcss/browser@4');
     expect(out).toContain('class="relative w-[400px] bg-[#ffffff] flex flex-col gap-[8px] items-start p-[16px_24px]"');
     expect(out).toContain('flex-1 min-w-0');
+  });
+
+  it('takes a design\'s own fonts from its fonts/ folder, others from Google Fonts', async () => {
+    const base = await mkdtemp(join(tmpdir(), 'nib-fonts-'));
+    await mkdir(join(base, 'fonts'));
+    await copyFile(join(import.meta.dirname, '..', '..', '..', 'apps', 'editor', 'node_modules', 'lucide-static', 'font', 'lucide.ttf'), join(base, 'fonts', 'lucide.ttf'));
+    const doc = new PenDoc({ version: '2.20', children: [{ type: 'frame', id: 'f', x: 0, y: 0, width: 100, layout: 'vertical', children: [
+      { type: 'text', id: 'a', content: 'a', fontFamily: 'lucide' }, { type: 'text', id: 'b', content: 'b', fontFamily: 'Inter' },
+    ] }] } as PenDocument);
+    const root = buildScene(doc, doc.data.children[0])!;
+    const out = await exportHtml([{ id: root.id, root, target: root }], join(base, 'out', 'page.html'), {}, { renderer, images, baseDir: base }, false);
+    expect(out).toContain('@font-face { font-family: "lucide"; src: url("../fonts/lucide.ttf"); font-weight: 400; font-style: normal; }');
+    expect(out).toContain('family=Inter:wght@400');
+    expect(out).not.toContain('family=lucide');
   });
 
   it('turns gradients, icons and shapes into CSS and SVG', async () => {

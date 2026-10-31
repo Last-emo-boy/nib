@@ -153,6 +153,12 @@ export class SceneCache {
     void this.rebuild();
   }
 
+  /** Lay out and draw every top-level node again (fonts changed). */
+  refreshAll(): void {
+    for (const n of this.doc.data.children) this.dirty.add(n.id);
+    void this.rebuild();
+  }
+
   box(id: string): Box | undefined {
     return this.placed(id)?.abs;
   }

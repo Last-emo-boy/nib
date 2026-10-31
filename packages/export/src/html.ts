@@ -2,6 +2,7 @@ import { dirname, isAbsolute, relative, resolve as resolvePath } from 'node:path
 import { INSTANCE, UNRESOLVED, type InstanceInfo, type SceneNode } from '@nib/core';
 import type { Box, LayoutResult } from '@nib/layout';
 import { cornerRadii, fillList, fontWeight, isFontIconLibrary, isItalic, meshOf, shapePath, type ImageLoader, type Renderer } from '@nib/render';
+import { FolderFontLoader, type FolderFace } from '@nib/render/node';
 import type { CapturedScene, ExportOptions } from '@nib/exec';
 import type { CodeMap, ComponentCode } from './code.ts';
 
@@ -51,7 +52,8 @@ export async function exportHtml(scenes: CapturedScene[], outputPath: string, op
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     `<title>${esc(title)}</title>`,
-    ...writer.fontLinks(),
+    // The design's own fonts (fonts/ beside it) come from their files; the rest from Google Fonts.
+    ...writer.fontLinks(await new FolderFontLoader(() => [resolvePath(ctx.baseDir, 'fonts')]).faces()),
     ...(tailwind ? ['<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>'] : []),
     `<style>\n${writer.baseCss(scenes.length > 1)}${tailwind ? '' : `\n${writer.css()}`}\n</style>`,
   ];
@@ -138,10 +140,16 @@ export class HtmlWriter {
     return this.rules.join('\n');
   }
 
-  fontLinks(): string[] {
+  fontLinks(own: FolderFace[] = []): string[] {
     const links: string[] = [];
-    if (this.fonts.size) links.push('<link rel="preconnect" href="https://fonts.googleapis.com">', '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>');
-    for (const [family, styles] of this.fonts) {
+    const ownFaces = (family: string) => own.filter((f) => f.family.toLowerCase() === family.toLowerCase());
+    const google = [...this.fonts].filter(([family]) => !ownFaces(family).length);
+    const faces = [...this.fonts.keys()].flatMap(ownFaces);
+    if (faces.length) {
+      links.push(`<style>\n${faces.map((f) => `@font-face { font-family: "${f.family}"; src: url("${this.url(f.file)}"); font-weight: ${f.weight}; font-style: ${f.italic ? 'italic' : 'normal'}; }`).join('\n')}\n</style>`);
+    }
+    if (google.length) links.push('<link rel="preconnect" href="https://fonts.googleapis.com">', '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>');
+    for (const [family, styles] of google) {
       const axes = [...styles].sort();
       const italic = axes.some((a) => a.startsWith('1,'));
       const spec = italic ? `ital,wght@${axes.join(';')}` : `wght@${axes.map((a) => a.slice(2)).join(';')}`;

@@ -131,6 +131,17 @@ export class FontStore {
     return [...out.values()];
   }
 
+  /** Forget that `family` was missing (a font file for it was just added): its faces load again when used. */
+  forget(family: string): void {
+    const f = family.toLowerCase();
+    for (const [key, face] of this.missingFaces) {
+      if (face.family.toLowerCase() !== f) continue;
+      this.missingFaces.delete(key);
+      this.pending.delete(key);
+      this.settled.delete(key);
+    }
+  }
+
   missing(): FontFace[] {
     return [...this.missingFaces.values()];
   }

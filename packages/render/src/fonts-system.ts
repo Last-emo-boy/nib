@@ -4,8 +4,8 @@ import path from 'node:path';
 import type { FontFace, FontLoader } from './fonts.ts';
 import { extractFace, faceInfo, faceOffsets } from './sfnt.ts';
 
-interface IndexedFace { file: string; offset: number; weight: number; italic: boolean }
-interface FontIndex { version: 1; files: Record<string, { mtime: number; faces: (IndexedFace & { family: string })[] }> }
+interface IndexedFace { file: string; offset: number; weight: number; italic: boolean; family: string }
+interface FontIndex { version: 1; files: Record<string, { mtime: number; faces: IndexedFace[] }> }
 
 /** Folders fonts are installed in, per platform. */
 export function systemFontDirs(): string[] {
@@ -40,6 +40,12 @@ export class SystemFontLoader implements FontLoader {
     return extractFace(new Uint8Array(await fs.readFile(best.file)), best.offset);
   }
 
+  /** The families installed, by their own names, sorted; the system's own hidden ones (".SF …") left out. */
+  async list(): Promise<string[]> {
+    const families = await (this.families ??= this.buildIndex());
+    return [...families.values()].map((f) => f[0].family).filter((f) => !f.startsWith('.')).sort((a, b) => a.localeCompare(b));
+  }
+
   private async buildIndex(): Promise<Map<string, IndexedFace[]>> {
     let old: FontIndex = { version: 1, files: {} };
     try {
@@ -62,7 +68,7 @@ export class SystemFontLoader implements FontLoader {
       for (const f of faces) {
         const key = f.family.toLowerCase();
         if (!families.has(key)) families.set(key, []);
-        families.get(key)!.push({ file: f.file, offset: f.offset, weight: f.weight, italic: f.italic });
+        families.get(key)!.push({ file: f.file, offset: f.offset, weight: f.weight, italic: f.italic, family: f.family });
       }
     }
     return families;
@@ -96,7 +102,7 @@ async function listFonts(dirs: string[]): Promise<string[]> {
 }
 
 /** Faces of a font file, reading only its headers and name tables. */
-async function readFaces(file: string): Promise<(IndexedFace & { family: string })[]> {
+async function readFaces(file: string): Promise<IndexedFace[]> {
   const fh = await fs.open(file, 'r');
   try {
     const { size } = await fh.stat();
@@ -106,7 +112,7 @@ async function readFaces(file: string): Promise<(IndexedFace & { family: string 
       return buf;
     };
     const head = await readAt(0, 12 + 4 * 256);
-    const out: (IndexedFace & { family: string })[] = [];
+    const out: IndexedFace[] = [];
     for (const offset of faceOffsets(head)) {
       const info = faceInfo(await nameTablesOf(readAt, offset), 0);
       if (info) out.push({ file, offset, weight: info.weight, italic: info.italic, family: info.family });
@@ -145,6 +151,50 @@ async function nameTablesOf(readAt: (pos: number, len: number) => Promise<Uint8A
     at += w.data.length;
   });
   return out;
+}
+
+/** A face of a font file in a folder. */
+export interface FolderFace { family: string; weight: number; italic: boolean; file: string }
+
+/**
+ * Fonts kept in folders that come and go (each open design's `fonts/` folder). Each folder is read again when
+ * it changes; folders that do not exist hold no fonts.
+ */
+export class FolderFontLoader implements FontLoader {
+  private dirs: () => string[];
+  private cache = new Map<string, { mtime: number; faces: Promise<IndexedFace[]> }>();
+
+  constructor(dirs: () => string[]) {
+    this.dirs = dirs;
+  }
+
+  async load(face: FontFace): Promise<Uint8Array | undefined> {
+    const want = face.family.toLowerCase();
+    const faces = (await this.all()).filter((f) => f.family.toLowerCase() === want);
+    if (!faces.length) return undefined;
+    const best = faces.reduce((a, b) => (score(b, face) < score(a, face) ? b : a));
+    return extractFace(new Uint8Array(await fs.readFile(best.file)), best.offset);
+  }
+
+  /** The faces in `dir` (default: every folder). */
+  async faces(dir?: string): Promise<FolderFace[]> {
+    return (await this.all(dir ? [dir] : undefined)).map(({ family, weight, italic, file }) => ({ family, weight, italic, file }));
+  }
+
+  private async all(dirs = this.dirs()): Promise<IndexedFace[]> {
+    const out: IndexedFace[] = [];
+    for (const dir of new Set(dirs)) {
+      const stat = await fs.stat(dir).catch(() => undefined);
+      if (!stat?.isDirectory()) { this.cache.delete(dir); continue; }
+      let entry = this.cache.get(dir);
+      if (!entry || entry.mtime !== stat.mtimeMs) {
+        entry = { mtime: stat.mtimeMs, faces: listFonts([dir]).then(async (files) => (await Promise.all(files.map(readFaces))).flat()) };
+        this.cache.set(dir, entry);
+      }
+      out.push(...(await entry.faces));
+    }
+    return out;
+  }
 }
 
 /** Tries each loader in turn. */

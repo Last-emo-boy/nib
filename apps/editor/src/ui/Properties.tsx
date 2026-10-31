@@ -11,6 +11,7 @@ import { boundsOf, canvas, fitView } from '../canvas/Canvas.tsx';
 import { resizeMesh } from '../canvas/gradient.ts';
 import { flipSelection, scaleSelection } from '../canvas/arrange.ts';
 import { Icon } from './Icon.tsx';
+import { FontPicker } from './FontPicker.tsx';
 import { layerName, typeIcon } from './LeftPanel.tsx';
 
 type Props = Record<string, any>;
@@ -411,7 +412,7 @@ function Effects({ t, value, onChange }: { t: Strings; value: unknown; onChange:
 function Typography({ t, shown, set }: { t: Strings; shown: (k: string) => any; set: (p: Props, l?: string) => void }) {
   return (
     <Section title={t.typography}>
-      <div className="row"><Text label="Aa" value={shown('fontFamily') ?? 'Inter'} onChange={(v) => set({ fontFamily: v === 'Inter' ? undefined : v }, 'Font')} /></div>
+      <div className="row"><FontPicker value={shown('fontFamily') ?? 'Inter'} onChange={(v) => set({ fontFamily: v === 'Inter' ? undefined : v }, 'Font')} /></div>
       <div className="row">
         <Num label="px" value={shown('fontSize') ?? 14} onChange={(v) => set({ fontSize: Math.max(1, v) }, 'Font size')} />
         <select value={String(shown('fontWeight') ?? '400')} onChange={(e) => set({ fontWeight: e.target.value === '400' ? undefined : e.target.value }, 'Font weight')}>

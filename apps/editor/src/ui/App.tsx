@@ -5,7 +5,9 @@ import { Connection, authHeaders, fileFromUrl } from '../app/connection.ts';
 import { desktop, openDashboard } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
 import { store, toast, toggleSide, useEditor, type Tool } from '../app/store.ts';
-import { boundsOf, CanvasView, fitView, isTyping } from '../canvas/Canvas.tsx';
+import { boundsOf, CanvasView, fitView, importImages, isImageFile, isTyping, pickImages } from '../canvas/Canvas.tsx';
+import { imageFillIndex } from '../canvas/crop.ts';
+import { isMask, maskSelection, releaseMask } from '../canvas/mask.ts';
 import { deletePoints, editPath, finishDrawing, finishEditing } from '../canvas/pen.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
@@ -269,6 +271,9 @@ export function runCommand(name: string): void {
     case 'frame-selection': frameSelection(); break;
     case 'make-component': void setProps(s.selection, { reusable: true }, 'Make component'); break;
     case 'copy-png': void copyAsPng(); break;
+    case 'mask': if (!typing) { const one = s.selection.length === 1 ? s.doc?.get(s.selection[0]) : undefined; if (isMask(one)) releaseMask(); else maskSelection(); } break;
+    case 'release-mask': if (!typing) releaseMask(); break;
+    case 'place-image': pickImages(); break;
     case 'toggle-pixel-grid': { const on = !s.pixelGrid; localStorage.setItem('nib-pixel-grid', on ? '1' : '0'); store.set({ pixelGrid: on }); break; }
   }
 }
@@ -285,6 +290,8 @@ function useShortcuts() {
       const key = e.key.toLowerCase();
       const tools: Record<string, Tool> = { v: 'move', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', p: 'pen', t: 'text', i: 'icon', n: 'note', h: 'hand' };
       const chords: Record<string, string> = { z: e.shiftKey ? 'redo' : 'undo', y: 'redo', d: 'duplicate', k: 'palette', j: 'toggle-agent', a: 'select-all', '\\': 'toggle-panel', '0': 'zoom-100', '=': 'zoom-in', '-': 'zoom-out' };
+      if (e.metaKey && e.ctrlKey && (key === 'm' || e.code === 'KeyM')) { e.preventDefault(); runCommand('mask'); return; }
+      if (mod && e.shiftKey && key === 'k') { e.preventDefault(); runCommand('place-image'); return; }
       if (mod && e.altKey && key === 'g') { e.preventDefault(); runCommand('frame-selection'); return; }
       if (mod && e.altKey && key === 'k') { e.preventDefault(); runCommand('make-component'); return; }
       if (mod && e.shiftKey && key === 'c') { e.preventDefault(); runCommand('copy-png'); return; }
@@ -297,6 +304,7 @@ function useShortcuts() {
       if (e.shiftKey && (key === '2' || key === '@')) { runCommand('zoom-selection'); return; }
       if (mod) return;
       if (key === 'escape' && s.gradientEdit) { store.set({ gradientEdit: undefined }); return; }
+      if ((key === 'escape' || key === 'enter') && s.crop) { e.preventDefault(); store.set({ crop: undefined }); return; }
       // While a path is drawn or its points edited, these keys work on its points.
       if (s.pen) {
         if (key === 'escape' || key === 'enter') { e.preventDefault(); if (s.pen.mode === 'draw') void finishDrawing(); else finishEditing(); return; }
@@ -312,6 +320,7 @@ function useShortcuts() {
         const n = s.doc?.get(s.selection[0]);
         if (n?.type === 'text') store.set({ editingText: n.id });
         else if (n?.type === 'path') editPath(n.id);
+        else if (imageFillIndex(n) >= 0) store.set({ crop: { id: n!.id, index: imageFillIndex(n) } });
         else { const kid = (n as { children?: { id: string }[] } | undefined)?.children?.[0]; if (kid) store.set({ selection: [kid.id] }); }
         return;
       }
@@ -321,7 +330,14 @@ function useShortcuts() {
     };
     const onCopy = (e: ClipboardEvent) => { if (isTypingTarget(document.activeElement) || !store.get().selection.length) return; e.preventDefault(); copySelection(e.clipboardData ?? undefined); };
     const onCut = (e: ClipboardEvent) => { if (isTypingTarget(document.activeElement) || !store.get().selection.length) return; e.preventDefault(); copySelection(e.clipboardData ?? undefined); deleteSelection(); };
-    const onPaste = (e: ClipboardEvent) => { if (isTypingTarget(document.activeElement)) return; e.preventDefault(); void paste(e.clipboardData?.getData('text/plain')); };
+    const onPaste = (e: ClipboardEvent) => {
+      if (isTypingTarget(document.activeElement)) return;
+      e.preventDefault();
+      // A copied picture (a screenshot, an image from a browser) is placed as an image.
+      const images = [...(e.clipboardData?.files ?? [])].filter(isImageFile);
+      if (images.length && !e.clipboardData?.getData('text/plain').trim().startsWith('{')) { void importImages(images); return; }
+      void paste(e.clipboardData?.getData('text/plain'));
+    };
     window.addEventListener('keydown', onKey);
     document.addEventListener('copy', onCopy);
     document.addEventListener('cut', onCut);

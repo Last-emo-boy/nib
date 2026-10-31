@@ -146,7 +146,9 @@ input, select { font: inherit; color: var(--text); }
 .num-label { color: var(--faint); font-size: 11px; min-width: 10px; }
 .num input { flex: 1; min-width: 0; background: none; border: 0; outline: none; font-variant-numeric: tabular-nums; }
 .size-field { flex: 1; display: flex; gap: 4px; min-width: 0; }
-.size-field .num { flex: 1; }
+.size-field .num { flex: 1; min-width: 46px; }
+/* The sizing menu stays narrow so the number beside it keeps room for four digits. */
+.size-field select { flex: none; width: 56px; text-overflow: ellipsis; }
 select { height: 28px; background: var(--panel-2); border: 1px solid transparent; border-radius: 7px; padding: 0 4px; outline: none; max-width: 92px; }
 select:focus { border-color: var(--accent); }
 .segmented { display: flex; background: var(--panel-2); border-radius: 7px; padding: 2px; gap: 2px; }
@@ -441,3 +443,8 @@ select:focus { border-color: var(--accent); }
 .agent-budget button { align-self: flex-end; height: 24px; padding: 0 10px; border-radius: 6px; background: var(--accent); color: #fff; }
 .token-actions { display: flex; gap: 6px; padding: 2px 10px 8px; }
 .token-actions button, .token-actions select { height: 26px; padding: 0 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
+
+/* Crop mode: the whole image, faint outside the node; drag it or its corners. */
+.overlay .crop .crop-image { fill: transparent; pointer-events: all; cursor: move; }
+.overlay .crop .crop-box { fill: none; stroke: var(--accent); stroke-width: 1.5; pointer-events: none; }
+.overlay .crop .handle { pointer-events: all; }

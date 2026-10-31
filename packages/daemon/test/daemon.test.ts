@@ -116,6 +116,22 @@ describe('daemon', () => {
     expect(await width()).toBe(50);
   });
 
+  it('sends undo and redo as ops that replay exactly, however they reuse nodes', async () => {
+    // Taking a layer out of a frame and deleting the frame: undoing it puts the frame back, then the layer into it.
+    const file = join(dir, 'replay.pen');
+    await writeFile(file, serializePen({ version: '2.20', children: [{ type: 'frame', id: 'f', x: 0, y: 0, width: 10, height: 10, children: [{ type: 'rectangle', id: 'r', width: 5, height: 5 }] }] } as PenDocument));
+    const ed = await editor(file);
+    ed.send({ t: 'edit', path: file, seq: 1, label: 'Unwrap', ops: [{ op: 'remove', parent: 'f', index: 0 }, { op: 'remove', parent: null, index: 0 }, { op: 'insert', parent: null, index: 0, node: { type: 'rectangle', id: 'r', width: 5, height: 5 } }] });
+    await ed.next((m) => m.t === 'ops' && m.label === 'Unwrap');
+    for (const step of ['undo', 'redo', 'undo']) {
+      ed.send({ t: step, path: file });
+      await ed.next((m) => m.t === 'ops' && m.label.startsWith(step === 'undo' ? 'Undo' : 'Redo'));
+      expect(serializePen(ed.copy().data)).toBe(await readFile(file, 'utf8'));
+    }
+    expect(ed.copy().data.children).toMatchObject([{ id: 'f', children: [{ id: 'r' }] }]);
+    ed.close();
+  });
+
   it('turns a document into a library by renaming it, and keeps editing it there', async () => {
     const file = join(dir, 'kit.pen');
     await writeFile(file, serializePen({ version: '2.20', children: [{ type: 'frame', id: 'k', x: 0, y: 0, width: 10, height: 10, reusable: true }] } as PenDocument));
@@ -228,6 +244,16 @@ describe('library', () => {
     expect(parsePen(await readFile(path, 'utf8')).imports).toEqual({ shadcn: './libraries/shadcn.lib.pen', heroui: './libraries/heroui.lib.pen' });
     const preview = await get(`/api/node-preview?doc=${encodeURIComponent(path)}&id=heroui:button&size=120`);
     expect(preview.headers.get('content-type')).toBe('image/png');
+  });
+
+  it('saves a dropped image beside the design, under a free name', async () => {
+    const path = join(dir, 'assets.pen');
+    await writeFile(path, serializePen({ version: '2.20', children: [] } as unknown as PenDocument));
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    expect(await (await api('/api/asset', { path, name: 'My Photo.png', data: png })).json()).toEqual({ url: 'images/My-Photo.png', width: 1, height: 1 });
+    expect((await (await api('/api/asset', { path, name: 'My Photo.png', data: png })).json()).url).toBe('images/My-Photo-2.png');
+    expect(await readFile(join(dir, 'images', 'My-Photo.png'))).toEqual(Buffer.from(png, 'base64'));
+    expect((await api('/api/asset', { path, name: 'x.png', data: Buffer.from('not an image').toString('base64') })).status).toBe(422);
   });
 
   it('makes a design system from a logo: reads its colors, writes a themed copy beside the design and imports it', async () => {

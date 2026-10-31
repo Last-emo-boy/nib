@@ -4,7 +4,8 @@ import type { Node } from '@nib/format';
 import { copyAsHtml, copyAsPng, copyAsReact, copySelection, cutSelection, deleteSelection, duplicateSelection, frameSelection, paste, saveAs } from '../app/actions.ts';
 import { useT } from '../app/i18n.ts';
 import { store, useEditor, type Tool, toggleSide } from '../app/store.ts';
-import { boundsOf, fitView, importSvg } from '../canvas/Canvas.tsx';
+import { boundsOf, fitView, importSvg, pickImages } from '../canvas/Canvas.tsx';
+import { maskSelection, releaseMask } from '../canvas/mask.ts';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
 import { layerName, typeIcon } from './LeftPanel.tsx';
@@ -37,6 +38,9 @@ export function Palette() {
         input.onchange = () => { const f = input.files?.[0]; if (f) void f.text().then((text) => importSvg(text, undefined, f.name.replace(/\.svg$/i, ''))); };
         input.click();
       } },
+      { key: 'place-image', label: t.placeImage, icon: 'image', hint: '⇧⌘K', run: pickImages },
+      { key: 'mask', label: t.useAsMask, icon: 'mask', hint: '⌃⌘M', run: maskSelection },
+      { key: 'release-mask', label: t.releaseMask, icon: 'mask', run: releaseMask },
       { key: 'copy-png', label: t.copyPng, icon: 'image', hint: '⇧⌘C', run: () => void copyAsPng() },
       { key: 'copy-html', label: t.copyHtml, icon: 'copy', run: () => void copyAsHtml() },
       { key: 'copy-tailwind', label: t.copyTailwind, icon: 'copy', run: () => void copyAsHtml(true) },

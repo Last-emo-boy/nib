@@ -8,6 +8,7 @@ import { store, useEditor, type Tool, type View } from '../app/store.ts';
 import { canvas, rectOf, resizedBox } from './Canvas.tsx';
 import { PenOverlay } from './pen.tsx';
 import { GradientOverlay } from './GradientOverlay.tsx';
+import { CropOverlay } from './CropOverlay.tsx';
 
 type Point = { x: number; y: number };
 
@@ -44,9 +45,10 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
   useEditor((s) => s.version);
   const text = useEditor((s) => s.editingText);
   const pen = useEditor((s) => s.pen);
+  const crop = useEditor((s) => s.crop);
   const pixelGrid = useEditor((s) => s.pixelGrid);
   // Points being edited take the place of the selection's handles.
-  const editing = text ?? (pen ? 'pen' : undefined);
+  const editing = text ?? (pen ? 'pen' : crop ? 'crop' : undefined);
   const cache = canvas.cache;
   if (!doc || !cache) return null;
 
@@ -118,6 +120,7 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
         })()}
         <PenOverlay />
         <GradientOverlay />
+        <CropOverlay />
         {canvas.guides.map((gd, i) => {
           const a = gd.axis === 'x' ? { x: gd.at, y: gd.from } : { x: gd.from, y: gd.at };
           const b = gd.axis === 'x' ? { x: gd.at, y: gd.to } : { x: gd.to, y: gd.at };

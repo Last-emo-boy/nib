@@ -332,8 +332,10 @@ export class DocumentHost {
       const from = dir === 'undo' ? open.undo : open.redo;
       const entry = from.pop();
       if (!entry) return false;
-      const ops = dir === 'undo' ? entry.undo : entry.ops;
-      for (const op of ops) applyOp(open.session.doc, op);
+      // Copies: an insert puts its node into the document, where the ops after it (and later edits) change it
+      // in place; the history and the ops sent to editors must stay as they were.
+      const ops = structuredClone(dir === 'undo' ? entry.undo : entry.ops);
+      for (const op of structuredClone(ops)) applyOp(open.session.doc, op);
       (dir === 'undo' ? open.redo : open.undo).push(entry);
       open.session.invalidate();
       open.version++;

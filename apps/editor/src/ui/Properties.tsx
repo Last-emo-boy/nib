@@ -188,11 +188,15 @@ function Fills({ t, title, value, onChange, edit }: { t: Strings; title: string;
   const list = value === undefined ? [] : Array.isArray(value) ? value : [value];
   const write = (next: unknown[]) => onChange(next.length === 0 ? undefined : next.length === 1 ? next[0] : next);
   const editing = useEditor((s) => s.gradientEdit);
+  const crop = useEditor((s) => s.crop);
   return (
     <Section title={title} add={() => write([...list, '#D9D9D9'])}>
       {list.map((f, i) => {
-        const on = !!edit && editing?.id === edit.id && editing.prop === edit.prop && editing.index === i;
-        const toggle = edit ? () => store.set({ gradientEdit: on ? undefined : { ...edit, index: i } }) : undefined;
+        const image = (f as any)?.type === 'image';
+        const on = !!edit && (image ? edit.prop === 'fill' && crop?.id === edit.id && crop.index === i : editing?.id === edit.id && editing.prop === edit.prop && editing.index === i);
+        const toggle = !edit ? undefined
+          : image ? (edit.prop === 'fill' ? () => store.set({ crop: on ? undefined : { id: edit.id, index: i } }) : undefined)
+          : () => store.set({ gradientEdit: on ? undefined : { ...edit, index: i } });
         return (
           <FillRow key={i} fill={f} t={t} editing={on} onEdit={toggle}
             onChange={(v) => {
@@ -254,8 +258,27 @@ function FillRow({ fill, t, editing, onEdit, onChange, onRemove }: { fill: any; 
         {(fill?.type === 'gradient' || fill?.type === 'mesh_gradient') && onEdit && (
           <button className={`icon-button${editing ? ' on' : ''}`} title={t.editOnCanvas} onClick={onEdit}><Icon name="penTool" size={13} /></button>
         )}
+        {fill?.type === 'image' && onEdit && (
+          <button className={`icon-button${editing ? ' on' : ''}`} title={t.cropImage} onClick={onEdit}><Icon name="crop" size={13} /></button>
+        )}
         <button className="icon-button" onClick={onRemove}><Icon name="minus" size={13} /></button>
       </div>
+      {fill?.type === 'image' && (
+        <div className="row indent">
+          <select className="fill-type" value={imageMode(fill)} onChange={(e) => {
+            const mode = e.target.value;
+            if (mode === 'crop') { onEdit?.(); return; }
+            // Fill, fit and stretch show the whole image again.
+            const { transform: _, ...rest } = fill;
+            onChange({ ...rest, mode });
+          }}>
+            <option value="cover">{t.imageCover}</option>
+            <option value="contain">{t.imageContain}</option>
+            <option value="stretch">{t.imageStretch}</option>
+            {onEdit && <option value="crop">{t.cropImage}</option>}
+          </select>
+        </div>
+      )}
       {stops.map((s, i) => (
         <div key={i} className="row stop-row">
           <ColorField value={String(s.color)} onChange={(c) => putStops(stops.map((x, j) => (j === i ? { ...x, color: c } : x)))} />
@@ -293,6 +316,14 @@ function FillRow({ fill, t, editing, onEdit, onChange, onRemove }: { fill: any; 
 function previewOf(f: any): string {
   const colors = (f?.type === 'gradient' ? [...(f.colors ?? [])].sort((a: any, b: any) => a.position - b.position).map((c: any) => `${c.color} ${Math.round(c.position * 100)}%`) : (f?.colors ?? [])).filter((c: string) => typeof c === 'string' && c.startsWith('#'));
   return colors.length > 1 ? `linear-gradient(90deg, ${colors.join(', ')}), repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 8px 8px` : colors[0] ?? 'transparent';
+}
+
+/** How an image fill shows its image, as the mode menu names it: a stretched transform is a crop. */
+function imageMode(f: any): string {
+  const t = f.transform;
+  const identity = !Array.isArray(t) || t.every((v: number, i: number) => v === [1, 0, 0, 1, 0, 0][i]);
+  const mode = f.mode === 'fill' ? 'cover' : f.mode === 'fit' ? 'contain' : f.mode ?? 'cover';
+  return mode === 'stretch' && !identity ? 'crop' : mode;
 }
 
 function fillKind(f: any, t: Strings): string {

@@ -3,7 +3,7 @@ import type { Surface } from 'canvaskit-wasm';
 import { newId, svgToNodes, type PenDoc } from '@nib/core';
 import type { Box } from '@nib/layout';
 import { commit, insertNode, isContainer, isFree, pruneSelection } from '../app/actions.ts';
-import { COMPONENT_MIME } from '../app/libraries.ts';
+import { COMPONENT_MIME, post } from '../app/libraries.ts';
 import type { Connection } from '../app/connection.ts';
 import { store, toast, type View } from '../app/store.ts';
 import { getEngine, imagesFor, type Engine } from './engine.ts';
@@ -12,6 +12,7 @@ import { Overlay, type Gesture } from './Overlay.tsx';
 import { presence } from './presence.ts';
 import { SceneCache } from './scenes.ts';
 import { editPath, finishEditing, penDown, penHover } from './pen.tsx';
+import { imageFillIndex } from './crop.ts';
 import { measure, snap, snapPoint, type Guide, type Lines, type Measure } from './snap.ts';
 
 /** What other parts of the editor need from the canvas. */
@@ -169,6 +170,46 @@ export async function placeNode(node: Record<string, unknown>, label: string, sc
   const at = !screen && origin ? { x: origin.x + origin.width / 2, y: origin.y + origin.height / 2 } : p;
   const pos = flow ? {} : { x: Math.round(at.x - w / 2 - (origin?.x ?? 0)), y: Math.round(at.y - h / 2 - (origin?.y ?? 0)) };
   return insertNode(parent, { ...node, ...pos }, label);
+}
+
+/** Whether a file is a picture nib places as an image (SVG is imported as layers instead). */
+export const isImageFile = (f: File) => /^image\/(png|jpe?g|webp|gif)$/.test(f.type) || /\.(png|jpe?g|webp|gif)$/i.test(f.name);
+
+/**
+ * Image files as rectangles filled with them, placed like `placeNode`: each is saved in images/ beside the
+ * document and shown at its own size (the longest side at most 1000).
+ */
+export async function importImages(files: File[], screen?: { sx: number; sy: number }): Promise<void> {
+  const { conn } = store.get();
+  if (!conn) return;
+  for (const f of files) {
+    try {
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      const r = await post<{ url: string; width: number; height: number }>('/api/asset', { path: conn.path, name: f.name || 'image.png', data: btoa(bin) });
+      const k = Math.min(1, 1000 / Math.max(r.width, r.height));
+      const name = (f.name || 'Image').replace(/\.[^.]+$/, '');
+      const id = await placeNode({ type: 'rectangle', name, width: Math.round(r.width * k), height: Math.round(r.height * k), fill: { type: 'image', url: r.url, mode: 'cover' } }, `Place ${name}`, screen);
+      if (id) store.set({ selection: [id] });
+    } catch (e) {
+      toast(`${f.name || 'Image'}: ${(e as Error).message}`);
+    }
+  }
+}
+
+/** Ask for image files and place them (SVG files come in as layers). */
+export function pickImages(): void {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svg';
+  input.multiple = true;
+  input.onchange = () => {
+    const files = [...(input.files ?? [])];
+    for (const f of files) if (/\.svg$/i.test(f.name)) void f.text().then((text) => importSvg(text, undefined, f.name.replace(/\.svg$/i, '')));
+    void importImages(files.filter(isImageFile));
+  };
+  input.click();
 }
 
 /** SVG markup as editable layers, placed like `placeNode`. */
@@ -486,6 +527,7 @@ export function CanvasView() {
     const i = current ? chain.indexOf(current) : -1;
     if (current && s.doc.get(current)?.type === 'text') { store.set({ editingText: current }); return; }
     if (current && s.doc.get(current)?.type === 'path' && editPath(current)) return;
+    if (current && imageFillIndex(s.doc.get(current)) >= 0) { store.set({ crop: { id: current, index: imageFillIndex(s.doc.get(current)) } }); return; }
     if (i === 0 && s.doc.get(chain[0])?.type === 'path' && editPath(chain[0])) return;
     if (i > 0) store.set({ selection: [chain[i - 1]] });
     else if (i === 0 && s.doc.get(chain[0])?.type === 'text') store.set({ editingText: chain[0] });
@@ -505,6 +547,8 @@ export function CanvasView() {
         e.preventDefault();
         const at = local(e);
         for (const f of files) if (/\.svg$/i.test(f.name) || f.type === 'image/svg+xml') void f.text().then((text) => importSvg(text, at, f.name.replace(/\.svg$/i, '')));
+        const images = files.filter(isImageFile);
+        if (images.length) void importImages(images, at);
       }}>
       <canvas ref={el} />
       <AgentCursors />

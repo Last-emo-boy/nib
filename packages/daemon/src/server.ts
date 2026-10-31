@@ -1,5 +1,5 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { basename, dirname, extname, join, normalize, relative, resolve as resolvePath } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -272,6 +272,25 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         } catch (e) {
           return send(res, 409, { error: (e as Error).message });
         }
+      }
+      case 'POST /api/asset': {
+        // An image dropped or pasted into a design: saved in images/ beside the document (a new name if taken).
+        const body = await readJson(req);
+        if (typeof body.path !== 'string' || typeof body.data !== 'string') return send(res, 400, { error: 'path and data (base64) are required' });
+        const open = await host.open(body.path);
+        const bytes = Buffer.from(body.data, 'base64');
+        const img = opts.renderer.ck.MakeImageFromEncoded(bytes);
+        if (!img) return send(res, 422, { error: 'not an image nib can read (PNG, JPEG, WebP, GIF)' });
+        const width = img.width(), height = img.height();
+        img.delete();
+        const ext = (/\.(png|jpe?g|webp|gif)$/i.exec(String(body.name ?? ''))?.[1] ?? ({ 0x89: 'png', 0xff: 'jpg', 0x52: 'webp', 0x47: 'gif' } as Record<number, string>)[bytes[0]] ?? 'png').toLowerCase();
+        const stem = String(body.name ?? 'image').replace(/\.[^.]+$/, '').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'image';
+        const dir = join(dirname(open.path), 'images');
+        await mkdir(dir, { recursive: true });
+        let name = `${stem}.${ext}`;
+        for (let i = 2; await stat(join(dir, name)).catch(() => undefined); i++) name = `${stem}-${i}.${ext}`;
+        await writeFile(join(dir, name), bytes);
+        return send(res, 200, { url: `images/${name}`, width, height });
       }
       case 'POST /api/brand/read': {
         // A brand read from a website ({url}) or a logo ({image: base64, name}).

@@ -14,7 +14,7 @@ import type { IconName } from './icons.ts';
 export function typeIcon(n: Node): IconName {
   if (n.reusable) return 'component';
   switch (n.type) {
-    case 'frame': return n.layout === 'none' ? 'hash' : 'frame';
+    case 'frame': return (n as { metadata?: { type?: string } }).metadata?.type === 'nib-mask' ? 'mask' : n.layout === 'none' ? 'hash' : 'frame';
     case 'group': return 'grid';
     case 'rectangle': return 'square';
     case 'ellipse': return 'circle';

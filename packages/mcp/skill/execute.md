@@ -153,6 +153,10 @@ Adds a line to the reply: strings as they are, other values as JSON, separated b
 
 Renders the nodes as they are at this point of the snippet; the images are attached to the reply. `"document"` renders the whole canvas. Look at every screenshot you take.
 
+### `Compare(id, reference)`
+
+Compares how node `id` looks with a picture: `reference` is a node on the canvas (often a placed screenshot, or another design) or the path of an image file (relative paths start at the .pen file's folder; files people attach in nib's chat are named in their message). Both are drawn at the reference's size, and the reply's **Comparisons** section says how similar they are, what share of pixels differ, and in which ninths of the picture most of the difference is (top-left … bottom-right); an image of the difference is attached (the design in gray, what differs in red). Use it to recreate a screenshot or page: build, compare, fix the regions it names, and compare again until it is at least 95% similar. It tells you when the proportions differ: make the frame the reference's shape first.
+
 ### `Export(ids, format, outputPath, options?)`
 
 Writes files after the snippet succeeds. Formats: `"png"`, `"jpeg"`, `"webp"` (one file per node, named `<id>.<ext>`, into the folder `outputPath`), `"pdf"` (one page per node, into the file `outputPath`), `"html-css"` and `"html-tailwind"` (one file), `"react-tailwind"` (one `.tsx` file: a React component per node, instances of shadcn/ui or HeroUI components written as those components). Relative paths start at the .pen file's folder. Options: `scale` (images and pdf, default 2), `quality` (jpeg/webp, 1 to 100), `includeHtmlScaffold` (default true), `includeLayerNames` (data attributes, default true), `includeLayerIds` (default false).
@@ -163,7 +167,8 @@ Writes files after the snippet succeeds. Formats: `"png"`, `"jpeg"`, `"webp"` (o
 - **Created nodes**: name and id of each node the snippet created, marked `(= varName)` when a global holds that id.
 - **Print output**.
 - **Issues**: problems in the nodes you changed. Fix them in your next call.
-- **Screenshots**: the ids, in the order the images are attached.
+- **Comparisons**: one line per `Compare`.
+- **Screenshots**: what each attached image is, in order (screenshots and differences from `Compare`).
 - **Exported**: files written.
 
 On failure: the error, the line it came from, `Print` output produced before it, and the `editId`.

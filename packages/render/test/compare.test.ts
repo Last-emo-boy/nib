@@ -19,4 +19,11 @@ describe('picture comparison', () => {
     expect(c.diff.rgba[4]).toBe(c.diff.rgba[5]);
     expect(() => comparePixels(a, solid(1, 1, [0, 0, 0, 255]))).toThrow('same size');
   });
+  it('says where pictures differ, by ninths', () => {
+    // 3×3 pixels, only the bottom-right one differs.
+    const a = solid(3, 3, [255, 255, 255, 255]);
+    const b = solid(3, 3, [255, 255, 255, 255]);
+    b.rgba.set([0, 0, 0, 255], 8 * 4);
+    expect(comparePixels(a, b).cells).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 1]);
+  });
 });

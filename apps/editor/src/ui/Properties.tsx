@@ -13,6 +13,8 @@ import { flipSelection, scaleSelection } from '../canvas/arrange.ts';
 import { Icon } from './Icon.tsx';
 import { FontPicker } from './FontPicker.tsx';
 import { LINK, linkOf } from '../canvas/links.ts';
+import { imageFillIndex } from '../canvas/crop.ts';
+import { agent, loadAgent, openSession, sendMessage } from '../app/agent.ts';
 import { layerName, typeIcon } from './LeftPanel.tsx';
 
 type Props = Record<string, any>;
@@ -108,6 +110,11 @@ export function Properties() {
             <Text label="lib" value={n.library ?? 'lucide'} onChange={(v) => set({ library: v === 'lucide' ? undefined : v }, 'Icon library')} />
             <Text label="name" value={n.icon ?? ''} onChange={(v) => set({ icon: v }, 'Icon')} />
           </div>
+        </Section>
+      )}
+      {nodes.length === 1 && !parts.length && imageFillIndex(n) >= 0 && (
+        <Section title={t.agent}>
+          <button className="link" onClick={() => void recreate(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {t.recreateAsLayers}</button>
         </Section>
       )}
       {nodes.length === 1 && <Prototype doc={doc} n={n} t={t} set={set} />}
@@ -503,6 +510,24 @@ function ColorField({ value, onChange }: { value: string; onChange: (v: string) 
   );
 }
 
+
+/** Ask the agent, in a new chat, to rebuild the picture in `n` as editable layers, checking with Compare. */
+async function recreate(doc: PenDoc, n: Node, t: Strings): Promise<void> {
+  const conn = store.get().conn;
+  if (!conn) return;
+  store.set({ agentOpen: true, activityOpen: false, browserOpen: false });
+  try {
+    await loadAgent(conn.path);
+    const s = agent.get();
+    const info = s.providers.find((p) => p.id === s.provider);
+    const model = info?.models.find((m) => m.id === s.model);
+    if (!(model?.vision ?? info?.vision)) { toast(t.needsVision); return; }
+    await openSession(undefined);
+    await sendMessage(conn.path, t.recreatePrompt(layerName(doc, n), n.id), [n.id]);
+  } catch (e) {
+    toast((e as Error).message);
+  }
+}
 
 /** Prototype: where the layer leads when clicked in Present mode, and how the screen changes. */
 function Prototype({ doc, n, t, set }: { doc: PenDoc; n: Props; t: Strings; set: (p: Props, l?: string) => void }) {

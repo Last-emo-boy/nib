@@ -14,7 +14,11 @@ export interface Comparison {
   changed: number;
   /** The design in gray with the differing pixels in red, stronger where they differ more. */
   diff: Pixels;
+  /** Share of differing pixels in each ninth of the picture, rows from the top: top-left … bottom-right. */
+  cells: number[];
 }
+
+export const CELL_NAMES = ['top-left', 'top', 'top-right', 'left', 'middle', 'right', 'bottom-left', 'bottom', 'bottom-right'];
 
 const THRESHOLD = 0.1;
 
@@ -23,9 +27,12 @@ export function comparePixels(a: Pixels, b: Pixels): Comparison {
   if (a.width !== b.width || a.height !== b.height) throw new Error('pictures to compare must have the same size');
   const n = a.width * a.height;
   const diff = new Uint8Array(n * 4);
+  const cellChanged = new Array(9).fill(0), cellSize = new Array(9).fill(0);
   let total = 0, changed = 0;
   for (let i = 0; i < n; i++) {
     const o = i * 4;
+    const cell = Math.min(2, Math.floor((Math.floor(i / a.width) * 3) / a.height)) * 3 + Math.min(2, Math.floor(((i % a.width) * 3) / a.width));
+    cellSize[cell]++;
     // Over white, so transparent and white read the same.
     const over = (p: Uint8Array, k: number) => p[o + k] * (p[o + 3] / 255) + 255 * (1 - p[o + 3] / 255);
     const ar = over(a.rgba, 0), ag = over(a.rgba, 1), ab = over(a.rgba, 2);
@@ -34,6 +41,7 @@ export function comparePixels(a: Pixels, b: Pixels): Comparison {
     const gray = 255 - (255 - (0.3 * ar + 0.59 * ag + 0.11 * ab)) * 0.4;
     if (d > THRESHOLD) {
       changed++;
+      cellChanged[cell]++;
       const k = Math.min(1, 0.35 + d);
       diff[o] = Math.round(gray * (1 - k) + 230 * k);
       diff[o + 1] = Math.round(gray * (1 - k) + 40 * k);
@@ -43,7 +51,10 @@ export function comparePixels(a: Pixels, b: Pixels): Comparison {
     }
     diff[o + 3] = 255;
   }
-  return { similarity: n ? 1 - total / n : 1, changed: n ? changed / n : 0, diff: { width: a.width, height: a.height, rgba: diff } };
+  return {
+    similarity: n ? 1 - total / n : 1, changed: n ? changed / n : 0, diff: { width: a.width, height: a.height, rgba: diff },
+    cells: cellChanged.map((c, i) => (cellSize[i] ? c / cellSize[i] : 0)),
+  };
 }
 
 /** An encoded picture (PNG, JPEG, WebP, GIF) as pixels. */

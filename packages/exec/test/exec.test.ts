@@ -1,8 +1,8 @@
-import { mkdtemp, readdir } from 'node:fs/promises';
+import { mkdtemp, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { PenDoc } from '@nib/core';
+import { buildScene, PenDoc } from '@nib/core';
 import { serializePen, type PenDocument } from '@nib/format';
 import type { Renderer } from '@nib/render';
 import { createNodeRenderer } from '@nib/render/node';
@@ -209,6 +209,33 @@ Export(["box"], "png", ${JSON.stringify(dir)}, {scale: 1})`);
     expect(r.images[0].mimeType).toBe('image/png');
     expect(await readdir(dir)).toEqual(['box.png']);
     expect(r.text).toContain(join(dir, 'box.png'));
+  });
+
+  it('compares a design with a picture on the canvas or in a file, and says where they differ', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nib-compare-'));
+    const frame = (id: string, x: number, width: number, height: number, fill: string, children: unknown[] = []) => ({ type: 'frame', id, x, y: 0, width, height, fill, layout: 'none', children });
+    const { run } = await session([
+      frame('box', 0, 60, 60, '#ff0000'),
+      frame('pic', 100, 60, 60, '#ff0000', [{ type: 'rectangle', id: 'spot', x: 40, y: 40, width: 20, height: 20, fill: '#ffffff' }]),
+    ]);
+    // A picture file: the same red, at twice the size (as screenshots are).
+    const other = new PenDoc({ version: '2.20', children: [frame('big', 0, 120, 120, '#ff0000'), frame('tall', 200, 60, 120, '#ff0000')] } as unknown as PenDocument);
+    await writeFile(join(dir, 'red@2x.png'), await renderer.renderPNG(buildScene(other, other.get('big')!)!, noImages));
+    await writeFile(join(dir, 'tall.png'), await renderer.renderPNG(buildScene(other, other.get('tall')!)!, noImages));
+    const r = await run(`Compare("box", "pic")
+Compare("box", ${JSON.stringify(join(dir, 'red@2x.png'))})
+Compare("box", ${JSON.stringify(join(dir, 'tall.png'))})`);
+    expect(r.ok, r.text).toBe(true);
+    expect(r.images).toHaveLength(3);
+    const lines = r.text.split('## Comparisons\n')[1].split('\n');
+    // The white corner of "pic" is a ninth of it: most of the difference is bottom-right.
+    expect(lines[0]).toMatch(/^- box vs pic: 92\.6% similar, 11\.1% of pixels differ \(most in bottom-right 100%\)\.$/);
+    expect(lines[1]).toMatch(/^- box vs red@2x\.png: 100% similar, 0% of pixels differ\.$/);
+    expect(lines[2]).toContain('its proportions differ from the reference\'s: at the reference\'s width it is 60 px tall, the reference 120 px');
+    expect(r.text).toContain('difference of box from pic');
+    const bad = await run('Compare("box", "nothing")');
+    expect(bad.ok).toBe(false);
+    expect(bad.text).toContain('neither a node of this document nor an image file');
   });
 
   it('stops endless loops', async () => {

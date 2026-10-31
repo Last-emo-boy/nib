@@ -1,9 +1,9 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join, resolve as resolvePath } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, join, resolve as resolvePath } from 'node:path';
 import type { Node } from '@nib/format';
 import { buildScene, childrenOf, DocEditor, type Op, type PenDoc, type SceneNode } from '@nib/core';
-import { FontsNotLoaded, type FontFace, type ImageLoader, type Renderer } from '@nib/render';
-import { PenApi, type ApiOutput, type CapturedScene, type ExportFormat, type ExportOptions } from './api.ts';
+import { CELL_NAMES, comparePixels, decodePixels, encodePng, FontsNotLoaded, resizePixels, type FontFace, type ImageLoader, type Pixels, type Renderer } from '@nib/render';
+import { PenApi, type ApiOutput, type CapturedScene, type CompareReference, type ExportFormat, type ExportOptions } from './api.ts';
 import { BoundsCache, problemOf, type LayoutFn } from './bounds.ts';
 import { assetIssues, layoutIssues, variableIssues, type Problem } from './checks.ts';
 import { ExecError } from './errors.ts';
@@ -46,6 +46,7 @@ export interface SessionOptions {
 }
 
 const SCREENSHOT_SIDE = 1568;
+const COMPARE_SIDE = 1600;
 const MAX_FONT_RETRIES = 4;
 const MIME: Record<string, string> = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp' };
 
@@ -233,8 +234,18 @@ export class ExecSession {
     const images: ExecuteImage[] = [];
     const shots: string[] = [];
     const exported: string[] = [];
+    const compared: string[] = [];
     for (const c of out.captures) {
-      if (c.kind === 'screenshot') {
+      if (c.kind === 'compare') {
+        try {
+          const r = await this.compare(c.scene, c.reference);
+          images.push({ data: r.png, mimeType: 'image/png' });
+          shots.push(`difference of ${c.scene.id} from ${r.name}`);
+          compared.push(r.text);
+        } catch (e) {
+          issues.push(`Compare(${c.scene.id}) failed: ${(e as Error).message}`);
+        }
+      } else if (c.kind === 'screenshot') {
         for (const s of c.scenes) {
           try {
             images.push({ data: await this.raster(s, { maxSide: SCREENSHOT_SIDE, scale: 2 }), mimeType: 'image/png' });
@@ -261,6 +272,7 @@ export class ExecSession {
     }
     if (out.prints.length) sections.push(`## Print output\n${out.prints.join('  \n')}`);
     if (exported.length) sections.push(`## Exported\n${exported.join('\n')}`);
+    if (compared.length) sections.push(`## Comparisons\n${compared.join('\n')}`);
     if (issues.length) sections.push(`## Issues\n${issues.map((i) => `- ${i}`).join('\n')}\n\nFix these in your next call.`);
     if (shots.length) sections.push(`## Screenshots\nAttached, in order: ${shots.join(', ')}. Check each against the request, and look for collapsed, overflowing, clipped or overlapping elements.`);
     return { ok: true, text: sections.join('\n\n'), images, ops, undo };
@@ -277,6 +289,37 @@ export class ExecSession {
       icons: assets.flatMap((a) => a.icons),
     }, this.opts.images);
     return scenes;
+  }
+
+  /**
+   * How close a design looks to its reference: both at the reference's size (at most 1600 px on its longer
+   * side), over white, pixel by pixel. The difference image shows the design in gray and what differs in red.
+   */
+  private async compare(scene: CapturedScene, reference: CompareReference): Promise<{ png: Uint8Array; text: string; name: string }> {
+    const { renderer, images } = this.opts;
+    const ck = renderer.ck;
+    let ref: Pixels, name: string;
+    if ('file' in reference) {
+      const path = resolvePath(this.opts.baseDir, reference.file);
+      ref = decodePixels(ck, new Uint8Array(await readFile(path)));
+      name = basename(path);
+    } else {
+      ref = await renderer.renderPixels(reference.scene.root, reference.scene.target, images, { scale: 1 });
+      name = reference.scene.id;
+    }
+    const k = Math.min(1, COMPARE_SIDE / Math.max(ref.width, ref.height));
+    if (k < 1) ref = resizePixels(ck, ref, Math.max(1, Math.round(ref.width * k)), Math.max(1, Math.round(ref.height * k)));
+    const natural = await renderer.renderPixels(scene.root, scene.target, images, { scale: 1 });
+    const scale = ref.width / Math.max(1, natural.width);
+    let design = Math.abs(scale - 1) < 1e-6 ? natural : await renderer.renderPixels(scene.root, scene.target, images, { scale });
+    const notes: string[] = [];
+    if (Math.abs(design.height - ref.height) > 2) notes.push(`its proportions differ from the reference's: at the reference's width it is ${design.height} px tall, the reference ${ref.height} px (the design is ${natural.width}×${natural.height}).`);
+    if (design.width !== ref.width || design.height !== ref.height) design = resizePixels(ck, design, ref.width, ref.height);
+    const c = comparePixels(design, ref);
+    const pct = (v: number) => `${Math.round(v * 1000) / 10}%`;
+    const worst = c.cells.map((v, i) => [v, i] as const).filter(([v]) => v > 0.05).sort((a, b) => b[0] - a[0]).slice(0, 3).map(([v, i]) => `${CELL_NAMES[i]} ${pct(v)}`);
+    const text = `- ${scene.id} vs ${name}: ${pct(c.similarity)} similar, ${pct(c.changed)} of pixels differ${worst.length ? ` (most in ${worst.join(', ')})` : ''}${notes.length ? `; ${notes.join(' ')}` : '.'}`;
+    return { png: encodePng(ck, c.diff), text, name };
   }
 
   private raster(s: CapturedScene, opts: { scale: number; maxSide?: number; format?: 'png' | 'jpeg' | 'webp'; quality?: number }): Promise<Uint8Array> {

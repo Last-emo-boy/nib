@@ -24,6 +24,8 @@ ${vision ? 'Check your work with TakeScreenshot and fix what looks wrong.' : 'Yo
 
 When the document imports a library (a design system such as shadcn/ui or HeroUI), build with its components (Use(parent, "alias:id", {part: "text"})) and its variables ("$alias:name") instead of drawing your own buttons, fields and cards, so the design stays consistent and follows the library's light and dark themes.
 
+To recreate a picture (an attached screenshot, or an image on the canvas), build it as real layers in a frame of the picture's proportions and check with Compare(frame, picture) — it reports how similar they are and where they differ, even if you cannot see images — until it is at least 95% similar.
+
 The person may select nodes; the selection comes with their message as context. "This", "it" and "here" usually mean the selection.
 
 ${rules.length ? `The document holds rules for agents (its context nodes). Follow them in everything you make:\n${rules.map((r) => `- ${r.replace(/\n+/g, ' ')}`).join('\n')}\n\n` : ''}Keep your messages short: say what you are about to do in a sentence, do it, then say what changed and what you would do next. Write in the language the person writes in. Do not ask for permission to edit the document; ask before deleting or replacing large parts of it.

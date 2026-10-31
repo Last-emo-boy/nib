@@ -45,8 +45,12 @@ export interface CapturedScene {
   target: SceneNode;
 }
 
+/** What a design is compared with: another node on the canvas (often a placed screenshot), or an image file. */
+export type CompareReference = { scene: CapturedScene } | { file: string };
+
 export type Capture =
   | { kind: 'screenshot'; scenes: CapturedScene[] }
+  | { kind: 'compare'; scene: CapturedScene; reference: CompareReference }
   | { kind: 'export'; scenes: CapturedScene[]; format: ExportFormat; outputPath: string; options: ExportOptions };
 
 export interface ApiOutput {
@@ -289,6 +293,17 @@ export class PenApi {
 
   takeScreenshot(ids: unknown): void {
     this.out.captures.push({ kind: 'screenshot', scenes: this.captureAll(ids, 'TakeScreenshot') });
+  }
+
+  compare(id: unknown, reference: unknown): void {
+    if (typeof id !== 'string' || !id) throw new ExecError('Compare: the first argument is the id of the design to compare');
+    if (typeof reference !== 'string' || !reference) throw new ExecError('Compare: the reference is a node id (a placed picture or a design) or the path of an image file');
+    const scene = this.capture(id, 'Compare');
+    let ref: CompareReference;
+    if (reference !== DOCUMENT && this.doc.topLevel(reference.split('/')[0])) ref = { scene: this.capture(reference, 'Compare') };
+    else if (/\.(png|jpe?g|webp|gif)$/i.test(reference)) ref = { file: reference };
+    else throw new ExecError(`Compare: "${reference}" is neither a node of this document nor an image file (.png, .jpg, .webp, .gif)`);
+    this.out.captures.push({ kind: 'compare', scene, reference: ref });
   }
 
   export(ids: unknown, format: unknown, outputPath: unknown, options?: unknown): void {

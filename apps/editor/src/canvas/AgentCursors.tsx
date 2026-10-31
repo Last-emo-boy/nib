@@ -70,6 +70,7 @@ const lastAt = (t: AgentTrack, now: number) => Math.max(-Infinity, ...t.beats.fi
  */
 export function AgentCursors() {
   const view = useEditor((s) => s.view);
+  const presenting = useEditor((s) => !!s.present);
   const [, tick] = useReducer((n: number) => n + 1, 0);
 
   useEffect(() => {
@@ -86,6 +87,8 @@ export function AgentCursors() {
     return () => { off(); cancelAnimationFrame(frame); };
   }, []);
 
+  // The audience of a presentation sees the changes, not the cursors.
+  if (presenting) return null;
   const now = performance.now();
   const screen = (p: Point) => ({ x: p.x * view.zoom + view.tx, y: p.y * view.zoom + view.ty });
   const tracks = [...presence.agents.values()];

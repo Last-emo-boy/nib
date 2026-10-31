@@ -8,7 +8,7 @@ import type { CropEdit } from '../canvas/CropOverlay.tsx';
 import { applyPrefs, readPrefs, writePrefs, type Prefs } from './prefs.ts';
 
 export type Tool = 'move' | 'scale' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'pen' | 'text' | 'icon' | 'note';
-export type LeftTab = 'layers' | 'components' | 'libraries' | 'variables' | 'problems';
+export type LeftTab = 'layers' | 'slides' | 'components' | 'libraries' | 'variables' | 'problems';
 export type Lang = 'en' | 'zh';
 
 /** Canvas position: a document point (x, y) appears on screen at (x * zoom + tx, y * zoom + ty). */
@@ -47,6 +47,8 @@ export interface EditorState {
   gradientEdit?: GradientEdit;
   /** An image fill being cropped on the canvas. */
   crop?: CropEdit;
+  /** Presenting: the slides in order, the one shown, and whether the screen is dipping to black between two. */
+  present?: { ids: string[]; index: number; fading?: boolean; moving?: boolean };
   /** A path being drawn with the pen or having its points edited. */
   pen?: PenSession;
   /** The node whose text is being edited on the canvas. */

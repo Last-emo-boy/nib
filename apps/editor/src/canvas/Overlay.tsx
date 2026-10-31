@@ -12,6 +12,7 @@ import { CropOverlay } from './CropOverlay.tsx';
 import { angleOf, apply, boundsOf, isAxisAligned, mul, placement, quad, type M } from './affine.ts';
 import type { Placed } from './scenes.ts';
 import { isPart, layerOf } from '../app/parts.ts';
+import { linkOf } from './links.ts';
 
 type Point = { x: number; y: number };
 
@@ -56,11 +57,12 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
   const text = useEditor((s) => s.editingText);
   const pen = useEditor((s) => s.pen);
   const crop = useEditor((s) => s.crop);
+  const presenting = useEditor((s) => !!s.present);
   const pixelGrid = useEditor((s) => s.pixelGrid);
   // Points being edited take the place of the selection's handles.
   const editing = text ?? (pen ? 'pen' : crop ? 'crop' : undefined);
   const cache = canvas.cache;
-  if (!doc || !cache) return null;
+  if (!doc || !cache || presenting) return null;
 
   const g = gesture.current;
   const placed = selection.map((id) => cache.placed(id)).filter((p): p is Placed => !!p);
@@ -104,6 +106,16 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
         {hovered && <Frame m={hovered.matrix} w={hovered.abs.width} h={hovered.abs.height} view={view} className="hover" />}
         {!drag && placed.map((p, i) => <Frame key={i} m={p.matrix} w={p.abs.width} h={p.abs.height} view={view} className="selected" />)}
         {drag && placed.map((p, i) => <Frame key={i} m={mul([1, 0, 0, 1, drag.dx, drag.dy], p.matrix)} w={p.abs.width} h={p.abs.height} view={view} className="selected ghost" />)}
+        {!drag && placed.map((p) => {
+          // Where a prototype link leads: an arrow to the frame.
+          const link = linkOf(layerOf(doc, p.id));
+          const target = link && link.to !== 'next' && link.to !== 'previous' ? cache.bounds(link.to) : undefined;
+          if (!target) return null;
+          const a = { x: (p.bounds.x + p.bounds.width) * view.zoom + view.tx, y: (p.bounds.y + p.bounds.height / 2) * view.zoom + view.ty };
+          const b = { x: target.x * view.zoom + view.tx, y: (target.y + Math.min(target.height / 2, 60)) * view.zoom + view.ty };
+          const dx = Math.max(40, Math.abs(b.x - a.x) / 2);
+          return <g key={`link-${p.id}`} className="proto-link"><path d={`M${a.x} ${a.y} C${a.x + dx} ${a.y} ${b.x - dx} ${b.y} ${b.x - 6} ${b.y}`} /><path className="head" d={`M${b.x - 10} ${b.y - 5} L${b.x} ${b.y} L${b.x - 10} ${b.y + 5}`} /><circle cx={a.x} cy={a.y} r={3.5} /></g>;
+        })}
         {g?.kind === 'marquee' && <Outline box={screen(view, rectOf(g.start, g.end))} className="marquee" />}
         {g?.kind === 'create' && <Outline box={screen(view, rectOf(g.start, g.end))} className="selected" />}
         {g?.kind === 'resize' && resized && <Frame m={mul(g.matrix, [1, 0, 0, 1, resized.x, resized.y])} w={resized.width} h={resized.height} view={view} className="selected ghost" />}

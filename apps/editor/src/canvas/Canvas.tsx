@@ -260,7 +260,7 @@ export function CanvasView() {
       frame = 0;
       if (!surface || !engine) return;
       const c = surface.getCanvas();
-      c.clear(Float32Array.from(BACKGROUND[document.documentElement.dataset.theme === 'light' ? 'light' : 'dark']));
+      c.clear(Float32Array.from(store.get().present ? [0, 0, 0, 1] : BACKGROUND[document.documentElement.dataset.theme === 'light' ? 'light' : 'dark']));
       const { view } = store.get();
       c.save();
       c.scale(dpr, dpr);

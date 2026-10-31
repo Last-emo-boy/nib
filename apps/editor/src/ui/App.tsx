@@ -10,6 +10,8 @@ import { imageFillIndex } from '../canvas/crop.ts';
 import { isMask, maskSelection, releaseMask } from '../canvas/mask.ts';
 import { arrange, flipSelection } from '../canvas/arrange.ts';
 import { layerOf } from '../app/parts.ts';
+import { Present, startPresenting } from '../canvas/present.tsx';
+import { followLink } from '../canvas/links.ts';
 import { deletePoints, editPath, finishDrawing, finishEditing } from '../canvas/pen.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
@@ -41,8 +43,10 @@ export function App() {
     return () => { off(); conn.close(); };
   }, [file]);
   useShortcuts();
+  const presenting = useEditor((s) => !!s.present);
   if (new URLSearchParams(location.hash.slice(1)).get('view') === 'settings') return <Settings />;
   if (!file) return <Dashboard />;
+  if (presenting) return <div className="editor presenting"><CanvasView /><Present onClick={followLink} /><Toast /></div>;
   return (
     <div className={`editor${desktop ? ' in-desktop-editor' : ''}`}>
       <CanvasView />
@@ -127,6 +131,7 @@ function TopRight() {
       <button className={`text-button${activity ? ' on' : ''}`} onClick={() => toggleSide('activityOpen')}>
         <span className={`dot${agentBusy ? ' busy' : ''}`} />{t.activity}
       </button>
+      <button className="text-button" title={`${t.present} (⌥⌘↵)`} onClick={() => startPresenting()}><Icon name="play" size={15} /></button>
       <button className="text-button" title={t.language} onClick={() => { const next = lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', next); store.set({ lang: next }); }}><Icon name="languages" size={15} /></button>
     </div>
   );
@@ -276,6 +281,7 @@ export function runCommand(name: string): void {
     case 'mask': if (!typing) { const one = s.selection.length === 1 ? s.doc?.get(s.selection[0]) : undefined; if (isMask(one)) releaseMask(); else maskSelection(); } break;
     case 'release-mask': if (!typing) releaseMask(); break;
     case 'place-image': pickImages(); break;
+    case 'present': startPresenting(); break;
     case 'bring-forward': if (!typing) arrange('forward'); break;
     case 'send-backward': if (!typing) arrange('backward'); break;
     case 'bring-to-front': if (!typing) arrange('front'); break;
@@ -294,11 +300,14 @@ function useShortcuts() {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e)) return;
       const s = store.get();
+      // Present mode has keys of its own.
+      if (s.present) return;
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
       const tools: Record<string, Tool> = { v: 'move', k: 'scale', f: 'frame', a: 'frame', r: 'rectangle', o: 'ellipse', p: 'pen', t: 'text', i: 'icon', n: 'note', h: 'hand' };
       const chords: Record<string, string> = { z: e.shiftKey ? 'redo' : 'undo', y: 'redo', d: 'duplicate', k: 'palette', j: 'toggle-agent', a: 'select-all', '\\': 'toggle-panel', '0': 'zoom-100', '=': 'zoom-in', '-': 'zoom-out' };
       if (e.metaKey && e.ctrlKey && (key === 'm' || e.code === 'KeyM')) { e.preventDefault(); runCommand('mask'); return; }
+      if (mod && e.altKey && key === 'enter') { e.preventDefault(); runCommand('present'); return; }
       if (mod && e.shiftKey && key === 'k') { e.preventDefault(); runCommand('place-image'); return; }
       // Stacking order: ⌘] ⌘[ one step, ⌥⌘] ⌥⌘[ all the way (e.code, since Alt changes the character).
       if (mod && (e.code === 'BracketRight' || e.code === 'BracketLeft')) { e.preventDefault(); runCommand(`${e.code === 'BracketRight' ? (e.altKey ? 'bring-to-front' : 'bring-forward') : (e.altKey ? 'send-to-back' : 'send-backward')}`); return; }

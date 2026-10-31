@@ -12,6 +12,7 @@ import { resizeMesh } from '../canvas/gradient.ts';
 import { flipSelection, scaleSelection } from '../canvas/arrange.ts';
 import { Icon } from './Icon.tsx';
 import { FontPicker } from './FontPicker.tsx';
+import { LINK, linkOf } from '../canvas/links.ts';
 import { layerName, typeIcon } from './LeftPanel.tsx';
 
 type Props = Record<string, any>;
@@ -109,6 +110,7 @@ export function Properties() {
           </div>
         </Section>
       )}
+      {nodes.length === 1 && <Prototype doc={doc} n={n} t={t} set={set} />}
       {!parts.length && <ExportSection t={t} ids={ids} />}
       {nodes.length === 1 && n.type !== 'ref' && !parts.length && (
         <Section title={t.component}>
@@ -501,6 +503,35 @@ function ColorField({ value, onChange }: { value: string; onChange: (v: string) 
   );
 }
 
+
+/** Prototype: where the layer leads when clicked in Present mode, and how the screen changes. */
+function Prototype({ doc, n, t, set }: { doc: PenDoc; n: Props; t: Strings; set: (p: Props, l?: string) => void }) {
+  const link = linkOf(n);
+  const other = n.metadata && n.metadata.type !== LINK;
+  const frames = doc.data.children.filter((f) => f.type === 'frame' && !f.reusable && f.id !== n.id);
+  const write = (to: string, transition: string) => set({ metadata: to ? { type: LINK, to, ...(transition !== 'instant' ? { transition } : {}) } : undefined }, to ? 'Link' : 'Remove link');
+  return (
+    <Section title={t.prototype}>
+      {other ? <p className="dim">{t.linkTaken}</p> : (
+        <div className="row">
+          <select className="grow" value={link?.to ?? ''} onChange={(e) => write(e.target.value, link?.transition ?? 'instant')}>
+            <option value="">{t.noLink}</option>
+            <option value="next">{t.nextSlide}</option>
+            <option value="previous">{t.previousSlide}</option>
+            {frames.map((f) => <option key={f.id} value={f.id}>{layerName(doc, f)}</option>)}
+          </select>
+          {link && (
+            <select value={link.transition} onChange={(e) => write(link.to, e.target.value)}>
+              <option value="instant">{t.instant}</option>
+              <option value="dissolve">{t.dissolve}</option>
+              <option value="move">{t.moveTransition}</option>
+            </select>
+          )}
+        </div>
+      )}
+    </Section>
+  );
+}
 
 /** Export the selection through the daemon (same renderer as agents' Export) and download the files. */
 function ExportSection({ t, ids }: { t: Strings; ids: string[] }) {

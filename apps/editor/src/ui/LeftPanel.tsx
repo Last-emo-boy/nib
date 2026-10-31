@@ -10,6 +10,7 @@ import { boundsOf, fitView } from '../canvas/Canvas.tsx';
 import { Icon } from './Icon.tsx';
 import { Components, Libraries } from './Libraries.tsx';
 import type { IconName } from './icons.ts';
+import { Slides } from './Slides.tsx';
 
 export function typeIcon(n: Node): IconName {
   if (n.reusable) return 'component';
@@ -39,7 +40,7 @@ export function layerName(doc: PenDoc, n: Node): string {
 export function LeftPanel() {
   const t = useT();
   const tab = useEditor((s) => s.leftTab);
-  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['components', 'component', t.components], ['libraries', 'library', t.libraries], ['variables', 'variable', t.variables], ['problems', 'scan', t.problems]];
+  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['slides', 'presentation', t.slides], ['components', 'component', t.components], ['libraries', 'library', t.libraries], ['variables', 'variable', t.variables], ['problems', 'scan', t.problems]];
   return (
     <div className="panel left-panel">
       <div className="tabs">
@@ -51,6 +52,7 @@ export function LeftPanel() {
       </div>
       <div className="panel-body">
         {tab === 'layers' && <Layers />}
+        {tab === 'slides' && <Slides />}
         {tab === 'components' && <Components />}
         {tab === 'libraries' && <Libraries />}
         {tab === 'variables' && <Variables />}

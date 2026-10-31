@@ -136,7 +136,7 @@ input, select { font: inherit; color: var(--text); }
 .tool-strip { flex-direction: column; width: 40px; }
 
 .tabs { display: flex; gap: 2px; padding: 8px; border-bottom: 1px solid var(--line); }
-.tab { height: 30px; padding: 0 9px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; color: var(--dim); }
+.tab { height: 30px; padding: 0 9px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; color: var(--dim); white-space: nowrap; }
 .tab:hover { color: var(--text); background: var(--panel-2); }
 .tab.active { color: var(--text); background: var(--panel-2); }
 .panel-body { flex: 1; overflow: auto; padding: 6px 0; }
@@ -507,3 +507,33 @@ select:focus { border-color: var(--accent); }
 .pref-num input[type='number'] { width: 72px; height: 28px; padding: 0 8px; background: var(--panel-2); border: 1px solid transparent; border-radius: 7px; outline: none; }
 .pref-num input[type='number']:focus { border-color: var(--accent); }
 .pref-row .segmented button { padding: 0 10px; }
+
+/* Slides panel */
+.slides { display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+.slides-actions { display: flex; gap: 6px; margin-bottom: 4px; }
+.slides-actions .dash-button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.slide-row { display: grid; grid-template-columns: 18px 1fr; grid-template-rows: auto auto; gap: 2px 6px; padding: 6px; border-radius: 8px; cursor: pointer; }
+.slide-row:hover { background: var(--panel-2); }
+.slide-row.selected { background: var(--accent-soft); }
+.slide-row.dragging { opacity: 0.4; }
+.slide-number { grid-row: 1 / 3; color: var(--faint); font-variant-numeric: tabular-nums; text-align: right; padding-top: 2px; }
+.slide-thumb { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: var(--thumb); border-radius: 5px; border: 1px solid var(--line); }
+.slide-name { color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Present mode: the canvas alone, the slide fitted, dark around it. */
+.editor.presenting { background: #000; cursor: default; }
+.present { position: absolute; inset: 0; z-index: 30; cursor: pointer; }
+.present svg { position: absolute; inset: 0; pointer-events: none; }
+.present-surround { fill: #000; }
+.present-fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 180ms ease; }
+.present-fade.on { opacity: 1; }
+.present-controls { position: absolute; right: 20px; bottom: 20px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: #1c1c1fcc; color: #e9e9ec; opacity: 0; transition: opacity 200ms; cursor: default; }
+.present.show-controls .present-controls { opacity: 1; }
+.present-controls button { width: 26px; height: 26px; border-radius: 6px; font-size: 16px; }
+.present-controls button:hover:not(:disabled) { background: #ffffff1f; }
+.present-controls span { font-variant-numeric: tabular-nums; min-width: 48px; text-align: center; }
+
+/* Prototype links on the canvas */
+.overlay .proto-link path { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.overlay .proto-link circle { fill: var(--accent); }
+select.grow { flex: 1; max-width: none; min-width: 0; }

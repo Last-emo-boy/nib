@@ -607,3 +607,6 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .agent-macro-title { font-weight: 600; flex: none; }
 .agent-macro-text { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .agent-macro button { flex: none; background: none; border: 0; color: var(--dim); cursor: pointer; padding: 2px; }
+.picture-prompt { width: 100%; margin-bottom: 4px; }
+.picture-credit { font-size: 11px; color: var(--dim); line-height: 1.35; overflow-wrap: anywhere; margin-top: 4px; }
+.picture-key input { width: 100%; margin-top: 4px; }

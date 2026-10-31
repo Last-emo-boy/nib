@@ -131,6 +131,7 @@ Everything pen.dev has that nib lacks, the pain points seen while using nib's ag
 - F4. Script nodes and shader fills and effects (M6).
 - F5. Data: repeat rows from JSON or CSV, fake data.
 - F6. Text in several languages: a strings table and a language switch on the canvas.
+- Status 2026-11-01: F1 done (Generate(path, "stock" | "image", prompt, {index}) in execute: a stock photo from Openverse, or Wikimedia Commons when Openverse does not answer (it did not, from this machine), saved in images/ next to the .pen with its credit in images/CREDITS.md; or a picture made by gpt-image-2.5-flare with the person's OpenAI key (NIB_IMAGE_MODEL to change; checked against a mocked API only, no key here). The snippet runs again once the picture is here, like fonts. InsertSvg(parent, svg, props) turns SVG markup any chat model writes into editable layers. A Picture section in Properties: stock photo, another, generate, with the key asked for when missing).
 
 **G. Ecosystem**
 - G1. `nib` CLI: render, export, validate, diff, run the agent, open.

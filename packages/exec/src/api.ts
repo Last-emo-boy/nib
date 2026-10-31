@@ -1,6 +1,6 @@
 import { NODE_SPECS, validateNode, type Issue, type Node, type NodeType, type RefNode, type Variable } from '@nib/format';
 import {
-  buildScene, childrenOf, defaultTheme, expandTree, inheritedTheme, reassignIds, resolveDeep, withTheme,
+  buildScene, childrenOf, defaultTheme, expandTree, inheritedTheme, newId, reassignIds, resolveDeep, svgToNodes, withTheme,
   type DocEditor, type PenDoc, type SceneNode, type ThemeContext,
 } from '@nib/core';
 import type { Box } from '@nib/layout';
@@ -73,16 +73,35 @@ const isObject = (v: unknown): v is Props => typeof v === 'object' && v !== null
  * The functions an `execute` snippet calls, working on one document through a `DocEditor`, so that the
  * session can commit or roll back everything a snippet did. Arguments arrive as plain JSON.
  */
+/** A picture Generate asks for: what kind, what it shows, the size it fills, and which of the matches. */
+export interface PictureRequest { kind: 'stock' | 'image'; prompt: string; width: number; height: number; index: number }
+/** A picture got for a request: a file next to the .pen file (`url` relative to it), or why there is none. */
+export type PictureResult = { url: string; credit?: string } | { error: string };
+export const pictureKey = (r: PictureRequest) => `${r.kind}|${r.index}|${r.width}x${r.height}|${r.prompt}`;
+
+/** Generate needs pictures that are not here yet: the session gets them, then runs the snippet again. */
+export class PicturesNeeded extends Error {
+  readonly requests: PictureRequest[];
+  constructor(requests: PictureRequest[]) {
+    super('pictures needed');
+    this.requests = requests;
+  }
+}
+
+const FILLABLE = new Set(['frame', 'rectangle', 'ellipse', 'polygon', 'path']);
+
 export class PenApi {
   readonly out: ApiOutput = { prints: [], created: [], captures: [], warnings: [] };
   private doc: PenDoc;
   private editor: DocEditor;
   private bounds: BoundsCache;
+  private pictures: (key: string) => PictureResult | undefined;
 
-  constructor(doc: PenDoc, editor: DocEditor, bounds: BoundsCache) {
+  constructor(doc: PenDoc, editor: DocEditor, bounds: BoundsCache, pictures: (key: string) => PictureResult | undefined = () => undefined) {
     this.doc = doc;
     this.editor = editor;
     this.bounds = bounds;
+    this.pictures = pictures;
   }
 
   // Mutations
@@ -212,8 +231,42 @@ export class PenApi {
     this.changed();
   }
 
-  generate(): never {
-    throw new ExecError('Generate is not available in this version of nib');
+  /** Fill a layer with a picture: a stock photo, or one an image model makes. Returns the picture's url. */
+  generate(path: unknown, kind: unknown, prompt: unknown, options?: unknown): string {
+    if (kind !== 'stock' && kind !== 'image') throw new ExecError('Generate: kind is "stock" (a photo from Openverse or Wikimedia Commons, free to use with credit) or "image" (made by an image model with the person\'s OpenAI key)');
+    if (typeof prompt !== 'string' || !prompt.trim()) throw new ExecError('Generate: the third argument says what the picture shows, e.g. "calm lake at sunrise"');
+    if (options !== undefined && !isObject(options)) throw new ExecError('Generate: options must be an object, e.g. {index: 1}');
+    const index = (options as { index?: unknown } | undefined)?.index ?? 0;
+    if (!Number.isInteger(index) || (index as number) < 0 || (index as number) > 9) throw new ExecError('Generate: index is 0 (the best match) to 9');
+    const t = this.mutable(path, 'Generate');
+    const node = t.kind === 'inside' ? t.expanded : t.node;
+    if (!FILLABLE.has(node.type)) throw new ExecError(`Generate: a ${node.type} has no fill for a picture; use a frame or rectangle`);
+    const b = this.bounds.box(t.kind === 'inside' ? t.path : node.id);
+    const size = (v: number | undefined) => Math.max(64, Math.round(v && v > 0 ? v : 512));
+    const req: PictureRequest = { kind, prompt: prompt.trim(), width: size(b?.width), height: size(b?.height), index: index as number };
+    const got = this.pictures(pictureKey(req));
+    if (!got) throw new PicturesNeeded([req]);
+    if ('error' in got) throw new ExecError(`Generate: ${got.error}`);
+    this.update(path, { fill: { type: 'image', url: got.url, mode: 'cover' } });
+    if (got.credit) this.out.prints.push(`Picture in ${t.kind === 'inside' ? t.path : node.id}: ${got.credit}`);
+    return got.url;
+  }
+
+  /** SVG markup as editable layers: a frame the drawing's size holding its shapes, placed like Insert. */
+  insertSvg(parent: unknown, svg: unknown, props?: unknown): string {
+    if (typeof svg !== 'string' || !/<svg[\s>]/i.test(svg)) throw new ExecError('InsertSvg: the second argument is SVG markup, "<svg viewBox=…>…</svg>"');
+    if (props !== undefined && !isObject(props)) throw new ExecError('InsertSvg: props must be an object, e.g. {name: "Logo", width: 120, height: 120, x: 0, y: 0}');
+    let made: ReturnType<typeof svgToNodes>;
+    try {
+      const taken = new Set<string>();
+      made = svgToNodes(svg, () => { const id = newId(this.doc, taken); taken.add(id); return id; });
+    } catch (e) {
+      throw new ExecError(`InsertSvg: ${(e as Error).message}`);
+    }
+    const skipped = Object.entries(made.skipped).map(([k, n]) => `${n} ${k}`);
+    if (skipped.length) this.out.warnings.push(`InsertSvg left out what nib cannot draw as layers: ${skipped.join(', ')}.`);
+    const { id: _id, ...rest } = made.node;
+    return this.insert(parent, { ...rest, ...((props as Props | undefined) ?? {}) });
   }
 
   // Reading

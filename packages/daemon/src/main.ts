@@ -11,6 +11,7 @@ import { NIB_HOME } from './library.ts';
 import { removeInfo, writeInfo } from './info.ts';
 import { DAEMON_VERSION, DEFAULT_PORT, startDaemon } from './server.ts';
 import { Keys } from './agent/keys.ts';
+import { Pictures } from './pictures.ts';
 
 // The daemon exits after this long without editors connected or API calls.
 const IDLE_MS = Number(process.env.NIB_IDLE_MS ?? 30 * 60_000);
@@ -33,7 +34,9 @@ const images = (file: string) => {
     },
   };
 };
-const host = new DocumentHost({ renderer, images, exporters: EXPORTERS });
+const keys = new Keys(NIB_HOME);
+const pictures = new Pictures({ key: () => keys.get('openai-images', 'OPENAI_API_KEY') });
+const host = new DocumentHost({ renderer, images, exporters: EXPORTERS, pictures });
 browser = new BrowserService({ host, home: NIB_HOME, fonts });
 const agent = new AgentService({
   home: NIB_HOME,
@@ -43,19 +46,18 @@ const agent = new AgentService({
     restore: async (doc, data, label) => { await host.restore(doc, data, { kind: 'user' }, label); },
   },
 });
-const w33dKeys = new Keys(NIB_HOME);
 const editorDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'editor', 'dist');
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 const daemon = await startDaemon({
-  host, renderer, browser, agent, fonts, projectFonts, systemFonts, icons, images, fallbacks,
+  host, renderer, browser, agent, pictures, fonts, projectFonts, systemFonts, icons, images, fallbacks,
   // Publishing to w33d: sign in with w33d's SSO, publish through nib-publish. The session sits with API keys.
   w33d: {
     issuer: process.env.NIB_W33D_ISSUER ?? 'https://sso.w33d.xyz',
     clientId: process.env.NIB_W33D_CLIENT ?? 'nib-desktop',
     publishBase: process.env.NIB_W33D_PUBLISH ?? 'https://nib.w33d.xyz',
     userAgent: `nib/${DAEMON_VERSION}`,
-    store: { get: () => w33dKeys.get('w33d-session'), set: (v) => w33dKeys.set('w33d-session', v) },
+    store: { get: () => keys.get('w33d-session'), set: (v) => keys.set('w33d-session', v) },
   },
   siteExporter: EXPORTERS.site,
   port: Number(process.env.NIB_PORT ?? DEFAULT_PORT),

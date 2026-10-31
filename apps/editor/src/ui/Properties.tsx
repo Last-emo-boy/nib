@@ -124,6 +124,7 @@ export function Properties() {
           <button className="link" title={t.responsiveHint} onClick={() => void makeResponsive(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {(canvas.cache?.box(n.id)?.width ?? 0) > 808 ? t.makeResponsive : t.makePhoneVersion}</button>
         </Section>
       )}
+      {nodes.length === 1 && !parts.length && conn && ['frame', 'rectangle', 'ellipse', 'polygon'].includes(n.type) && !hasSketch(n as Node) && <Picture path={conn.path} id={n.id} t={t} />}
       {nodes.length === 1 && !parts.length && n.type === 'frame' && !doc.locate(n.id)?.parent && !hasSketch(n as Node) && conn && <Implementation path={conn.path} id={n.id} t={t} />}
       {nodes.length === 1 && !parts.length && hasSketch(n as Node) && (
         <Section title={t.sketch}>
@@ -454,6 +455,50 @@ function Typography({ t, shown, set }: { t: Strings; shown: (k: string) => any; 
           <option value="auto">auto</option><option value="fixed-width">fixed width</option><option value="fixed-width-height">fixed</option>
         </select>
       </div>
+    </Section>
+  );
+}
+
+/** A picture for the layer's fill: a stock photo of what the person describes, or one an image model makes. */
+function Picture({ path, id, t }: { path: string; id: string; t: Strings }) {
+  const [prompt, setPrompt] = useState('');
+  const [busy, setBusy] = useState<'stock' | 'image' | undefined>();
+  const [last, setLast] = useState<{ kind: 'stock' | 'image'; prompt: string; index: number; credit?: string } | undefined>();
+  const [needKey, setNeedKey] = useState(false);
+  useEffect(() => { setLast(undefined); setNeedKey(false); }, [id]);
+  const run = async (kind: 'stock' | 'image', index = 0) => {
+    const what = prompt.trim() || last?.prompt;
+    if (!what) return;
+    setBusy(kind);
+    try {
+      const r = await post<{ url: string; credit?: string }>('/api/picture', { doc: path, node: id, kind, prompt: what, index });
+      setLast({ kind, prompt: what, index, ...(r.credit ? { credit: r.credit } : {}) });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (/OpenAI API key/.test(message)) setNeedKey(true); else toast(message);
+    } finally {
+      setBusy(undefined);
+    }
+  };
+  return (
+    <Section title={t.picture}>
+      <input className="picture-prompt" placeholder={t.picturePrompt} value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') void run('stock'); }} />
+      <div className="row">
+        <button className="link" disabled={!!busy || !(prompt.trim() || last)} title={t.stockPhotoHint} onClick={() => void run('stock')}>{busy === 'stock' ? t.searching : t.stockPhoto}</button>
+        {last?.kind === 'stock' && last.index < 9 && <button className="link" disabled={!!busy} onClick={() => void run('stock', last.index + 1)}>{t.anotherPhoto}</button>}
+        <button className="link" disabled={!!busy || !(prompt.trim() || last)} title={t.makePictureHint} onClick={() => void run('image')}>{busy === 'image' ? t.making : t.makePicture}</button>
+      </div>
+      {last?.credit && <div className="picture-credit">{last.credit}</div>}
+      {needKey && (
+        <div className="picture-key">
+          <div className="picture-credit">{t.imageKeyHint}</div>
+          <input type="password" placeholder="sk-…" onKeyDown={(e) => {
+            e.stopPropagation();
+            const key = e.currentTarget.value.trim();
+            if (e.key === 'Enter' && key) void post('/api/agent/key', { provider: 'openai-images', key }).then(() => { setNeedKey(false); void run('image'); }).catch((err: Error) => toast(err.message));
+          }} />
+        </div>
+      )}
     </Section>
   );
 }

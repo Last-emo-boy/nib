@@ -21,6 +21,7 @@ import { planVariants, variantPrompt } from './agent/variants.ts';
 import { planResponsive, responsivePrompt } from './agent/responsive.ts';
 import { helperPrompt, helperTasks } from './agent/helpers.ts';
 import { planStress, SCENARIOS, type Scenario } from './stress.ts';
+import type { Pictures } from './pictures.ts';
 import type { Exporter } from '@nib/exec';
 import type { AgentService } from './agent/service.ts';
 
@@ -33,6 +34,8 @@ export interface DaemonOptions {
   renderer: Renderer;
   /** The `browser` tool; without it the endpoint answers that no browser is available. */
   browser?: BrowserService;
+  /** Stock photos and pictures made by an image model, for layers' fills. */
+  pictures?: Pictures;
   /** nib's own agent; without it the agent endpoints answer that there is none. */
   agent?: AgentService;
   fonts: FontLoader;
@@ -186,6 +189,26 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const doc = q.get('doc') ?? '';
         if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
         return send(res, 200, { items: (await host.review(doc, q.get('frame') ?? undefined)) as unknown as Json[] });
+      }
+      case 'GET /api/picture/status':
+        return send(res, 200, { stock: !!opts.pictures, make: (await opts.pictures?.canMake()) ?? false });
+      case 'POST /api/picture': {
+        // A picture for a layer's fill, chosen in the editor: a stock photo, or one an image model makes.
+        if (!opts.pictures) return send(res, 404, { error: 'this nib has no picture service' });
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || typeof body.node !== 'string' || (body.kind !== 'stock' && body.kind !== 'image') || typeof body.prompt !== 'string' || !body.prompt.trim()) return send(res, 400, { error: 'doc, node, kind and prompt are required' });
+        const open = await host.open(body.doc);
+        const node = open.session.doc.get(body.node);
+        if (!node || !['frame', 'rectangle', 'ellipse', 'polygon', 'path'].includes(node.type)) return send(res, 400, { error: 'pictures fill frames, rectangles and ellipses' });
+        const b = open.session.box(body.node);
+        const index = Math.min(9, Math.max(0, Math.floor(Number(body.index) || 0)));
+        try {
+          const r = await opts.pictures.make({ kind: body.kind, prompt: body.prompt.trim(), width: Math.max(64, Math.round(b?.width ?? 512)), height: Math.max(64, Math.round(b?.height ?? 512)), index }, dirname(open.path));
+          await host.edit(open.path, [{ op: 'set', id: body.node, props: { fill: { type: 'image', url: r.url, mode: 'cover' } } }], { kind: 'user' }, body.kind === 'stock' ? 'Stock photo' : 'Generated picture');
+          return send(res, 200, { url: r.url, ...(r.credit ? { credit: r.credit } : {}) });
+        } catch (e) {
+          return send(res, 400, { error: (e as Error).message });
+        }
       }
       case 'POST /api/stress': {
         // Copies of a frame with long text, other scripts, the dark theme and a narrow width, reviewed for

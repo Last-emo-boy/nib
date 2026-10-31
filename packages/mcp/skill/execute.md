@@ -85,9 +85,27 @@ Adds or changes variables (`replace: true` replaces them all). See `variables.md
 SetVariables({bg: {type: "color", value: "#ffffff"}, "radius-card": {type: "number", value: 12}})
 ```
 
-### `Generate(...)`
+### `Generate(path, kind, prompt, options?) → url`
 
-Image generation is not available in nib yet. Use image fills with an image URL or a file path relative to the .pen file.
+Fills a frame, rectangle or ellipse with a picture of what `prompt` describes, cropped to cover it, and returns the picture's path:
+
+- `"stock"`: a photo, openly licensed, from Openverse or Wikimedia Commons (no key needed). Its credit (title, author, license, source) is printed in the reply and kept in `images/CREDITS.md`. `options.index` (0–9) takes the next best matches when the first does not fit. Describe what is in the photo in plain words: `"woman reading by a window"`, not adjectives about mood.
+- `"image"`: a picture an image model makes from the prompt (needs the person's OpenAI key; without one the call fails and says so, so use `"stock"`).
+
+Pictures are saved in an `images` folder next to the .pen file. Size the layer first: the picture is chosen and made for its shape.
+
+```js
+hero = Insert(page, {type: "frame", name: "Hero photo", width: "fill_container", height: 320, cornerRadius: 16})
+Generate(hero, "stock", "mountain lake at sunrise")
+```
+
+### `InsertSvg(parent, svg, props?) → id`
+
+SVG markup as editable layers: a frame the size of the drawing holding its shapes as paths, inserted like `Insert` (`props` sets the frame's name, position and size). Use it to draw illustrations, logos and icons nib's icon sets do not have: write the SVG yourself, keeping it to shapes and paths (text and embedded images are left out).
+
+```js
+logo = InsertSvg(header, '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#2F6FEB"/><path d="M14 26l7 7 13-15" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/></svg>', {name: "Logo", width: 32, height: 32})
+```
 
 ## Reading
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { BrowserService, DocumentHost, NIB_HOME } from '@nib/daemon';
+import { BrowserService, DocumentHost, Keys, NIB_HOME, Pictures } from '@nib/daemon';
 import { EXPORTERS } from '@nib/export';
 import { createNodeRenderer, FallbackFontLoader, GoogleFontsLoader, imagesFor, SystemFontLoader } from '@nib/render/node';
 import { DaemonHost, LocalHost, type McpHost } from './hosts.ts';
@@ -15,7 +15,9 @@ async function host(): Promise<McpHost> {
       process.stderr.write(`nib: daemon unavailable (${(e as Error).message}); working headless\n`);
     }
   }
-  const host = new DocumentHost({ renderer: await createNodeRenderer(), images: imagesFor, exporters: EXPORTERS });
+  const keys = new Keys(NIB_HOME);
+  const pictures = new Pictures({ key: () => keys.get('openai-images', 'OPENAI_API_KEY') });
+  const host = new DocumentHost({ renderer: await createNodeRenderer(), images: imagesFor, exporters: EXPORTERS, pictures });
   return new LocalHost(host, new BrowserService({ host, home: NIB_HOME, fonts: new FallbackFontLoader(new GoogleFontsLoader(), new SystemFontLoader()) }));
 }
 

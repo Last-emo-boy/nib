@@ -277,6 +277,40 @@ Compare("box", ${JSON.stringify(join(dir, 'tall.png'))})`);
     expect(clean.text).toContain('card "Card": nothing to point out.');
   });
 
+  it('fills a layer with a picture Generate gets, running the snippet again once it is here', async () => {
+    const doc = new PenDoc({ version: '2.20', children: [{ type: 'frame', id: 'card', x: 0, y: 0, width: 300, height: 200, layout: 'none', children: [] }] } as unknown as PenDocument);
+    const asked: unknown[] = [];
+    const s = await ExecSession.open(doc, { renderer, images: noImages, baseDir: tmpdir(), pictures: async (req) => {
+      asked.push(req);
+      if (req.prompt === 'nothing') throw new Error('no stock photo matches "nothing"');
+      return { url: `images/${req.kind}-${req.index}.jpg`, credit: '"Lake" by Ann, CC BY 4.0, https://example.org/lake' };
+    } });
+    const r = await s.execute({ input: 'n = 0; n++; photo = Insert("card", {type: "rectangle", width: 300, height: 120}); url = Generate(photo, "stock", "calm lake"); Print(url, n)' });
+    expect(r.ok, r.text).toBe(true);
+    // Asked once, at the layer's size; the snippet ran again from the start (n is 1, not 2).
+    expect(asked).toEqual([{ kind: 'stock', prompt: 'calm lake', width: 300, height: 120, index: 0 }]);
+    expect(r.text).toContain('images/stock-0.jpg 1');
+    expect(r.text).toContain('Picture in');
+    expect(r.text).toContain('"Lake" by Ann, CC BY 4.0');
+    const photo = (doc.data.children[0] as unknown as { children: { fill?: unknown }[] }).children.at(-1)!;
+    expect(photo.fill).toEqual({ type: 'image', url: 'images/stock-0.jpg', mode: 'cover' });
+    const bad = await s.execute({ input: 'Generate("card", "stock", "nothing")' });
+    expect(bad.ok).toBe(false);
+    expect(bad.text).toContain('Generate: no stock photo matches "nothing"');
+    expect((await s.execute({ input: 'Generate("card", "video", "x")' })).text).toContain('kind is "stock"');
+  });
+
+  it('inserts SVG markup as editable layers', async () => {
+    const { doc, run } = await session([{ type: 'frame', id: 'page', x: 0, y: 0, width: 400, height: 400, layout: 'none', children: [] }]);
+    const r = await run('logo = InsertSvg("page", \'<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#2F6FEB"/><path d="M14 26l7 7 13-15" stroke="#fff" stroke-width="4" fill="none"/><text x="0" y="10">Hi</text></svg>\', {name: "Logo", x: 10, y: 10, width: 96, height: 96})');
+    expect(r.ok, r.text).toBe(true);
+    expect(r.text).toContain('left out what nib cannot draw as layers: 1 text');
+    const logo = (doc.data.children[0] as { children: { name: string; width: number; children: { type: string }[] }[] }).children[0];
+    expect(logo).toMatchObject({ name: 'Logo', width: 96 });
+    expect(logo.children.map((c) => c.type)).toEqual(['path', 'path']);
+    expect((await run('InsertSvg("page", "not svg")')).text).toContain('InsertSvg: the second argument is SVG markup');
+  });
+
   it('stops endless loops', async () => {
     const doc = new PenDoc({ version: '2.20', children: [] } as unknown as PenDocument);
     const s = await ExecSession.open(doc, { renderer, images: noImages, baseDir: tmpdir(), timeoutMs: 200 });

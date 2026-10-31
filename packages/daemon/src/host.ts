@@ -6,7 +6,8 @@ import { applyOp, childrenOf, DocEditor, PenDoc, type Op } from '@nib/core';
 import { parsePen, serializePen, type Node, type PenDocument, type Variable } from '@nib/format';
 import { importTree, loadPen, syncImports, type ImportTree } from './imports.ts';
 import { noteOpened } from './library.ts';
-import { ExecSession, partsOf, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat, type Problem, type ReviewItem } from '@nib/exec';
+import { ExecSession, partsOf, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat, type PictureRequest, type Problem, type ReviewItem } from '@nib/exec';
+import type { Pictures } from './pictures.ts';
 import type { ImageLoader, Renderer } from '@nib/render';
 
 /** Version written into new documents: the newest seen in files pen.dev saved. */
@@ -56,6 +57,8 @@ export interface HostOptions {
   timeoutMs?: number;
   /** Watch open files and reload them when they change on disk. Default true. */
   watch?: boolean;
+  /** Where Generate gets pictures (absent: it fails, saying so). */
+  pictures?: Pictures;
 }
 
 const HISTORY_LIMIT = 200;
@@ -98,6 +101,7 @@ export class DocumentHost {
         baseDir: dirname(path),
         exporters: this.opts.exporters,
         timeoutMs: this.opts.timeoutMs,
+        ...(this.opts.pictures ? { pictures: (req: PictureRequest) => this.opts.pictures!.make(req, dirname(path)) } : {}),
       });
       open = { path, session, images, text, mtimeMs, queue: Promise.resolve(), version: 0, undo: [], redo: [], listeners: new Set(), pending: [] };
       this.docs.set(path, open);

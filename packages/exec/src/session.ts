@@ -3,7 +3,7 @@ import { basename, join, resolve as resolvePath } from 'node:path';
 import type { Node } from '@nib/format';
 import { buildScene, childrenOf, DocEditor, type Op, type PenDoc, type SceneNode } from '@nib/core';
 import { CELL_NAMES, comparePixels, cropPixels, decodePixels, encodePng, FontsNotLoaded, parseColor, resizePixels, type FontFace, type ImageLoader, type Pixels, type Renderer } from '@nib/render';
-import { PenApi, type ApiOutput, type CapturedScene, type CompareReference, type ExportFormat, type ExportOptions } from './api.ts';
+import { pictureKey, PenApi, PicturesNeeded, type ApiOutput, type CapturedScene, type CompareReference, type ExportFormat, type ExportOptions, type PictureRequest, type PictureResult } from './api.ts';
 import { BoundsCache, problemOf, type LayoutFn } from './bounds.ts';
 import { assetIssues, layoutIssues, variableIssues, type Problem } from './checks.ts';
 import { reviewIssues, type ReviewItem } from './review.ts';
@@ -44,11 +44,14 @@ export interface SessionOptions {
   exporters?: Partial<Record<ExportFormat, Exporter>>;
   /** Map every resolved export path, e.g. to keep a test run's files inside a scratch folder. */
   exportPath?: (path: string) => string;
+  /** Get a picture for Generate: saved next to the .pen file, its url relative to it (absent: Generate fails). */
+  pictures?: (req: PictureRequest) => Promise<{ url: string; credit?: string }>;
 }
 
 const SCREENSHOT_SIDE = 1568;
 const COMPARE_SIDE = 1600;
 const MAX_FONT_RETRIES = 4;
+const MAX_PICTURE_RETRIES = 6;
 const MIME: Record<string, string> = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp' };
 
 /**
@@ -62,6 +65,8 @@ export class ExecSession {
   private editor: DocEditor;
   private bounds: BoundsCache;
   private failed = new Map<string, string>();
+  /** Pictures Generate has asked for in this session, by request. */
+  private pictureCache = new Map<string, PictureResult>();
 
   private constructor(doc: PenDoc, sandbox: Sandbox, opts: SessionOptions) {
     this.current = doc;
@@ -197,12 +202,27 @@ export class ExecSession {
       code = req.input;
     }
 
-    for (let attempt = 0; ; attempt++) {
+    for (let attempt = 0, fetched = 0; ; attempt++) {
       const run = this.attempt(code);
       if (run.kind === 'fonts' && attempt < MAX_FONT_RETRIES) {
         await this.opts.renderer.fonts.ensure(run.faces);
         continue;
       }
+      // Pictures Generate asks for are got, then the snippet runs again from the start and finds them.
+      if (run.kind === 'pictures' && fetched++ < MAX_PICTURE_RETRIES) {
+        attempt--;
+        for (const r of run.requests) {
+          let got: PictureResult;
+          try {
+            got = this.opts.pictures ? await this.opts.pictures(r) : { error: 'pictures cannot be got here (this nib has no picture service)' };
+          } catch (e) {
+            got = { error: (e as Error).message };
+          }
+          this.pictureCache.set(pictureKey(r), got);
+        }
+        continue;
+      }
+      if (run.kind === 'pictures') return failure('Generate asked for too many pictures in one snippet: ask for at most 6 at a time.');
       if (run.kind !== 'ok') {
         const error: SnippetError = run.kind === 'fonts' ? { name: 'Error', message: `fonts could not be loaded: ${run.faces.map((f) => f.family).join(', ')}` } : run.error;
         editId ??= newEditId(this.failed);
@@ -224,11 +244,13 @@ export class ExecSession {
   private attempt(code: string):
     | { kind: 'ok'; out: ApiOutput; globals: Record<string, string>; ops: Op[]; undo: Op[] }
     | { kind: 'fonts'; faces: FontFace[] }
+    | { kind: 'pictures'; requests: PictureRequest[] }
     | { kind: 'error'; error: SnippetError; out: ApiOutput } {
     this.editor.begin();
     this.bounds.invalidate();
-    const api = new PenApi(this.doc, this.editor, this.bounds);
+    const api = new PenApi(this.doc, this.editor, this.bounds, (key) => this.pictureCache.get(key));
     let fonts: FontFace[] | undefined;
+    let pictures: PictureRequest[] | undefined;
     let internal: unknown;
     const host = (name: string, args: unknown[]) => {
       const fn = (api as unknown as Record<string, (...a: unknown[]) => unknown>)[name];
@@ -241,16 +263,18 @@ export class ExecSession {
         this.editor.rollbackTo(savepoint);
         this.bounds.invalidate();
         if (e instanceof FontsNotLoaded) { fonts = e.faces; throw e; }
+        if (e instanceof PicturesNeeded) { pictures = e.requests; throw e; }
         if (!(e instanceof ExecError)) internal ??= e;
         throw e;
       }
     };
-    const result = this.sandbox.run(code, host, { timeoutMs: this.opts.timeoutMs, abort: () => fonts !== undefined });
-    if (fonts || internal || !result.ok) {
+    const result = this.sandbox.run(code, host, { timeoutMs: this.opts.timeoutMs, abort: () => fonts !== undefined || pictures !== undefined });
+    if (fonts || pictures || internal || !result.ok) {
       this.editor.rollback();
       this.bounds.invalidate();
       if (result.ok) this.sandbox.restoreGlobals();
       if (fonts) return { kind: 'fonts', faces: fonts };
+      if (pictures) return { kind: 'pictures', requests: pictures };
       if (internal) {
         const e = internal instanceof Error ? internal : new Error(String(internal));
         const err = result.ok ? { name: 'InternalError', message: '' } : result.error;

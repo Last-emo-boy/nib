@@ -11,6 +11,7 @@ import { Icon } from './Icon.tsx';
 import { Components, Libraries } from './Libraries.tsx';
 import type { IconName } from './icons.ts';
 import { Slides } from './Slides.tsx';
+import { loadAgent, openSession, sendMessage } from '../app/agent.ts';
 
 export function typeIcon(n: Node): IconName {
   if (n.reusable) return 'component';
@@ -250,30 +251,65 @@ function VarValue({ v, value, onChange }: { v: Variable; value: unknown; onChang
 }
 
 /** Problems the daemon finds in the whole document; refreshed after changes. */
+type Finding = { id: string; message: string; kind?: string };
+
 function Problems() {
   const t = useT();
   const conn = useEditor((s) => s.conn);
   const version = useEditor((s) => s.version);
   const doc = useEditor((s) => s.doc);
-  const [problems, setProblems] = useState<{ id: string; message: string }[] | undefined>();
+  const selection = useEditor((s) => s.selection);
+  const [problems, setProblems] = useState<Finding[] | undefined>();
+  const [review, setReview] = useState<Finding[]>([]);
+  // The review covers the selected top-level frame, else the whole document.
+  const top = selection.length === 1 ? doc?.topLevel(selection[0])?.id : undefined;
   useEffect(() => {
     if (!conn) return;
     const h = setTimeout(() => {
       fetch(`/api/problems?${new URLSearchParams({ doc: conn.path })}`, { headers: authHeaders() })
         .then((r) => r.json()).then((j) => setProblems(j.problems ?? [])).catch(() => setProblems([]));
+      fetch(`/api/review?${new URLSearchParams({ doc: conn.path, ...(top ? { frame: top } : {}) })}`, { headers: authHeaders() })
+        .then((r) => r.json()).then((j) => setReview(j.items ?? [])).catch(() => setReview([]));
     }, 400);
     return () => clearTimeout(h);
-  }, [conn, version]);
+  }, [conn, version, top]);
   if (!problems) return <p className="empty">{t.loading}</p>;
-  if (!problems.length) return <p className="empty">{t.noProblems}</p>;
+  const show = (id: string) => { if (doc?.has(id)) { store.set({ selection: [id] }); const b = boundsOf([id]); if (b) store.set({ view: fitView(b, 2) }); } };
+  const row = (p: Finding, i: number) => (
+    <button key={i} className="problem" onClick={() => show(p.id)}>
+      <span className="problem-node">{doc?.get(p.id) ? layerName(doc, doc.get(p.id)!) : p.id}</span>
+      <span className="problem-text">{p.message}</span>
+    </button>
+  );
+  const scope = top && doc?.get(top) ? layerName(doc, doc.get(top)!) : t.wholeDocument;
+  const ask = async (text: string, ids: string[]) => {
+    if (!conn) return;
+    store.set({ agentOpen: true, activityOpen: false, browserOpen: false });
+    try {
+      await loadAgent(conn.path);
+      await openSession(undefined);
+      await sendMessage(conn.path, text, ids);
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  };
+  const kinds = ['contrast', 'small-text', 'touch-target', 'cut-off', 'alignment', 'spacing'] as const;
   return (
     <div className="problems">
-      {problems.map((p, i) => (
-        <button key={i} className="problem" onClick={() => { if (doc?.has(p.id)) { store.set({ selection: [p.id] }); const b = boundsOf([p.id]); if (b) store.set({ view: fitView(b, 2) }); } }}>
-          <span className="problem-node">{doc?.get(p.id) ? layerName(doc, doc.get(p.id)!) : p.id}</span>
-          <span className="problem-text">{p.message}</span>
-        </button>
-      ))}
+      <div className="review-head">
+        <span className="review-title">{t.designReview} · {scope}</span>
+        <div className="review-actions">
+          {review.length > 0 && <button className="link" onClick={() => void ask(t.fixReviewPrompt(scope, review.slice(0, 30).map((r) => `- ${r.id}: ${r.message}`).join('\n')), [...new Set(review.slice(0, 30).map((r) => r.id))])}>{t.fixWithAgent}</button>}
+          <button className="link" onClick={() => void ask(t.reviewPrompt(scope, top), top ? [top] : [])}>{t.askAgentReview}</button>
+        </div>
+      </div>
+      {!review.length && <p className="empty small">{t.reviewClean}</p>}
+      {kinds.map((k) => {
+        const items = review.filter((r) => r.kind === k);
+        return items.length ? <div key={k}><div className="review-kind">{t.reviewKinds[k]} · {items.length}</div>{items.map(row)}</div> : null;
+      })}
+      <div className="review-head"><span className="review-title">{t.problems}</span></div>
+      {problems.length ? problems.map(row) : <p className="empty small">{t.noProblems}</p>}
     </div>
   );
 }

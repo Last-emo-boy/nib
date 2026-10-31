@@ -238,6 +238,33 @@ Compare("box", ${JSON.stringify(join(dir, 'tall.png'))})`);
     expect(bad.text).toContain('neither a node of this document nor an image file');
   });
 
+  it('reviews a design: contrast, small text, tap targets, cut-off text, near alignment, uneven gaps', async () => {
+    const rect = (id: string, x: number, y: number, width: number, height: number, fill = '#DDDDDD') => ({ type: 'rectangle', id, x, y, width, height, fill });
+    const text = (id: string, x: number, y: number, content: string, extra: object = {}) => ({ type: 'text', id, x, y, content, fontSize: 14, fill: '#111111', ...extra });
+    const { s } = await session([{ type: 'frame', id: 'page', name: 'Phone', x: 0, y: 0, width: 400, height: 400, fill: '#FFFFFF', layout: 'none', children: [
+      text('faint', 10, 10, 'Faint', { fill: '#CCCCCC' }),
+      text('ok', 10, 40, 'Fine'),
+      rect('card', 200, 10, 150, 100, '#1C7ED6'),
+      text('on-card', 210, 20, 'Big', { fill: '#FFFFFF', fontSize: 24, fontWeight: '700' }),
+      text('tiny', 10, 70, 'Tiny', { fontSize: 9 }),
+      { type: 'frame', id: 'buy', name: 'Buy button', x: 10, y: 100, width: 80, height: 20, fill: '#000000' },
+      { type: 'frame', id: 'clipper', name: 'Clipper', x: 200, y: 120, width: 100, height: 40, layout: 'none', clip: true, children: [text('long', 60, 5, 'A long line of text here', { fontSize: 16 })] },
+      rect('a', 10, 150, 50, 30), rect('b', 12, 200, 50, 30),
+      rect('r1', 20, 300, 30, 30), rect('r2', 60, 300, 30, 30), rect('r3', 102, 300, 30, 30),
+    ] }]);
+    const items = await s.review();
+    const by = (kind: string) => items.filter((i) => i.kind === kind).map((i) => i.id);
+    expect(by('contrast')).toEqual(['faint']);
+    expect(items.find((i) => i.kind === 'contrast')!.message).toMatch(/contrast with what is behind it is 1\.\d:1, and text needs 4\.5:1/);
+    expect(by('small-text')).toEqual(['tiny']);
+    expect(by('touch-target')).toEqual(['buy']);
+    expect(items.find((i) => i.kind === 'touch-target')!.message).toContain('at least 44×44');
+    expect(by('cut-off')).toEqual(['long']);
+    // Only the odd one out: everything else in its column shares the left edge it misses by 2px.
+    expect(by('alignment')).toEqual(['b']);
+    expect(items.find((i) => i.kind === 'spacing')!.message).toBe('The row of r1, r2, r3 in "Phone" has gaps of 10, 12px: make them equal (or use a layout with a gap).');
+  });
+
   it('stops endless loops', async () => {
     const doc = new PenDoc({ version: '2.20', children: [] } as unknown as PenDocument);
     const s = await ExecSession.open(doc, { renderer, images: noImages, baseDir: tmpdir(), timeoutMs: 200 });

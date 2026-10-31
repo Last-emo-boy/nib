@@ -584,3 +584,10 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .agent-variant-tabs button.gone { text-decoration: line-through; opacity: 0.6; }
 .agent-variant-tabs .spinner { width: 9px; height: 9px; }
 .agent-bar .agent-sel { white-space: nowrap; flex: none; }
+
+/* Design review */
+.review-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 4px; flex-wrap: wrap; }
+.review-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-actions { display: flex; gap: 10px; }
+.review-kind { color: var(--dim); font-size: 11px; padding: 6px 8px 2px; }
+.empty.small { padding: 4px 8px 8px; font-size: 11px; }

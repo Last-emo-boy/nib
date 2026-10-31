@@ -6,6 +6,7 @@ import { CELL_NAMES, comparePixels, decodePixels, encodePng, FontsNotLoaded, res
 import { PenApi, type ApiOutput, type CapturedScene, type CompareReference, type ExportFormat, type ExportOptions } from './api.ts';
 import { BoundsCache, problemOf, type LayoutFn } from './bounds.ts';
 import { assetIssues, layoutIssues, variableIssues, type Problem } from './checks.ts';
+import { reviewIssues, type ReviewItem } from './review.ts';
 import { ExecError } from './errors.ts';
 import { Sandbox, type SnippetError } from './sandbox.ts';
 
@@ -119,6 +120,18 @@ export class ExecSession {
     }
     out.push(...assetIssues(this.opts.renderer, scenes, ids, this.opts.renderer.report(this.opts.images).missingImages));
     return out;
+  }
+
+  /** A design review of the document, or of one top-level frame (see review.ts). */
+  async review(scope?: string): Promise<ReviewItem[]> {
+    const doc = this.current;
+    await this.loadScenes(scope ? doc.data.children.filter((n) => n.id === scope) : doc.data.children);
+    try {
+      return reviewIssues(doc, (id) => this.bounds.box(id), scope);
+    } catch (e) {
+      if (e instanceof FontsNotLoaded) return [];
+      throw e;
+    }
   }
 
   /** Layout box of a document node, relative to its parent; undefined when hidden or its fonts are not loaded. */

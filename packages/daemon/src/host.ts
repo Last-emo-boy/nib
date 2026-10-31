@@ -6,7 +6,7 @@ import { applyOp, childrenOf, DocEditor, PenDoc, type Op } from '@nib/core';
 import { parsePen, serializePen, type Node, type PenDocument, type Variable } from '@nib/format';
 import { importTree, loadPen, syncImports, type ImportTree } from './imports.ts';
 import { noteOpened } from './library.ts';
-import { ExecSession, partsOf, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat, type Problem } from '@nib/exec';
+import { ExecSession, partsOf, type ExecuteRequest, type ExecuteResult, type Exporter, type ExportFormat, type Problem, type ReviewItem } from '@nib/exec';
 import type { ImageLoader, Renderer } from '@nib/render';
 
 /** Version written into new documents: the newest seen in files pen.dev saved. */
@@ -204,6 +204,11 @@ export class DocumentHost {
   problems(path: string): Promise<Problem[]> {
     const open = this.require(path);
     return this.enqueue(open, () => open.session.problems());
+  }
+
+  review(path: string, scope?: string): Promise<ReviewItem[]> {
+    const open = this.require(path);
+    return this.enqueue(open, () => open.session.review(scope));
   }
 
   /** Write a copy of the document to `target` (not overwriting a file) and return its absolute path. */

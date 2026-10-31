@@ -177,6 +177,12 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
         return send(res, 200, { problems: await host.problems(doc) });
       }
+      case 'GET /api/review': {
+        // A design review of the document, or of one top-level frame.
+        const doc = q.get('doc') ?? '';
+        if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
+        return send(res, 200, { items: (await host.review(doc, q.get('frame') ?? undefined)) as unknown as Json[] });
+      }
       case 'GET /api/tokens': {
         // The document's variables as CSS variables, a Tailwind theme, or W3C design tokens JSON.
         const open = await host.open(q.get('doc') ?? '');

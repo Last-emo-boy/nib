@@ -79,23 +79,35 @@ describe('nib-publish', () => {
     const r = await put('usr_a', 'quill', { name: 'Quill', visibility: 'private', files });
     expect(r.status).toBe(201);
     const site = await r.json();
-    expect(site).toMatchObject({ slug: 'quill', visibility: 'private', version: 1, url: 'https://nib.w33d.xyz/p/quill/' });
+    // One address, whatever the visibility.
+    expect(site).toMatchObject({ slug: 'quill', visibility: 'private', version: 1, url: 'https://nib.w33d.xyz/s/quill/' });
 
-    // Private: not behind the public door; behind the signed-in one for any w33d user.
-    expect((await fetch(`${base}/s/quill/`)).status).toBe(404);
+    // Private: anyone not signed in is sent to sign in (through /p/, an SSO route), and comes back to /s/.
+    const viewer = { 'x-auth-subject': 'usr_other', 'x-auth-sig': sig('usr_other') };
+    const away = await fetch(`${base}/s/quill/pricing.html?x=1`, { redirect: 'manual' });
+    expect([away.status, away.headers.get('location')]).toEqual([302, '/p/quill/pricing.html?x=1']);
+    // (A name with no site asks the same, so private names cannot be found out.)
+    expect((await fetch(`${base}/s/nothing-here/`, { redirect: 'manual' })).headers.get('location')).toBe('/p/nothing-here/');
     expect((await fetch(`${base}/p/quill/`)).status).toBe(401);
-    const page = await fetch(`${base}/p/quill/pricing.html`, { headers: { 'x-auth-subject': 'usr_other', 'x-auth-sig': sig('usr_other') } });
+    const back = await fetch(`${base}/p/quill/pricing.html?x=1`, { redirect: 'manual', headers: viewer });
+    expect([back.status, back.headers.get('location')]).toEqual([302, '/s/quill/pricing.html?x=1']);
+    expect(back.headers.get('set-cookie')).toMatch(/^nib_signin=1; Path=\/s\/quill\/;/);
+    const page = await fetch(`${base}/s/quill/pricing.html`, { headers: viewer });
     expect(await page.text()).toBe('<h1>Pricing</h1>');
     expect(page.headers.get('set-cookie')).toBeNull();
     expect(page.headers.get('cache-control')).toBe('private, no-cache');
+    expect((await fetch(`${base}/s/nothing-here/`, { headers: viewer })).status).toBe(404);
+    // A sign-in that did not reach the site does not loop.
+    expect((await fetch(`${base}/s/quill/`, { redirect: 'manual', headers: { cookie: 'a=b; nib_signin=1' } })).status).toBe(403);
     expect((await fetch(`${base}/s/quill`, { redirect: 'manual' })).headers.get('location')).toBe('/s/quill/');
     // A redirect from Siteflow to a path stays inside the site.
-    expect((await fetch(`${base}/p/quill/old`, { redirect: 'manual', headers: { 'x-auth-subject': 'usr_other', 'x-auth-sig': sig('usr_other') } })).headers.get('location')).toBe('/p/quill/pricing.html');
+    expect((await fetch(`${base}/s/quill/old`, { redirect: 'manual', headers: viewer })).headers.get('location')).toBe('/s/quill/pricing.html');
 
-    // Public now.
+    // Public now: the same address, for anyone.
     const pub = await fetch(`${base}/api/sites/quill`, { method: 'PATCH', headers: { ...as('usr_a'), 'content-type': 'application/json' }, body: '{"visibility":"public"}' });
     expect((await pub.json()).url).toBe('https://nib.w33d.xyz/s/quill/');
     expect(await (await fetch(`${base}/s/quill/`)).text()).toContain('<h1>Home</h1>');
+    expect(await (await fetch(`${base}/s/quill/`, { headers: viewer })).text()).toContain('<h1>Home</h1>');
 
     // Someone else cannot take or change the name.
     expect((await put('usr_b', 'quill', { files })).status).toBe(409);
@@ -111,7 +123,7 @@ describe('nib-publish', () => {
 
     // Down: not served, and the Siteflow project is archived.
     expect((await fetch(`${base}/api/sites/quill`, { method: 'DELETE', headers: as('usr_a') })).status).toBe(200);
-    expect((await fetch(`${base}/s/quill/`)).status).toBe(404);
+    expect((await fetch(`${base}/s/quill/`, { headers: viewer })).status).toBe(404);
     expect(siteflow.archived).toEqual([expect.stringMatching(/^p-nib-[0-9a-f]{10}$/)]);
   });
 

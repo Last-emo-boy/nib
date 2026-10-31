@@ -9,8 +9,9 @@ import { Sites, type Site } from './store.ts';
  * public or for w33d users only:
  *
  * - /api/…  (Sluice route auth=bearer) publish, list, change and take down one's own sites;
- * - /s/<slug>/…  (auth=public) public sites;
- * - /p/<slug>/…  (auth=sso) every site, for signed-in w33d users: private sites live only here.
+ * - /s/<slug>/…  (auth=sso-optional) every site, at one address whatever its visibility: Sluice passes the
+ *   signed-in w33d user when there is one; a private site sends anyone else to sign in first;
+ * - /p/<slug>/…  (auth=sso) only the way to sign in: Sluice signs the visitor in, and they go back to /s/.
  *
  * Files are kept by Siteflow; this service decides who may see them and serves them from there.
  */
@@ -66,9 +67,11 @@ async function readJson(req: IncomingMessage, limit: number): Promise<Record<str
 /** What the owner sees of a site. */
 const view = (s: Site, base: string) => ({
   slug: s.slug, name: s.name, visibility: s.visibility, version: s.version, files: s.files, bytes: s.bytes, created: s.created, updated: s.updated,
-  url: s.visibility === 'public' ? `${base}/s/${s.slug}/` : `${base}/p/${s.slug}/`,
-  privateUrl: `${base}/p/${s.slug}/`,
+  url: `${base}/s/${s.slug}/`,
 });
+
+/** Set when the sign-in door sends a visitor back, so a sign-in that does not reach the site cannot loop. */
+const SIGNIN_COOKIE = 'nib_signin';
 
 /** Files of a site from an upload: relative paths, an index.html, within the limits. */
 function filesOf(v: unknown): SiteFile[] {
@@ -154,15 +157,39 @@ export function startServer(cfg: Config, port: number, host = '0.0.0.0'): Promis
   }
 
   /** A file of site `slug` from Siteflow; `requireSignIn` for the private door (/p/). */
-  async function serve(req: IncomingMessage, res: ServerResponse, door: 's' | 'p', slug: string, rest: string, query: string): Promise<void> {
-    if (door === 'p') ssoIdentity(req.headers, cfg.gatewayKey);
-    const site = SLUG.test(slug) ? await cfg.sites.get(slug) : undefined;
-    // A private site behind the public door does not exist, as far as anyone can tell.
-    if (!site || (door === 's' && site.visibility !== 'public')) {
-      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
-      res.end('No such site.');
+  const text = (res: ServerResponse, status: number, body: string, headers: Record<string, string> = {}) => {
+    res.writeHead(status, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', ...headers });
+    res.end(body);
+  };
+
+  /** The sign-in door: Sluice has signed the visitor in (an SSO route); the site itself lives at /s/. */
+  function signedInDoor(req: IncomingMessage, res: ServerResponse, slug: string, rest: string, query: string): void {
+    ssoIdentity(req.headers, cfg.gatewayKey);
+    if (!SLUG.test(slug)) return text(res, 404, 'No such site.');
+    res.writeHead(302, {
+      location: `/s/${slug}/${rest}${query}`, 'cache-control': 'no-store',
+      'set-cookie': `${SIGNIN_COOKIE}=1; Path=/s/${slug}/; Max-Age=120; Secure; HttpOnly; SameSite=Lax`,
+    });
+    res.end();
+  }
+
+  /** A file of site `slug` from Siteflow, for anyone if the site is public, for signed-in w33d users if not. */
+  async function serve(req: IncomingMessage, res: ServerResponse, slug: string, rest: string, query: string): Promise<void> {
+    if (!SLUG.test(slug)) return text(res, 404, 'No such site.');
+    let viewer: Identity | undefined;
+    try { viewer = ssoIdentity(req.headers, cfg.gatewayKey); } catch { viewer = undefined; }
+    const site = await cfg.sites.get(slug);
+    // Not signed in: a private site (and a name with no site, so private ones cannot be told apart) asks
+    // for a sign-in first, unless one was just made and did not reach here.
+    if (!viewer && (!site || site.visibility === 'private')) {
+      if (new RegExp(`(?:^|;\\s*)${SIGNIN_COOKIE}=1(?:;|$)`).test(req.headers.cookie ?? '')) {
+        return text(res, 403, 'You signed in to w33d, but the sign-in did not reach this page. Open the link again in a moment.');
+      }
+      res.writeHead(302, { location: `/p/${slug}/${rest}${query}`, 'cache-control': 'no-store' });
+      res.end();
       return;
     }
+    if (!site) return text(res, 404, 'No such site.');
     const pass: Record<string, string> = {};
     for (const h of ['accept', 'accept-encoding', 'if-none-match', 'if-modified-since', 'range']) {
       const v = req.headers[h];
@@ -175,11 +202,10 @@ export function startServer(cfg: Config, port: number, host = '0.0.0.0'): Promis
       headers[k] = v;
     }
     // Private pages are not cached by shared caches.
-    headers['cache-control'] = site.visibility === 'private' || door === 'p' ? 'private, no-cache' : (typeof up.headers['cache-control'] === 'string' ? up.headers['cache-control'] : 'no-cache');
-    // Siteflow serves the site at its root; here it lives under /s/<slug>/ or /p/<slug>/, so redirects to a
-    // path stay inside the site.
+    headers['cache-control'] = site.visibility === 'private' ? 'private, no-cache' : (typeof up.headers['cache-control'] === 'string' ? up.headers['cache-control'] : 'no-cache');
+    // Siteflow serves the site at its root; here it lives under /s/<slug>/, so redirects to a path stay inside it.
     const location = up.headers.location;
-    if (typeof location === 'string' && location.startsWith('/') && !location.startsWith('//')) headers.location = `/${door}/${slug}${location}`;
+    if (typeof location === 'string' && location.startsWith('/') && !location.startsWith('//')) headers.location = `/s/${slug}${location}`;
     headers['x-content-type-options'] = 'nosniff';
     headers['referrer-policy'] = 'strict-origin-when-cross-origin';
     res.writeHead(up.statusCode ?? 502, headers);
@@ -197,7 +223,7 @@ export function startServer(cfg: Config, port: number, host = '0.0.0.0'): Promis
         if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'method not allowed');
         // Pages refer to each other relatively, so a site's address ends with a slash.
         if (m[3] === undefined) { res.writeHead(301, { location: `/${m[1]}/${m[2]}/${url.search}` }); res.end(); return; }
-        return serve(req, res, m[1] as 's' | 'p', m[2], m[3].slice(1), url.search);
+        return m[1] === 'p' ? signedInDoor(req, res, m[2], m[3].slice(1), url.search) : serve(req, res, m[2], m[3].slice(1), url.search);
       }
       if (path === '/') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });

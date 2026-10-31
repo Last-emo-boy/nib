@@ -62,11 +62,14 @@ beforeAll(async () => {
   const sfPort = await listen(siteflow);
   const publish = await startServer({ gatewayKey: KEY, audience: 'nib-desktop', publicBase: 'https://nib.w33d.xyz', siteflow: new Siteflow(`http://127.0.0.1:${sfPort}`, 'root', 'test'), sites: new Sites(join(dir, 'sites.json')) }, 0, '127.0.0.1');
   const publishPort = (publish.address() as { port: number }).port;
-  // Sluice: /api/ takes the bearer token's subject, /p/ a signed-in viewer, /s/ anyone; it signs what it vouches for.
+  // Sluice: /api/ takes the bearer token's subject; /p/ needs a signed-in viewer (else it would send them to
+  // sign in: 401 here), /s/ passes one when there is one; it signs what it vouches for.
   const gateway = createServer((req, res) => {
     const headers: Record<string, string> = { 'content-type': String(req.headers['content-type'] ?? '') };
     const path = req.url ?? '/';
-    const sub = path.startsWith('/api/') ? JSON.parse(Buffer.from(String(req.headers.authorization ?? '').split('.')[1] ?? '', 'base64url').toString() || '{}').sub : path.startsWith('/p/') ? String(req.headers['x-test-viewer'] ?? '') : '';
+    const viewer = String(req.headers['x-test-viewer'] ?? '');
+    if (path.startsWith('/p/') && !viewer) { res.writeHead(401).end(); return; }
+    const sub = path.startsWith('/api/') ? JSON.parse(Buffer.from(String(req.headers.authorization ?? '').split('.')[1] ?? '', 'base64url').toString() || '{}').sub : viewer;
     if (path.startsWith('/api/')) headers.authorization = String(req.headers.authorization ?? '');
     if (sub) Object.assign(headers, { 'x-auth-subject': sub, 'x-auth-sig': sign(sub) });
     const up = request({ host: '127.0.0.1', port: publishPort, method: req.method, path, headers }, (r) => { res.writeHead(r.statusCode ?? 502, r.headers); r.pipe(res); });
@@ -90,7 +93,7 @@ const api = async (path: string, body?: unknown) => {
   const r = await fetch(`http://127.0.0.1:${daemon.port}${path}`, { method: body === undefined ? 'GET' : 'POST', headers: { authorization: `Bearer ${daemon.token}`, 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   return { status: r.status, json: await r.json() };
 };
-const view = (path: string, viewer?: string) => fetch(`http://127.0.0.1:${gatewayPort}${path}`, { headers: viewer ? { 'x-test-viewer': viewer } : {} });
+const view = (path: string, viewer?: string) => fetch(`http://127.0.0.1:${gatewayPort}${path}`, { redirect: 'manual', headers: viewer ? { 'x-test-viewer': viewer } : {} });
 
 describe('publishing to w33d', () => {
   it('signs in with PKCE, publishes the design as a private site, makes it public, takes it down', async () => {
@@ -119,21 +122,22 @@ describe('publishing to w33d', () => {
     expect((await api(`/api/w33d/site?doc=${encodeURIComponent(path)}`)).json).toEqual({ suggested: 'quill-deck' });
 
     const pub = await api('/api/w33d/publish', { path, slug: 'quill', visibility: 'private' });
-    expect(pub.json.site).toMatchObject({ slug: 'quill', visibility: 'private', url: 'https://nib.w33d.xyz/p/quill/' });
-    // Private: only signed-in viewers, and not behind the public door.
-    expect((await view('/s/quill/')).status).toBe(404);
+    expect(pub.json.site).toMatchObject({ slug: 'quill', visibility: 'private', url: 'https://nib.w33d.xyz/s/quill/' });
+    // Private: anyone not signed in goes to sign in, and comes back to the same address.
+    expect((await view('/s/quill/')).headers.get('location')).toBe('/p/quill/');
     expect((await view('/p/quill/')).status).toBe(401);
-    const home = await (await view('/p/quill/', 'usr_viewer')).text();
+    expect((await view('/p/quill/', 'usr_viewer')).headers.get('location')).toBe('/s/quill/');
+    const home = await (await view('/s/quill/', 'usr_viewer')).text();
     expect(home).toContain('Quill');
     expect(home).toMatch(/href="pricing.html"/);
-    expect(await (await view('/p/quill/pricing.html', 'usr_viewer')).text()).toContain('Free, Pro, Team');
+    expect(await (await view('/s/quill/pricing.html', 'usr_viewer')).text()).toContain('Free, Pro, Team');
 
     expect((await api('/api/w33d/visibility', { path, visibility: 'public' })).json.site).toMatchObject({ visibility: 'public', url: 'https://nib.w33d.xyz/s/quill/' });
     expect(await (await view('/s/quill/')).text()).toContain('Quill');
     expect((await api(`/api/w33d/site?doc=${encodeURIComponent(path)}`)).json.site).toMatchObject({ slug: 'quill', visibility: 'public' });
 
     expect((await api('/api/w33d/unpublish', { path })).status).toBe(200);
-    expect((await view('/s/quill/')).status).toBe(404);
+    expect((await view('/s/quill/', 'usr_viewer')).status).toBe(404);
     expect((await api('/api/w33d/logout', {})).json).toEqual({ signedIn: false });
   });
 });

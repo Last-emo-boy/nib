@@ -62,7 +62,7 @@ function PublishW33d({ path, visit, copy }: { path: string; visit: (url: string)
       ) : (
         <>
           <div className="w33d-who"><span className="dim">{status.email ?? 'w33d'}</span><button className="link" onClick={() => void post('/api/w33d/logout', {}).then(refresh)}>{t.signOut}</button></div>
-          <label className="w33d-slug"><span className="dim">nib.w33d.xyz/{visibility === 'public' ? 's' : 'p'}/</span>
+          <label className="w33d-slug"><span className="dim">nib.w33d.xyz/s/</span>
             <input value={slug} disabled={!!site} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 40))} />
           </label>
           <div className="segmented">

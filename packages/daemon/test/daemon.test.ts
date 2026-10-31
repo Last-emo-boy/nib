@@ -300,6 +300,34 @@ describe('library', () => {
     await expect(fetch(`http://127.0.0.1:${on.port}/share/${r.id}/share.json`)).rejects.toThrow();
   });
 
+  it('renames and deletes drafts, and editors that have one open follow', async () => {
+    const draft = (await (await api('/api/new', { name: 'Rename me' })).json()).path as string;
+    const ed = await editor(draft);
+    const r = await (await api('/api/draft/rename', { path: draft, name: 'Landing page' })).json();
+    expect(r.path).toBe(join(dirname(draft), 'Landing page.pen'));
+    expect(await ed.next((m) => m.t === 'moved')).toMatchObject({ to: r.path });
+    expect(await stat(r.path)).toBeTruthy();
+    // A name cannot leave the drafts folder: slashes become dashes, and hidden (dot) names are refused.
+    expect((await api('/api/draft/rename', { path: r.path, name: '../escape' })).status).toBe(400);
+    const inside = (await (await api('/api/draft/rename', { path: r.path, name: 'Q3/Q4 plan' })).json()).path as string;
+    expect(inside).toBe(join(dirname(draft), 'Q3-Q4 plan.pen'));
+    await ed.next((m) => m.t === 'moved' && m.to === inside);
+    expect((await (await api('/api/draft/rename', { path: inside, name: 'Landing page' })).json()).path).toBe(r.path);
+    await ed.next((m) => m.t === 'moved' && m.to === r.path);
+    // Only drafts: files elsewhere are refused.
+    expect((await api('/api/draft/rename', { path: join(dir, 'a.pen'), name: 'x' })).status).toBe(400);
+    const other = (await (await api('/api/new', { name: 'Taken' })).json()).path as string;
+    expect((await api('/api/draft/rename', { path: other, name: 'Landing page' })).status).toBe(409);
+    const del = await (await api('/api/draft/delete', { path: r.path })).json();
+    expect(await ed.next((m) => m.t === 'deleted')).toMatchObject({ path: r.path });
+    expect(del.trashed).toMatch(/trash\/.* Landing page\.pen$/);
+    expect(await stat(del.trashed)).toBeTruthy();
+    expect(await stat(r.path).catch(() => undefined)).toBeUndefined();
+    const lib = await (await fetch(`http://127.0.0.1:${daemon.port}/api/library`, { headers: { authorization: `Bearer ${daemon.token}` } })).json();
+    expect(lib.drafts.some((d: { path: string }) => d.path === r.path)).toBe(false);
+    ed.close();
+  });
+
   it('makes a design system from a logo: reads its colors, writes a themed copy beside the design and imports it', async () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="#0CA678" width="10" height="10"/><rect fill="#0ca678"/><circle fill="#212529"/></svg>';
     const brand = await (await api('/api/brand/read', { image: Buffer.from(svg).toString('base64'), name: 'logo.svg' })).json();

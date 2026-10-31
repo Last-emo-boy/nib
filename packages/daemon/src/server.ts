@@ -1,5 +1,5 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { basename, dirname, extname, join, normalize, relative, resolve as resolvePath } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -7,7 +7,7 @@ import type { Op } from '@nib/core';
 import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } from '@nib/render';
 import { faceInfo, faceOffsets, type FolderFontLoader, type SystemFontLoader } from '@nib/render/node';
 import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
-import { DRAFTS_DIR, drafts, newDraft, NIB_HOME, nodePreview, recents, thumbnail } from './library.ts';
+import { draftFile, draftPath, DRAFTS_DIR, drafts, newDraft, NIB_HOME, nodePreview, recents, thumbnail, trashDraft, updateRecents } from './library.ts';
 import { aliasFor, brandLibrary, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
 import { brandFromPage, brandFromPalette, paletteFromPixels, paletteFromSvg, type Brand } from './brand.ts';
 import { templateDocument, templateFile, templates } from './templates.ts';
@@ -275,6 +275,25 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const alias = imports[body.id] === rel ? body.id : aliasFor(body.id, Object.keys(imports));
         if (imports[alias] !== rel) await host.addImport(open.path, alias, rel, { kind: 'user' });
         return send(res, 200, { alias, path: rel });
+      }
+      case 'POST /api/draft/rename': {
+        // A draft gets a name (it stays in the drafts folder, so its images still resolve).
+        const body = await readJson(req);
+        const from = draftFile(body.path), to = typeof body.name === 'string' ? draftPath(body.name) : undefined;
+        if (!from || !to) return send(res, 400, { error: 'path must be a draft and name a file name' });
+        if (to === from) return send(res, 200, { path: to });
+        if (await stat(to).catch(() => undefined)) return send(res, 409, { error: `a draft named "${basename(to, '.pen')}" already exists` });
+        if (host.list().some((d) => d.path === from)) await host.rename(from, to);
+        else { await rename(from, to); await updateRecents(from, to); }
+        return send(res, 200, { path: to });
+      }
+      case 'POST /api/draft/delete': {
+        // Into nib's trash (recoverable); editors that have it open leave it.
+        const body = await readJson(req);
+        const file = draftFile(body.path);
+        if (!file || !(await stat(file).catch(() => undefined))) return send(res, 400, { error: 'path must be an existing draft' });
+        await host.discard(file);
+        return send(res, 200, { trashed: await trashDraft(file) });
       }
       case 'POST /api/library/convert': {
         // "Turn this file into a library": x.pen becomes x.lib.pen, in place.

@@ -1,6 +1,7 @@
 import { applyOp, PenDoc, type Op } from '@nib/core';
 import type { PenDocument } from '@nib/format';
 import type { AgentEvent } from './agent.ts';
+import { openDashboard, openDocument } from './desktop.ts';
 
 declare const __NIB_DEV_TOKEN__: string;
 
@@ -146,6 +147,13 @@ export class Connection {
         break;
       case 'asset':
         this.emit({ t: 'asset', url: m.url });
+        break;
+      case 'moved':
+        // Renamed (from the dashboard, or into a library): follow the file.
+        openDocument(m.to);
+        break;
+      case 'deleted':
+        openDashboard();
         break;
       case 'agent':
         this.emit({ t: 'agent', event: m as AgentEvent });

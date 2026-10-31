@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { buildScene, type SceneNode } from '@nib/core';
@@ -32,6 +32,37 @@ export async function noteOpened(path: string): Promise<void> {
   const next = [{ path, opened: Date.now() }, ...list.filter((r) => r.path !== path)].slice(0, RECENTS_LIMIT);
   await mkdir(NIB_HOME, { recursive: true });
   await writeFile(RECENTS_FILE, JSON.stringify(next, null, 2));
+}
+
+/** Recents after a file moved (`to`) or went away (no `to`). */
+export async function updateRecents(path: string, to?: string): Promise<void> {
+  const list = await readRecents();
+  const next = to ? list.map((r) => (r.path === path ? { ...r, path: to } : r)) : list.filter((r) => r.path !== path);
+  await mkdir(NIB_HOME, { recursive: true });
+  await writeFile(RECENTS_FILE, JSON.stringify(next, null, 2));
+}
+
+/** A draft's file from a path given by an editor: only .pen files directly in the drafts folder. */
+export function draftFile(path: unknown): string | undefined {
+  if (typeof path !== 'string') return undefined;
+  const p = resolvePath(path);
+  return dirname(p) === DRAFTS_DIR && p.endsWith('.pen') && !p.endsWith('.lib.pen') ? p : undefined;
+}
+
+/** The path a draft gets for a new name (in the drafts folder; characters files cannot have are replaced). */
+export function draftPath(name: string): string | undefined {
+  const base = name.replace(/\.pen$/i, '').replace(/[/\\:\x00-\x1f]/g, '-').trim().slice(0, 120);
+  return base && !base.startsWith('.') ? join(DRAFTS_DIR, `${base}.pen`) : undefined;
+}
+
+/** Move a draft into nib's trash folder (deleting it, but recoverably); returns where it went. */
+export async function trashDraft(path: string): Promise<string> {
+  const dir = join(NIB_HOME, 'trash');
+  await mkdir(dir, { recursive: true });
+  const dest = join(dir, `${new Date().toISOString().replace(/[:.]/g, '-')} ${basename(path)}`);
+  await rename(path, dest);
+  await updateRecents(path);
+  return dest;
 }
 
 async function readRecents(): Promise<{ path: string; opened: number }[]> {

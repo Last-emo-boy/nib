@@ -117,19 +117,56 @@ export function Dashboard() {
             <div className="dash-section-title">{view === 'recents' ? t.recents : t.drafts}</div>
             {!files.length && <p className="empty">{view === 'recents' ? t.noRecents : t.noDrafts}</p>}
             <section className="dash-grid">
-              {files.map((f) => (
-                <button key={f.path} className="dash-card" onClick={() => openDocument(f.path)} title={f.path}>
-                  <div className="dash-thumb"><img loading="lazy" src={thumbUrl({ path: f.path, size: '480', v: String(Math.round(f.modified)) })} alt="" onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} /></div>
-                  <div className="dash-card-text">
-                    <span className="dash-card-title"><Icon name="file" size={13} />{f.draft ? '' : <span className="dim">{f.folder} / </span>}{f.name.replace(/\.pen$/, '')}</span>
-                    <span className="dash-card-sub">{t.edited} {ago(f.modified, lang)}</span>
-                  </div>
-                </button>
-              ))}
+              {files.map((f) => <FileCard key={f.path} f={f} refresh={refresh} />)}
             </section>
           </>
         )}
       </main>
+    </div>
+  );
+}
+
+/** A recent file or draft: opens on click; a draft can be renamed or deleted from its menu. */
+function FileCard({ f, refresh }: { f: FileEntry; refresh: () => void }) {
+  const t = useT();
+  const lang = useEditor((s) => s.lang);
+  const [menu, setMenu] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const title = f.name.replace(/\.pen$/, '');
+  const rename = async (name: string) => {
+    setRenaming(false);
+    if (!name.trim() || name.trim() === title) return;
+    try { await api('/api/draft/rename', { path: f.path, name: name.trim() }); refresh(); } catch (e) { toast((e as Error).message); }
+  };
+  const remove = async () => {
+    setMenu(false);
+    if (!confirm(t.deleteDraftConfirm.replace('{name}', title))) return;
+    try { await api('/api/draft/delete', { path: f.path }); refresh(); toast(t.draftDeleted); } catch (e) { toast((e as Error).message); }
+  };
+  return (
+    <div className="dash-card" role="button" tabIndex={0} title={f.path}
+      onClick={() => { if (!renaming && !menu) openDocument(f.path); }}
+      onKeyDown={(e) => { if (e.key === 'Enter' && !renaming && e.target === e.currentTarget) openDocument(f.path); }}>
+      <div className="dash-thumb">
+        <img loading="lazy" src={thumbUrl({ path: f.path, size: '480', v: String(Math.round(f.modified)) })} alt="" onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
+        {f.draft && (
+          <button className={`dash-card-more${menu ? ' on' : ''}`} title={t.more} onClick={(e) => { e.stopPropagation(); setMenu(!menu); }}>⋯</button>
+        )}
+        {menu && (
+          <div className="dash-card-menu" onClick={(e) => e.stopPropagation()} onMouseLeave={() => setMenu(false)}>
+            <button onClick={() => { setMenu(false); setRenaming(true); }}>{t.rename}</button>
+            <button className="danger" onClick={() => void remove()}>{t.delete}</button>
+          </div>
+        )}
+      </div>
+      <div className="dash-card-text">
+        {renaming
+          ? <input className="dash-rename" autoFocus defaultValue={title} onClick={(e) => e.stopPropagation()} onFocus={(e) => e.target.select()}
+              onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') void rename((e.target as HTMLInputElement).value); if (e.key === 'Escape') setRenaming(false); }}
+              onBlur={(e) => void rename(e.target.value)} />
+          : <span className="dash-card-title" onDoubleClick={(e) => { if (f.draft) { e.stopPropagation(); setRenaming(true); } }}><Icon name="file" size={13} />{f.draft ? '' : <span className="dim">{f.folder} / </span>}{title}</span>}
+        <span className="dash-card-sub">{t.edited} {ago(f.modified, lang)}</span>
+      </div>
     </div>
   );
 }

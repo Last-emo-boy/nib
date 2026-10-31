@@ -20,7 +20,11 @@ export type DocEvent =
   | { t: 'reload'; path: string; version: number; data: PenDocument; imports: ImportTree }
   | { t: 'history'; path: string; undo: string[]; redo: string[] }
   /** An image the document uses changed without its url changing (a browser node's page snapshot). */
-  | { t: 'asset'; path: string; url: string };
+  | { t: 'asset'; path: string; url: string }
+  /** The file was renamed: editors follow it to `to`. */
+  | { t: 'moved'; path: string; to: string }
+  /** The file was deleted (moved to nib's trash): editors leave it. */
+  | { t: 'deleted'; path: string };
 
 export type Listener = (event: DocEvent) => void;
 
@@ -223,13 +227,27 @@ export class DocumentHost {
     return this.enqueue(open, async () => {
       open.watcher?.close();
       await rename(open.path, dest);
+      const from = open.path;
       this.docs.delete(open.path);
       if (this.active === open.path) this.active = dest;
       open.path = dest;
       this.docs.set(dest, open);
       if (this.opts.watch !== false) this.watchFile(open);
       await noteOpened(dest).catch(() => undefined);
+      this.emit(open, { t: 'moved', path: from, to: dest });
       return dest;
+    });
+  }
+
+  /** Stop holding a document whose file is going away: its editors are told, then it is closed. */
+  async discard(path: string): Promise<void> {
+    const open = this.docs.get(resolvePath(path));
+    if (!open) return;
+    await this.enqueue(open, async () => {
+      this.emit(open, { t: 'deleted', path: open.path });
+      open.watcher?.close();
+      this.docs.delete(open.path);
+      if (this.active === open.path) this.active = undefined;
     });
   }
 

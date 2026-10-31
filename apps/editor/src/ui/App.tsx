@@ -5,10 +5,11 @@ import { Connection, authHeaders, fileFromUrl } from '../app/connection.ts';
 import { desktop, openDashboard } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
 import { store, toast, toggleSide, useEditor, type Tool } from '../app/store.ts';
-import { boundsOf, CanvasView, fitView, importImages, isImageFile, isTyping, pickImages } from '../canvas/Canvas.tsx';
+import { boundsOf, canvas, CanvasView, fitView, importImages, isImageFile, isTyping, pickImages } from '../canvas/Canvas.tsx';
 import { imageFillIndex } from '../canvas/crop.ts';
 import { isMask, maskSelection, releaseMask } from '../canvas/mask.ts';
 import { arrange, flipSelection } from '../canvas/arrange.ts';
+import { layerOf } from '../app/parts.ts';
 import { deletePoints, editPath, finishDrawing, finishEditing } from '../canvas/pen.tsx';
 import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
@@ -322,16 +323,17 @@ function useShortcuts() {
       }
       if (key === 'backspace' || key === 'delete') { e.preventDefault(); deleteSelection(); return; }
       if (key === 'escape') {
-        const parent = s.selection.length === 1 ? s.doc?.locate(s.selection[0])?.parent : undefined;
-        store.set({ selection: parent ? [parent.id] : [], tool: 'move' });
+        // Up one level: to the parent, or from a part of an instance to what holds it.
+        const parent = s.selection.length === 1 ? canvas.cache?.placed(s.selection[0])?.parentId ?? s.doc?.locate(s.selection[0])?.parent?.id : undefined;
+        store.set({ selection: parent ? [parent] : [], tool: 'move' });
         return;
       }
       if (key === 'enter' && s.selection.length === 1) {
-        const n = s.doc?.get(s.selection[0]);
+        const n = s.doc ? layerOf(s.doc, s.selection[0]) : undefined;
         if (n?.type === 'text') store.set({ editingText: n.id });
         else if (n?.type === 'path') editPath(n.id);
         else if (imageFillIndex(n) >= 0) store.set({ crop: { id: n!.id, index: imageFillIndex(n) } });
-        else { const kid = (n as { children?: { id: string }[] } | undefined)?.children?.[0]; if (kid) store.set({ selection: [kid.id] }); }
+        else { const kid = canvas.cache?.childrenOf(s.selection[0])[0]; if (kid) store.set({ selection: [kid] }); }
         return;
       }
       const arrows: Record<string, [number, number]> = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] };

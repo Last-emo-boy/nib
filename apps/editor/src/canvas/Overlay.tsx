@@ -11,6 +11,7 @@ import { GradientOverlay } from './GradientOverlay.tsx';
 import { CropOverlay } from './CropOverlay.tsx';
 import { angleOf, apply, boundsOf, isAxisAligned, mul, placement, quad, type M } from './affine.ts';
 import type { Placed } from './scenes.ts';
+import { isPart, layerOf } from '../app/parts.ts';
 
 type Point = { x: number; y: number };
 
@@ -106,7 +107,7 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
         {g?.kind === 'marquee' && <Outline box={screen(view, rectOf(g.start, g.end))} className="marquee" />}
         {g?.kind === 'create' && <Outline box={screen(view, rectOf(g.start, g.end))} className="selected" />}
         {g?.kind === 'resize' && resized && <Frame m={mul(g.matrix, [1, 0, 0, 1, resized.x, resized.y])} w={resized.width} h={resized.height} view={view} className="selected ghost" />}
-        {single && !drag && !editing && (() => {
+        {single && !drag && !editing && !isPart(single.id) && (() => {
           const { matrix: m, abs: { width: w, height: h } } = single;
           const deg = angleOf(m);
           return HANDLES.map((hd) => {
@@ -120,7 +121,7 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
             );
           });
         })()}
-        {single && !drag && !editing && g?.kind !== 'resize' && (() => {
+        {single && !drag && !editing && !isPart(single.id) && g?.kind !== 'resize' && (() => {
           // Above the middle of the node's top side, on its own up.
           const d = apply(single.matrix, single.abs.width / 2, -18 / view.zoom);
           return <circle className="handle rotate" cx={d.x * view.zoom + view.tx} cy={d.y * view.zoom + view.ty} r={4.5}
@@ -200,7 +201,8 @@ function SizeLabel({ box, real }: { box: Box; real: Box }) {
 /** Edits a text node in place: a text area over it in the same font, committed on blur. */
 function TextEditor({ id }: { id: string }) {
   const doc = store.get().doc!;
-  const node = doc.get(id) as Record<string, any> | undefined;
+  // A part of an instance is edited as the instance shows it, and its text becomes an override.
+  const node = layerOf(doc, id) as Record<string, any> | undefined;
   const view = useEditor((s) => s.view);
   const ref = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState(String(node?.content ?? ''));

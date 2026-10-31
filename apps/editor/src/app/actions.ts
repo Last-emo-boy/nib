@@ -2,6 +2,7 @@ import { DocEditor, newId, reassignIds, type Op, type PenDoc } from '@nib/core';
 import type { Node } from '@nib/format';
 import { authHeaders } from './connection.ts';
 import { store, toast } from './store.ts';
+import { isPart, keyOf, ownerOf, withOverrides } from './parts.ts';
 
 /**
  * Work out the ops for a change by making it on the editor's copy and rolling it back. The daemon then
@@ -48,19 +49,49 @@ export function isFree(doc: PenDoc, id: string): boolean {
   return at.parent.type === 'frame' && at.parent.layout === 'none';
 }
 
+/** Set properties on layers; on parts of instances they become the instances' overrides. */
 export function setProps(ids: string[], props: Record<string, unknown>, label = 'Change'): Promise<boolean> {
   return commit(label, (ed, doc) => {
-    for (const id of ids) if (doc.has(id)) ed.set(id, props);
+    for (const id of ids) if (!isPart(id) && doc.has(id)) ed.set(id, props);
+    overrideParts(ed, doc, ids.filter(isPart), props);
   });
+}
+
+function overrideParts(ed: DocEditor, doc: PenDoc, parts: string[], props: Record<string, unknown>): void {
+  const byOwner = new Map<string, string[]>();
+  for (const id of parts) byOwner.set(ownerOf(id), [...(byOwner.get(ownerOf(id)) ?? []), keyOf(id)]);
+  for (const [owner, keys] of byOwner) {
+    const node = doc.get(owner) as { descendants?: Record<string, Record<string, unknown>> } | undefined;
+    if (node) ed.set(owner, { descendants: withOverrides(node.descendants, keys, props) });
+  }
 }
 
 export function deleteSelection(): void {
   const { selection } = store.get();
   if (!selection.length) return;
-  void commit(selection.length > 1 ? `Delete ${selection.length} layers` : 'Delete', (ed, doc) => {
-    for (const id of selection) if (doc.has(id)) ed.remove(id);
+  // Parts of instances cannot be removed from their component here: they are hidden in the instance.
+  const parts = selection.filter(isPart);
+  if (parts.length) { void setProps(parts, { enabled: false }, 'Hide in instance'); toast('Hidden in this instance (parts of an instance are hidden, not deleted).'); }
+  const nodes = selection.filter((id) => !isPart(id));
+  if (!nodes.length) return;
+  void commit(nodes.length > 1 ? `Delete ${nodes.length} layers` : 'Delete', (ed, doc) => {
+    for (const id of nodes) if (doc.has(id)) ed.remove(id);
   });
-  store.set({ selection: [] });
+  store.set({ selection: parts });
+}
+
+/** Drop the overrides of parts (given an instance itself: all of its overrides). */
+export function resetOverrides(ids: string[]): Promise<boolean> {
+  return commit('Reset overrides', (ed, doc) => {
+    for (const id of ids) {
+      const owner = doc.get(ownerOf(id)) as { descendants?: Record<string, Record<string, unknown>> } | undefined;
+      if (!owner?.descendants) continue;
+      if (!isPart(id)) { ed.set(id, { descendants: undefined }); continue; }
+      const all = { ...owner.descendants };
+      delete all[keyOf(id)];
+      ed.set(ownerOf(id), { descendants: Object.keys(all).length ? all : undefined });
+    }
+  });
 }
 
 /** Copies of the selection next to the originals (free nodes shifted, flow nodes after them). */
@@ -135,7 +166,7 @@ export function frameSelection(): void {
 /** Keep only selected ids that still exist after a change. */
 export function pruneSelection(doc: PenDoc): void {
   const { selection } = store.get();
-  const kept = selection.filter((id) => doc.has(id));
+  const kept = selection.filter((id) => doc.has(ownerOf(id)));
   if (kept.length !== selection.length) store.set({ selection: kept });
 }
 

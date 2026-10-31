@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { PenDoc } from '@nib/core';
 import type { Node, RefNode } from '@nib/format';
-import { align, isFree, setProps, type Align } from '../app/actions.ts';
+import { align, isFree, resetOverrides, setProps, type Align } from '../app/actions.ts';
+import { isPart, layerOf, overrideOf, ownerOf } from '../app/parts.ts';
 import { authHeaders } from '../app/connection.ts';
 import { toast } from '../app/store.ts';
 import { useT, type Strings } from '../app/i18n.ts';
@@ -28,7 +29,9 @@ export function Properties() {
   useEditor((s) => s.version);
   useEditor((s) => s.layoutVersion);
   if (!doc) return null;
-  const nodes = selection.map((id) => doc.get(id)).filter((n): n is Node => !!n);
+  // Parts of instances show as the instance shows them; changes to them become the instance's overrides.
+  const nodes = selection.map((id) => layerOf(doc, id)).filter((n): n is Node => !!n);
+  const parts = selection.filter(isPart);
   if (!nodes.length) return <div className="panel right-panel"><p className="empty">{t.noSelection}</p></div>;
   const n = nodes[0] as Props;
   const ids = nodes.map((x) => x.id);
@@ -56,9 +59,22 @@ export function Properties() {
           <button className="link" onClick={() => { store.set({ selection: [(n as RefNode).ref] }); const b = boundsOf([(n as RefNode).ref]); if (b) store.set({ view: fitView(b, 2) }); }}>
             <Icon name="component" size={13} /> {comp ? layerName(doc, comp) : (n as RefNode).ref}
           </button>
+          {(n as RefNode).descendants && <button className="link" onClick={() => void resetOverrides([n.id])}><Icon name="undo" size={12} /> {t.resetAllOverrides}</button>}
         </Section>
       )}
-      {nodes.length === 1 && <Geometry doc={doc} n={n} t={t} shown={shown} set={set} />}
+      {parts.length > 0 && (() => {
+        const owner = doc.get(ownerOf(parts[0]));
+        const changed = parts.filter((id) => overrideOf(doc, id));
+        return (
+          <Section title={t.instancePart}>
+            <button className="link" onClick={() => store.set({ selection: [ownerOf(parts[0])] })}>
+              <Icon name="diamond" size={13} /> {owner ? layerName(doc, owner) : ownerOf(parts[0])}
+            </button>
+            {changed.length > 0 && <button className="link" onClick={() => void resetOverrides(changed)}><Icon name="undo" size={12} /> {t.resetOverride} ({Object.keys(overrideOf(doc, changed[0]) ?? {}).join(', ')})</button>}
+          </Section>
+        );
+      })()}
+      {nodes.length === 1 && !parts.length && <Geometry doc={doc} n={n} t={t} shown={shown} set={set} />}
       {same && shownType === 'frame' && <Layout t={t} shown={shown} set={set} />}
       <Section title={t.appearance}>
         <div className="row">
@@ -80,8 +96,8 @@ export function Properties() {
           </div>
         ))}
       </Section>
-      {HAS_FILL.has(shownType) && <Fills t={t} title={t.fill} value={shown('fill')} onChange={(fill) => set({ fill }, 'Fill')} edit={nodes.length === 1 ? { id: n.id, prop: 'fill' } : undefined} />}
-      {HAS_STROKE.has(shownType) && <Strokes t={t} shown={shown} set={set} id={nodes.length === 1 ? n.id : undefined} />}
+      {HAS_FILL.has(shownType) && <Fills t={t} title={t.fill} value={shown('fill')} onChange={(fill) => set({ fill }, 'Fill')} edit={nodes.length === 1 && !parts.length ? { id: n.id, prop: 'fill' } : undefined} />}
+      {HAS_STROKE.has(shownType) && <Strokes t={t} shown={shown} set={set} id={nodes.length === 1 && !parts.length ? n.id : undefined} />}
       {shownType !== 'group' && <Effects t={t} value={shown('effect')} onChange={(effect) => set({ effect }, 'Effects')} />}
       {same && shownType === 'text' && <Typography t={t} shown={shown} set={set} />}
       {same && n.type === 'icon' && (
@@ -92,8 +108,8 @@ export function Properties() {
           </div>
         </Section>
       )}
-      <ExportSection t={t} ids={ids} />
-      {nodes.length === 1 && n.type !== 'ref' && (
+      {!parts.length && <ExportSection t={t} ids={ids} />}
+      {nodes.length === 1 && n.type !== 'ref' && !parts.length && (
         <Section title={t.component}>
           <label className="check"><input type="checkbox" checked={n.reusable === true} onChange={(e) => set({ reusable: e.target.checked || undefined }, e.target.checked ? 'Make component' : 'Detach component')} /> {t.makeComponent}</label>
         </Section>

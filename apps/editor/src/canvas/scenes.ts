@@ -24,6 +24,8 @@ export interface Placed {
   /** Clip box from ancestors with `clip`, if any. */
   clip?: Box;
   depth: number;
+  /** The node it is drawn in (inside instances, a part of the instance). */
+  parentId?: string;
 }
 
 interface Entry {
@@ -160,12 +162,21 @@ export class SceneCache {
     return this.placed(id)?.bounds;
   }
 
+  /** What is drawn directly in a node, bottom to top (for an instance: its parts). */
+  childrenOf(id: string): string[] {
+    const e = this.entries.get(this.topOf(id) ?? '');
+    return e ? e.placed.filter((p) => p.parentId === id).map((p) => p.id) : [];
+  }
+
   placed(id: string): Placed | undefined {
     const top = this.topOf(id);
     return top ? this.entries.get(top)?.byId.get(id) : undefined;
   }
 
-  /** The nodes under a document point, deepest first, ending with the top-level node. Instance parts map to their instance. */
+  /**
+   * The nodes under a document point, deepest first, ending with the top-level node. Parts of instances come
+   * first with their id paths, then the instance.
+   */
   hit(x: number, y: number): string[] {
     const tops = this.doc.data.children;
     for (let i = tops.length - 1; i >= 0; i--) {
@@ -201,9 +212,9 @@ export class SceneCache {
   }
 
   private chain(id: string): string[] {
-    const docId = id.split('/')[0];
-    const out = [docId];
-    for (const a of this.doc.ancestors(docId)) out.push(a.id);
+    const e = this.entries.get(this.topOf(id) ?? '');
+    const out: string[] = [];
+    for (let p = e?.byId.get(id); p; p = p.parentId ? e!.byId.get(p.parentId) : undefined) out.push(p.id);
     return out;
   }
 
@@ -250,14 +261,14 @@ export class SceneCache {
     }
     const prepared = await renderer.prepare(scene, this.images);
     const placed: Placed[] = [];
-    const walk = (n: SceneNode, parent: M, depth: number, clip: Box | undefined) => {
+    const walk = (n: SceneNode, parent: M, depth: number, clip: Box | undefined, parentId?: string) => {
       const b = prepared.layout.box(n);
       const matrix = mul(parent, placement(b.x, b.y, typeof n.rotation === 'number' ? n.rotation : 0));
       const inner = n.flipX === true || n.flipY === true ? mul(matrix, flip(b.width, b.height, n.flipX === true, n.flipY === true)) : matrix;
       const bounds = boundsOf(quad(matrix, b.width, b.height));
-      placed.push({ id: n.id, type: n.type, abs: { x: matrix[4], y: matrix[5], width: b.width, height: b.height }, matrix, inner, parent, bounds, clip, depth });
+      placed.push({ id: n.id, type: n.type, abs: { x: matrix[4], y: matrix[5], width: b.width, height: b.height }, matrix, inner, parent, bounds, clip, depth, parentId });
       const within = n.clip === true ? intersect(bounds, clip) : clip;
-      for (const c of n.children ?? []) walk(c, inner, depth + 1, within);
+      for (const c of n.children ?? []) walk(c, inner, depth + 1, within, n.id);
     };
     walk(scene, IDENTITY, 0, undefined);
     // Turned children can reach past the top-level node unless it clips them.

@@ -16,6 +16,7 @@ import { imageFillIndex } from './crop.ts';
 import { measure, snap, snapPoint, type Guide, type Lines, type Measure } from './snap.ts';
 import { apply, applyLinear, invert, isAxisAligned, placement, type P } from './affine.ts';
 import { scaleTree } from '../app/geometry.ts';
+import { isPart, layerOf } from '../app/parts.ts';
 
 /** What other parts of the editor need from the canvas. */
 export const canvas = {
@@ -118,12 +119,15 @@ function pick(doc: PenDoc, chain: string[], selection: string[], deep: boolean):
   if (!chain.length) return undefined;
   if (deep) return chain[0];
   for (const id of selection) if (chain.includes(id)) return id;
+  // Next to a selected layer: the layer beside it under the pointer (inside an instance too, once entered).
   for (const id of selection) {
-    const parent = doc.locate(id)?.parent?.id;
+    const parent = canvas.cache?.placed(id)?.parentId ?? doc.locate(id)?.parent?.id;
     const i = parent ? chain.indexOf(parent) : -1;
     if (i > 0) return chain[i - 1];
   }
-  return chain.length >= 2 ? chain[chain.length - 2] : chain[0];
+  // Otherwise the instance, not a part of it: a double-click steps in.
+  const outer = chain.filter((id) => !isPart(id));
+  return outer.length >= 2 ? outer[outer.length - 2] : outer[0];
 }
 
 /** The frame a new node drawn at a point goes into: the deepest frame under it. */
@@ -535,12 +539,12 @@ export function CanvasView() {
     if (s.tool === 'pen') return;
     const current = s.selection.find((id) => chain.includes(id));
     const i = current ? chain.indexOf(current) : -1;
-    if (current && s.doc.get(current)?.type === 'text') { store.set({ editingText: current }); return; }
+    if (current && layerOf(s.doc, current)?.type === 'text') { store.set({ editingText: current }); return; }
     if (current && s.doc.get(current)?.type === 'path' && editPath(current)) return;
     if (current && imageFillIndex(s.doc.get(current)) >= 0) { store.set({ crop: { id: current, index: imageFillIndex(s.doc.get(current)) } }); return; }
     if (i === 0 && s.doc.get(chain[0])?.type === 'path' && editPath(chain[0])) return;
     if (i > 0) store.set({ selection: [chain[i - 1]] });
-    else if (i === 0 && s.doc.get(chain[0])?.type === 'text') store.set({ editingText: chain[0] });
+    else if (i === 0 && layerOf(s.doc, chain[0])?.type === 'text') store.set({ editingText: chain[0] });
   };
 
   const forceOverlayRef = useRef(() => {});

@@ -13,6 +13,7 @@ import { angleOf, apply, boundsOf, isAxisAligned, mul, placement, quad, type M }
 import type { Placed } from './scenes.ts';
 import { isPart, layerOf } from '../app/parts.ts';
 import { linkOf } from './links.ts';
+import { AiPenPrompt } from './aipen.tsx';
 
 type Point = { x: number; y: number };
 
@@ -57,6 +58,7 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
   useEditor((s) => s.layoutVersion);
   useEditor((s) => s.version);
   const text = useEditor((s) => s.editingText);
+  const aiPen = useEditor((s) => s.aiPen);
   const pen = useEditor((s) => s.pen);
   const crop = useEditor((s) => s.crop);
   const presenting = useEditor((s) => !!s.present);
@@ -171,6 +173,7 @@ export function Overlay({ gesture, register, startResize, startRotate }: Props) 
         {label && !editing && g?.kind !== 'rotate' && <SizeLabel box={screen(view, label.at)} real={label.real} />}
       </svg>
       {text && <TextEditor id={text} />}
+      {aiPen && <AiPenPrompt id={aiPen} />}
     </div>
   );
 }

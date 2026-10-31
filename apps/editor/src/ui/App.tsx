@@ -97,7 +97,7 @@ function ToolStrip() {
   const leftOpen = useEditor((s) => s.leftOpen);
   const tools: [Tool, IconName, string, string][] = [
     ['move', 'pointer', t.move, 'V'], ['scale', 'scaling', t.scaleTool, 'K'], ['frame', 'frame', t.frame, 'F'], ['rectangle', 'square', t.rectangle, 'R'],
-    ['ellipse', 'circle', t.ellipse, 'O'], ['polygon', 'hexagon', t.polygon, ''], ['pen', 'penTool', t.pen, 'P'], ['pencil', 'pencil', t.pencil, '⇧P'], ['text', 'type', t.text, 'T'], ['icon', 'smile', t.iconTool, 'I'],
+    ['ellipse', 'circle', t.ellipse, 'O'], ['polygon', 'hexagon', t.polygon, ''], ['pen', 'penTool', t.pen, 'P'], ['pencil', 'pencil', t.pencil, '⇧P'], ['aipen', 'aiPen', t.aiPenTool, ''], ['text', 'type', t.text, 'T'], ['icon', 'smile', t.iconTool, 'I'],
     ['note', 'note', t.note, 'N'], ['hand', 'hand', t.hand, 'H'],
   ];
   return (

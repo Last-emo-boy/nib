@@ -32,7 +32,7 @@ export function Palette() {
     const tool = (id: Tool, label: string, icon: IconName, hint: string): Item => ({ key: `tool:${id}`, label, icon, hint, run: () => store.set({ tool: id }) });
     return [
       tool('move', t.move, 'pointer', 'V'), tool('scale', t.scaleTool, 'scaling', 'K'), tool('frame', t.frame, 'frame', 'F'), tool('rectangle', t.rectangle, 'square', 'R'),
-      tool('ellipse', t.ellipse, 'circle', 'O'), tool('polygon', t.polygon, 'hexagon', ''), tool('pen', t.pen, 'penTool', 'P'), tool('pencil', t.pencil, 'pencil', '⇧P'), tool('text', t.text, 'type', 'T'),
+      tool('ellipse', t.ellipse, 'circle', 'O'), tool('polygon', t.polygon, 'hexagon', ''), tool('pen', t.pen, 'penTool', 'P'), tool('pencil', t.pencil, 'pencil', '⇧P'), tool('aipen', t.aiPenTool, 'aiPen', ''), tool('text', t.text, 'type', 'T'),
       tool('icon', t.iconTool, 'smile', 'I'), tool('note', t.note, 'note', 'N'), tool('hand', t.hand, 'hand', 'H'),
       { key: 'import-svg', label: t.importSvg, icon: 'penTool', run: () => {
         const input = document.createElement('input');

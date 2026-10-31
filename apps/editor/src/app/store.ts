@@ -7,7 +7,7 @@ import type { GradientEdit } from '../canvas/GradientOverlay.tsx';
 import type { CropEdit } from '../canvas/CropOverlay.tsx';
 import { applyPrefs, readPrefs, writePrefs, type Prefs } from './prefs.ts';
 
-export type Tool = 'move' | 'scale' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'pen' | 'pencil' | 'text' | 'icon' | 'note';
+export type Tool = 'move' | 'scale' | 'hand' | 'frame' | 'rectangle' | 'ellipse' | 'polygon' | 'pen' | 'pencil' | 'aipen' | 'text' | 'icon' | 'note';
 export type LeftTab = 'layers' | 'slides' | 'components' | 'libraries' | 'variables' | 'problems';
 export type Lang = 'en' | 'zh';
 
@@ -53,6 +53,8 @@ export interface EditorState {
   pen?: PenSession;
   /** The node whose text is being edited on the canvas. */
   editingText?: string;
+  /** A box drawn with the AI pen, waiting for what to draw in it. */
+  aiPen?: string;
   lang: Lang;
   paletteOpen: boolean;
   toast?: { text: string; at: number };

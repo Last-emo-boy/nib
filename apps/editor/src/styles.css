@@ -611,3 +611,6 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .picture-credit { font-size: 11px; color: var(--dim); line-height: 1.35; overflow-wrap: anywhere; margin-top: 4px; }
 .picture-key input { width: 100%; margin-top: 4px; }
 .picture-colors { width: auto; }
+.overlay .aipen { position: absolute; display: flex; gap: 6px; align-items: center; padding: 6px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: var(--shadow); pointer-events: auto; z-index: 5; }
+.overlay .aipen input { width: 260px; }
+.canvas.tool-aipen { cursor: crosshair; }

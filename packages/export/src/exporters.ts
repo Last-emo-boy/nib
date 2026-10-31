@@ -5,6 +5,7 @@ import type { Exporter, ExportFormat } from '@nib/exec';
 import type { CodeMap } from './code.ts';
 import { exportHtml, exportReact } from './html.ts';
 import { writePdf } from './pdf.ts';
+import { site } from './site.ts';
 
 /** pdf: one page per node, rendered at `scale` (default 2) and sized in points equal to its px size. */
 const pdf: Exporter = async (scenes, outputPath, options, ctx) => {
@@ -50,4 +51,5 @@ export const EXPORTERS: Partial<Record<ExportFormat, Exporter>> = {
   'react-tailwind': react,
   'html-css': html(false),
   'html-tailwind': html(true),
+  site,
 };

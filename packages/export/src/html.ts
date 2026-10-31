@@ -16,6 +16,10 @@ export interface HtmlContext {
   images: ImageLoader;
   /** Folder of the .pen file: image paths in it are relative to this. */
   baseDir: string;
+  /** Where a layer leads when clicked (a site's prototype links): the layer becomes a link. */
+  link?: (n: SceneNode) => string | undefined;
+  /** A local file the page uses (image, font), as the page should refer to it (a site copies it beside). */
+  asset?: (file: string) => string;
 }
 
 const SIZE_RE = /^(fit_content|fill_container)(?:\(\s*(-?\d+(?:\.\d+)?)\s*\))?$/;
@@ -177,10 +181,12 @@ export class HtmlWriter {
     if (this.names && typeof n.name === 'string') attrs.push(`data-name="${esc(n.name)}"`);
     if (this.ids) attrs.push(`data-id="${esc(n.id)}"`);
 
+    const link = this.react ? undefined : this.ctx.link?.(n);
     if (TEXT_TYPES.has(n.type)) {
       decls.push(...this.text(n));
-      const tag = typeof n.href === 'string' ? 'a' : 'div';
-      if (tag === 'a') attrs.push(`href="${esc(n.href)}"`);
+      const href = typeof n.href === 'string' ? n.href : link;
+      const tag = href !== undefined ? 'a' : 'div';
+      if (tag === 'a') attrs.push(`href="${esc(href!)}"`);
       const content = n.content === undefined || n.content === null ? '' : String(n.content);
       return `${indent}<${tag}${this.attr(n, decls, attrs)}>${this.react ? jsxText(content) : esc(content)}</${tag}>`;
     }
@@ -192,9 +198,16 @@ export class HtmlWriter {
     }
     decls.push(...this.paint(n));
     if (n.type === 'frame' || n.type === 'group') decls.push(...this.container(n));
-    const open = `${indent}<div${this.attr(n, decls, attrs)}>`;
+    // A linked layer is a link: a block, in its own colors, not underlined.
+    const tag = link !== undefined ? 'a' : 'div';
+    if (link !== undefined) {
+      attrs.push(`href="${esc(link)}"`);
+      if (!decls.some(([k]) => k === 'display')) decls.push(['display', 'block']);
+      decls.push(['color', 'inherit'], ['text-decoration', 'none']);
+    }
+    const open = `${indent}<${tag}${this.attr(n, decls, attrs)}>`;
     const kids = (n.children ?? []).map((c) => this.node(c, n, depth + 1)).filter(Boolean);
-    return kids.length ? `${open}\n${kids.join('\n')}\n${indent}</div>` : `${open}</div>`;
+    return kids.length ? `${open}\n${kids.join('\n')}\n${indent}</${tag}>` : `${open}</${tag}>`;
   }
 
   /** Position and size, which depend on how the parent lays the node out. */
@@ -312,6 +325,7 @@ export class HtmlWriter {
   private url(u: string): string {
     if (/^(https?:|data:)/.test(u)) return u;
     const file = isAbsolute(u) ? u : resolvePath(this.ctx.baseDir, u);
+    if (this.ctx.asset) return this.ctx.asset(file);
     return relative(this.outDir, file).split('\\').join('/');
   }
 

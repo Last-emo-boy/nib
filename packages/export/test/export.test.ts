@@ -1,4 +1,4 @@
-import { copyFile, mkdir, mkdtemp } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -6,7 +6,7 @@ import { buildScene, PenDoc } from '@nib/core';
 import type { PenDocument } from '@nib/format';
 import type { Renderer } from '@nib/render';
 import { createNodeRenderer } from '@nib/render/node';
-import { exportHtml, exportReact, tokensFromCss, tokensFromJson, tokensToCss, tokensToJson, tokensToTailwind, writePdf, type CodeMap } from '../src/index.ts';
+import { EXPORTERS, pageFiles, exportHtml, exportReact, tokensFromCss, tokensFromJson, tokensToCss, tokensToJson, tokensToTailwind, writePdf, type CodeMap } from '../src/index.ts';
 
 let renderer: Renderer;
 const images = { load: async () => undefined };
@@ -59,6 +59,32 @@ describe('html export', () => {
     expect(out).toContain('@font-face { font-family: "lucide"; src: url("../fonts/lucide.ttf"); font-weight: 400; font-style: normal; }');
     expect(out).toContain('family=Inter:wght@400');
     expect(out).not.toContain('family=lucide');
+  });
+
+  it('writes a site: a page per frame, prototype links as links, local images copied in', async () => {
+    const base = await mkdtemp(join(tmpdir(), 'nib-site-'));
+    await mkdir(join(base, 'images'));
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    await writeFile(join(base, 'images', 'hero.png'), png);
+    const doc = new PenDoc({ version: '2.20', children: [
+      { type: 'frame', id: 'home', name: 'Home', x: 0, y: 0, width: 400, layout: 'vertical', children: [
+        { type: 'rectangle', id: 'hero', width: 400, height: 200, fill: { type: 'image', url: 'images/hero.png' } },
+        { type: 'frame', id: 'cta', name: 'See pricing', padding: 12, fill: '#000000', metadata: { type: 'nib-link', to: 'pricing' }, children: [{ type: 'text', id: 'cta-t', content: 'Pricing', fill: '#ffffff' }] },
+      ] },
+      { type: 'frame', id: 'pricing', name: 'Pricing', x: 500, y: 0, width: 400, height: 300, children: [
+        { type: 'text', id: 'back', content: 'Back', metadata: { type: 'nib-link', to: 'previous' } },
+      ] },
+    ] } as PenDocument);
+    const scenes = ['home', 'pricing'].map((id) => { const root = buildScene(doc, doc.get(id)!)!; return { id, root, target: root }; });
+    const out = join(base, 'site');
+    await EXPORTERS.site!(scenes, out, {}, { doc, renderer, images, baseDir: base });
+    expect((await readdir(out)).sort()).toEqual(['assets', 'index.html', 'pricing.html']);
+    const home = await readFile(join(out, 'index.html'), 'utf8');
+    expect(home).toMatch(/<a class="[^"]*see-pricing[^"]*" data-name="See pricing" href="pricing.html">|<a [^>]*href="pricing.html"/);
+    expect(home).toContain('url("assets/hero.png")');
+    expect(await readFile(join(out, 'assets', 'hero.png'))).toEqual(png);
+    expect(await readFile(join(out, 'pricing.html'), 'utf8')).toMatch(/<a [^>]*href="index.html"[^>]*>Back<\/a>/);
+    expect(pageFiles(['Home', 'Über uns', 'Über uns', '价格'])).toEqual(['index.html', 'uber-uns.html', 'uber-uns-2.html', '价格.html']);
   });
 
   it('turns gradients, icons and shapes into CSS and SVG', async () => {

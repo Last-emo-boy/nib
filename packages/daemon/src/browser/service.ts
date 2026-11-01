@@ -3,11 +3,11 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve as resolvePath } from 'node:path';
 import { validateNode, type Node } from '@nib/format';
 import { browserSnapshotUrl, type FontLoader } from '@nib/render';
-import type { DocumentHost } from '../host.ts';
+import type { DocumentHost, Source } from '../host.ts';
 import { PAGE_SCRIPT, type PageSample } from '../brand.ts';
 import { Cdp } from './cdp.ts';
 import { launchChrome, type Chrome } from './chrome.ts';
-import { domToPen } from './dom-import.ts';
+import { domToPen, MAX_IMPORT } from './dom-import.ts';
 import { implementationReport, matchTexts, PAGE_TEXT_SCRIPT, type PageText } from './implementation.ts';
 
 export type BrowserAction = 'load-page' | 'import-to-canvas' | 'screenshot-to-canvas' | 'return-element' | 'return-screenshot' | 'cdp' | 'element-at' | 'check-implementation';
@@ -54,7 +54,6 @@ interface Page { key: string; sessionId: string; targetId: string; url?: string;
 
 /** CDP domains the `cdp` action may use: enough to act in a page, nothing that reaches the browser or its data. */
 const CDP_DOMAINS = new Set(['DOM', 'Input', 'Page', 'Runtime', 'Emulation', 'CSS', 'Accessibility']);
-const MAX_IMPORT = 4000;
 const SHOT_WIDTH = 1568;
 
 const fail = (text: string): BrowserResult => ({ text, images: [], isError: true });
@@ -332,18 +331,28 @@ export class BrowserService {
     const root = fullPage ? 'document.documentElement' : this.targetExpression(args);
     const r = await this.evaluate<{ node: Record<string, unknown>; count: number; truncated: boolean } | null>(page, `(() => { const root = ${root}; return root ? (${domToPen.toString()})(root, ${JSON.stringify({ maxNodes: MAX_IMPORT, fullPage })}) : null; })()`);
     if (!r) return fail(`no element matches ${JSON.stringify(args.querySelector)}`);
-    await this.resolveFonts(r.node);
-    const node = sanitize(r.node);
-    const width = Math.round(node.width as number), height = Math.round(node.height as number);
-    const nearNode = args.nodeId && !(await this.host.open(filePath)).session.doc.locate(args.nodeId)?.parent ? `, nodeId: ${JSON.stringify(args.nodeId)}` : '';
-    const snippet = `const at = FindEmptySpace({width: ${width}, height: ${height}, padding: 120${nearNode}})\nconst node = ${JSON.stringify(node)}\nnode.x = at.x; node.y = at.y\nPrint(Insert(document, node))`;
-    const res = await this.host.execute(filePath, { input: snippet }, agent);
-    if (!res.ok) return fail(`the import did not fit the document: ${res.text.split('\n').slice(0, 6).join('\n')}`);
-    const id = /## Print output\n(\S+)/.exec(res.text)?.[1] ?? '?';
+    const nearNode = args.nodeId && !(await this.host.open(filePath)).session.doc.locate(args.nodeId)?.parent ? args.nodeId : undefined;
+    const placed = await this.importCaptured(filePath, r.node, agent, nearNode);
+    if ('error' in placed) return fail(placed.error);
+    const { id, node, width, height } = placed;
     return {
       text: `Imported ${page.url}${fullPage ? '' : ` (${args.querySelector})`} as frame "${id}" ("${node.name}", ${width}×${height}) with ${r.count} layers${r.truncated ? `, stopping at ${MAX_IMPORT}` : ''}. Each layer's "context" holds the source element's tag, prefixed with its component name when found. Edit it with execute like any other frame.`,
       images: [],
     };
+  }
+
+  /**
+   * A page or element captured with domToPen (here, or in the person's own browser by nib's extension) into
+   * the document as a frame in free space (near `near` when given), its fonts mapped to ones nib has.
+   */
+  async importCaptured(filePath: string, captured: Record<string, unknown>, agent: string, near?: string, as?: { source: Source; label: string }): Promise<{ id: string; node: Record<string, unknown>; width: number; height: number } | { error: string }> {
+    await this.resolveFonts(captured);
+    const node = sanitize(captured);
+    const width = Math.round(node.width as number), height = Math.round(node.height as number);
+    const snippet = `const at = FindEmptySpace({width: ${width}, height: ${height}, padding: 120${near ? `, nodeId: ${JSON.stringify(near)}` : ''}})\nconst node = ${JSON.stringify(node)}\nnode.x = at.x; node.y = at.y\nPrint(Insert(document, node))`;
+    const res = await this.host.execute(filePath, { input: snippet }, agent, as);
+    if (!res.ok) return { error: `the import did not fit the document: ${res.text.split('\n').slice(0, 6).join('\n')}` };
+    return { id: /## Print output\n(\S+)/.exec(res.text)?.[1] ?? '?', node, width, height };
   }
 
   private async screenshotToCanvas(filePath: string, args: BrowserArgs, agent: string): Promise<BrowserResult> {

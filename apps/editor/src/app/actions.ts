@@ -197,6 +197,7 @@ export function cutSelection(): void {
  */
 export async function paste(given?: string): Promise<void> {
   let clip = clipboard;
+  let dom: { node: unknown; url?: string } | undefined;
   try {
     const text = given ?? (await navigator.clipboard?.readText());
     // SVG markup (copied from an icon site or a drawing app) comes in as editable paths.
@@ -206,10 +207,13 @@ export async function paste(given?: string): Promise<void> {
       return;
     }
     const parsed = text ? JSON.parse(text) : undefined;
+    // A page or element copied with nib's browser extension: the daemon brings it in as layers.
+    if (parsed?.nib === 'dom' && parsed.node && typeof parsed.node === 'object') dom = parsed as { node: unknown; url?: string };
     if (parsed?.nib === 1 && Array.isArray(parsed.nodes)) clip = parsed as Clip;
   } catch {
     // Not nib content, or no clipboard permission: use what was copied in this window.
   }
+  if (dom) return pasteDom(dom);
   const { doc, selection } = store.get();
   if (!clip || !doc) return;
   const target = selection.length === 1 && isContainer(doc.get(selection[0])) && !clip.nodes.some((n) => n.id === selection[0]) ? selection[0] : clip.parent && doc.has(clip.parent) ? clip.parent : null;
@@ -225,6 +229,26 @@ export async function paste(given?: string): Promise<void> {
     for (const n of nodes) ed.insert(parent, n);
   });
   if (ok) store.set({ selection: nodes.map((n) => n.id) });
+}
+
+/** Bring in what nib's browser extension copied, as a frame in free space on the canvas. */
+async function pasteDom(clip: { node: unknown; url?: string }): Promise<void> {
+  const { conn } = store.get();
+  if (!conn) return;
+  let j: { id?: string; error?: string };
+  try {
+    const r = await fetch('/api/import-dom', { method: 'POST', headers: { ...authHeaders(), 'content-type': 'application/json' }, body: JSON.stringify({ doc: conn.path, node: clip.node }) });
+    j = (await r.json()) as { id?: string; error?: string };
+    if (!r.ok) j.id = undefined;
+  } catch (e) {
+    j = { error: (e as Error).message };
+  }
+  if (!j.id) { toast(j.error ?? 'could not paste the page'); return; }
+  for (let i = 0; i < 40 && !store.get().doc?.has(j.id); i++) await new Promise((res) => setTimeout(res, 50));
+  store.set({ selection: [j.id], tool: 'move' });
+  const { boundsOf, fitView } = await import('../canvas/Canvas.tsx');
+  const b = boundsOf([j.id]);
+  if (b) store.set({ view: fitView(b) });
 }
 
 export type Align = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom';

@@ -323,6 +323,14 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           return send(res, 409, { error: (e as Error).message });
         }
       }
+      case 'POST /api/import-dom': {
+        // A page or element copied with nib's browser extension, pasted into the document as layers.
+        if (!opts.browser) return send(res, 503, { error: 'No browser is available in this nib.' });
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || !body.node || typeof body.node !== 'object') return send(res, 400, { error: 'doc and node are required' });
+        const r = await opts.browser.importCaptured(body.doc, body.node as Record<string, unknown>, 'nib', undefined, { source: { kind: 'user' }, label: 'Paste from the browser' });
+        return 'error' in r ? send(res, 400, { error: r.error }) : send(res, 200, { id: r.id, width: r.width, height: r.height });
+      }
       case 'POST /api/browser': {
         const body = await readJson(req);
         if (typeof body.filePath !== 'string') return send(res, 400, { error: 'filePath is required' });

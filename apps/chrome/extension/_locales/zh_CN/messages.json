@@ -1,0 +1,13 @@
+{
+  "name": { "message": "nib" },
+  "description": { "message": "复制网页或其中一部分，粘贴到 nib 里成为可编辑的图层。" },
+  "copyPage": { "message": "复制整个页面" },
+  "pickElement": { "message": "选取一个元素" },
+  "hint": { "message": "然后在 nib 里粘贴。" },
+  "copying": { "message": "正在复制…" },
+  "copied": { "message": "已复制 $1 个图层，到 nib 里粘贴即可。" },
+  "copiedSome": { "message": "已复制前 $1 个图层（页面还有更多），到 nib 里粘贴即可。" },
+  "cannotRead": { "message": "Chrome 不允许扩展读取这个页面。" },
+  "clipboardDenied": { "message": "这个页面不允许复制，请改用“复制整个页面”。" },
+  "pickHint": { "message": "点击一个元素，把它复制给 nib。↑ 选它的上一级，Esc 取消。" }
+}

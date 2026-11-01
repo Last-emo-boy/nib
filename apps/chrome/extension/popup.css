@@ -1,0 +1,7 @@
+:root { color-scheme: light dark; --bg: #fff; --fg: #1d1e22; --muted: #6b6f7a; --line: #e3e5ea; --hover: #f2f3f6; }
+@media (prefers-color-scheme: dark) { :root { --bg: #1d1e22; --fg: #eceef2; --muted: #9a9ea8; --line: #34363d; --hover: #2a2c32; } }
+body { margin: 0; padding: 12px; width: 220px; background: var(--bg); color: var(--fg); font: 13px/1.4 system-ui, sans-serif; }
+header { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-weight: 600; }
+button { display: block; width: 100%; margin-bottom: 6px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+button:hover { background: var(--hover); }
+p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }

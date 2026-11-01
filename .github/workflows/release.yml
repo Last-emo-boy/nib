@@ -35,20 +35,23 @@ jobs:
         run: pnpm package:desktop
       - name: Package the VS Code and Cursor extension
         run: pnpm package:vscode
+      - name: Package the Chrome extension
+        run: pnpm package:chrome
       - uses: actions/upload-artifact@v4
         with:
           name: nib-macos
           path: |
             out/*.dmg
             out/*.vsix
+            out/nib-chrome.zip
           if-no-files-found: error
       - name: GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" out/*.dmg out/*.vsix --title "nib $GITHUB_REF_NAME" --generate-notes \
-            --notes "The app is ad-hoc signed, not notarized: the first time, open it with right-click > Open. nib-vscode.vsix opens .pen files in nib inside VS Code or Cursor (Extensions: Install from VSIX)."
+          gh release create "$GITHUB_REF_NAME" out/*.dmg out/*.vsix out/nib-chrome.zip --title "nib $GITHUB_REF_NAME" --generate-notes \
+            --notes "The app is ad-hoc signed, not notarized: the first time, open it with right-click > Open. nib-vscode.vsix opens .pen files in nib inside VS Code or Cursor (Extensions: Install from VSIX). nib-chrome.zip copies a web page or a part of it for pasting into nib as layers (unzip it, then Load unpacked in chrome://extensions with Developer mode on)."
 
   publish-image:
     runs-on: ubuntu-latest

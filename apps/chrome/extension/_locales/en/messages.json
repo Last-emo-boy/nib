@@ -1,0 +1,13 @@
+{
+  "name": { "message": "nib" },
+  "description": { "message": "Copy a web page, or a part of it, and paste it into nib as editable layers." },
+  "copyPage": { "message": "Copy this page" },
+  "pickElement": { "message": "Pick an element" },
+  "hint": { "message": "Then paste it in nib." },
+  "copying": { "message": "Copying…" },
+  "copied": { "message": "Copied $1 layers. Paste them in nib." },
+  "copiedSome": { "message": "Copied the first $1 layers (the page has more). Paste them in nib." },
+  "cannotRead": { "message": "Chrome does not let extensions read this page." },
+  "clipboardDenied": { "message": "This page did not allow copying. Use Copy this page instead." },
+  "pickHint": { "message": "Click an element to copy it for nib. ↑ picks its parent, Esc cancels." }
+}

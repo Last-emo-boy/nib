@@ -1,5 +1,8 @@
 // Runs inside a web page (sent with Runtime.evaluate), so it must not use anything outside itself.
 
+/** The most layers one import makes (a page with more stops there). */
+export const MAX_IMPORT = 4000;
+
 /**
  * Reproduce a part of a page as .pen nodes: elements that draw something (background, border, shadow,
  * clipping, opacity) become free frames at their exact boxes, wrappers that draw nothing are skipped

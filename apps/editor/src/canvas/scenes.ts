@@ -36,7 +36,12 @@ interface Entry {
   byId: Map<string, Placed>;
   /** While nodes in it are being revealed. */
   live?: Live;
+  /** It has shaders that change with time or follow the pointer: its laid-out scene is drawn every frame. */
+  animated?: { prepared: PreparedScene; time: boolean; mouse: boolean };
 }
+
+/** When the canvas opened: shaders' @time counts from here. */
+const START = performance.now();
 
 /** A top-level node with nodes fading in: its laid-out scene is kept so only drawing is redone. */
 interface Live {
@@ -90,13 +95,15 @@ export class SceneCache {
     return this.rebuild();
   }
 
-  /** Load `url` again and redraw the browser nodes showing it. */
+  /** Load `url` again (an image, a browser node's page, a shader file) and redraw the nodes showing it. */
   refreshImage(url: string): void {
     this.engine.renderer.images(this.images).forget(url);
+    this.engine.renderer.shaders(this.images).forget(url);
+    const uses = (v: unknown) => (Array.isArray(v) ? v : v ? [v] : []).some((f) => f && typeof f === 'object' && (f as { url?: unknown }).url === url);
     let everything = false;
     for (const id of this.doc.ids()) {
-      const n = this.doc.get(id);
-      if (n?.type === 'browser' && browserSnapshotUrl(n) === url) everything ||= this.touchesComponent(id) || this.mark(id);
+      const n = this.doc.get(id) as (Record<string, unknown> & { id: string; type: string }) | undefined;
+      if (n && ((n.type === 'browser' && browserSnapshotUrl(n) === url) || uses(n.fill) || uses(n.stroke) || uses(n.effect))) everything ||= this.touchesComponent(id) || this.mark(id);
     }
     if (everything) for (const n of this.doc.data.children) this.dirty.add(n.id);
     void this.rebuild();
@@ -130,10 +137,13 @@ export class SceneCache {
     for (const n of this.doc.data.children) {
       const e = this.entries.get(n.id);
       if (e?.live) this.step(e, now);
-      if (!e?.picture) continue;
+      if (!e?.picture && !e?.animated) continue;
       const d = shift?.get(n.id);
       if (d) { canvas.save(); canvas.translate(d.dx, d.dy); }
-      canvas.drawPicture(e.picture);
+      if (e.animated) {
+        this.engine.renderer.time = (now - START) / 1000;
+        this.engine.renderer.draw(canvas, e.animated.prepared, this.images);
+      } else canvas.drawPicture(e.picture!);
       if (e.live) for (const [id, picture] of e.live.fading) this.drawFading(canvas, e, id, picture, now);
       if (d) canvas.restore();
     }
@@ -141,7 +151,13 @@ export class SceneCache {
 
   /** Whether nodes are still being revealed (the canvas keeps drawing frames meanwhile). */
   animating(): boolean {
-    for (const e of this.entries.values()) if (e.live) return true;
+    for (const e of this.entries.values()) if (e.live || e.animated?.time) return true;
+    return false;
+  }
+
+  /** Whether a shader follows the pointer (the canvas redraws as it moves). */
+  followsPointer(): boolean {
+    for (const e of this.entries.values()) if (e.animated?.mouse) return true;
     return false;
   }
 
@@ -284,10 +300,14 @@ export class SceneCache {
       entry.live = { prepared, nodes: revealing, states: '', fading: new Map() };
       this.step(entry, performance.now());
     } else {
-      try {
-        entry.picture = this.record((c) => renderer.draw(c, prepared, this.images));
-      } finally {
-        prepared.dispose();
+      const anim = renderer.animated(scene, this.images);
+      if (anim.time || anim.mouse) entry.animated = { prepared, ...anim };
+      else {
+        try {
+          entry.picture = this.record((c) => renderer.draw(c, prepared, this.images));
+        } finally {
+          prepared.dispose();
+        }
       }
     }
     if (old) drop(old);
@@ -370,6 +390,7 @@ export class SceneCache {
 /** Free an entry's pictures and kept scene. */
 function drop(e: Entry): void {
   e.picture?.delete();
+  e.animated?.prepared.dispose();
   if (e.live) {
     e.live.prepared.dispose();
     for (const p of e.live.fading.values()) p.delete();

@@ -12,3 +12,4 @@ export * from './mesh.ts';
 export * from './compare.ts';
 export * from './trace.ts';
 export * from './cutout.ts';
+export * from './shaders.ts';

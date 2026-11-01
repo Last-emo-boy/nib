@@ -1,9 +1,10 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join, resolve as resolvePath } from 'node:path';
 import type { Node } from '@nib/format';
 import { buildScene, childrenOf, DocEditor, type Op, type PenDoc, type SceneNode } from '@nib/core';
-import { CELL_NAMES, comparePixels, cropPixels, decodePixels, encodePng, fillPixels, FontsNotLoaded, parseColor, resizePixels, type FontFace, type ImageLoader, type Pixels, type Renderer } from '@nib/render';
+import { CELL_NAMES, comparePixels, cropPixels, decodePixels, encodePng, fillPixels, FontsNotLoaded, parseColor, parseShader, resizePixels, SHADER_GALLERY, type FontFace, type ImageLoader, type Pixels, type Renderer } from '@nib/render';
 import { imageKey, ImagesNeeded, pictureKey, PenApi, PicturesNeeded, type ApiOutput, type CapturedScene, type CompareReference, type ExportFormat, type ExportOptions, type ImageAccess, type ImageRequest, type PictureRequest, type PictureResult } from './api.ts';
 import { BoundsCache, problemOf, type LayoutFn } from './bounds.ts';
 import { assetIssues, layoutIssues, variableIssues, type Problem } from './checks.ts';
@@ -78,6 +79,28 @@ export class ExecSession {
       writeFileSync(join(dir, name), encodePng(this.opts.renderer.ck, pixels));
       return `images/${name}`;
     },
+    saveShader: (name, source) => {
+      const url = `shaders/${name}.frag`;
+      const file = join(this.opts.baseDir, url);
+      if (source === undefined) {
+        // One of nib's: copied once; a copy already there may have been edited, so it stays.
+        const gallery = fileURLToPath(SHADER_GALLERY);
+        const from = join(gallery, `${name}.frag`);
+        if (!existsSync(from)) throw new Error(`nib has no shader "${name}"; it has ${readdirSync(gallery).filter((f) => f.endsWith('.frag')).map((f) => f.slice(0, -5)).join(', ')}`);
+        if (existsSync(file)) return url;
+        source = readFileSync(from, 'utf8');
+      } else {
+        const parsed = parseShader(source);
+        let error = '';
+        const effect = this.opts.renderer.ck.RuntimeEffect.Make(parsed.sksl, (e) => { error = e; });
+        if (!effect) throw new Error(`it does not compile: ${error.trim()}`);
+        effect.delete();
+      }
+      mkdirSync(join(this.opts.baseDir, 'shaders'), { recursive: true });
+      writeFileSync(file, source);
+      this.opts.renderer.shaders(this.opts.images).forget(url);
+      return url;
+    },
   };
 
   private constructor(doc: PenDoc, sandbox: Sandbox, opts: SessionOptions) {
@@ -135,7 +158,7 @@ export class ExecSession {
     } catch (e) {
       if (!(e instanceof FontsNotLoaded)) throw e;
     }
-    out.push(...assetIssues(this.opts.renderer, scenes, ids, this.opts.renderer.report(this.opts.images).missingImages));
+    out.push(...assetIssues(this.opts.renderer, scenes, ids, this.opts.renderer.report(this.opts.images).missingImages, this.opts.renderer.report(this.opts.images).brokenShaders));
     return out;
   }
 
@@ -321,7 +344,7 @@ export class ExecSession {
     } catch (e) {
       if (!(e instanceof FontsNotLoaded)) throw e;
     }
-    issues.push(...assetIssues(this.opts.renderer, scenes, touched, this.opts.renderer.report(this.opts.images).missingImages).map((p) => p.message));
+    issues.push(...assetIssues(this.opts.renderer, scenes, touched, this.opts.renderer.report(this.opts.images).missingImages, this.opts.renderer.report(this.opts.images).brokenShaders).map((p) => p.message));
 
     const images: ExecuteImage[] = [];
     const shots: string[] = [];
@@ -397,6 +420,7 @@ export class ExecSession {
       faces: assets.flatMap((a) => a.faces),
       urls: new Set(assets.flatMap((a) => [...a.urls])),
       icons: assets.flatMap((a) => a.icons),
+      shaders: new Set(assets.flatMap((a) => [...a.shaders])),
     }, this.opts.images);
     return scenes;
   }

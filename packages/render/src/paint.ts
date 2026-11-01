@@ -42,7 +42,7 @@ export interface PaintBox { width: number; height: number }
  * A paint for one fill, in the node's local space (0,0 at its top-left). Undefined when the fill paints
  * nothing (unknown type, missing image). The caller deletes the paint.
  */
-export function fillPaint(ck: CanvasKit, fill: unknown, box: PaintBox, images: ImageStore): Paint | undefined {
+export function fillPaint(ck: CanvasKit, fill: unknown, box: PaintBox, images: ImageStore, shaderFill?: (f: Rec) => Shader | undefined): Paint | undefined {
   const paint = new ck.Paint();
   paint.setAntiAlias(true);
   if (typeof fill === 'string') {
@@ -71,6 +71,11 @@ export function fillPaint(ck: CanvasKit, fill: unknown, box: PaintBox, images: I
       break;
     }
     case 'mesh_gradient': shader = meshShader(ck, f, box.width, box.height, opacity); break;
+    case 'shader': {
+      shader = shaderFill?.(f);
+      if (shader) paint.setAlphaf(opacity);
+      break;
+    }
   }
   if (!shader) return discard(paint);
   paint.setShader(shader);

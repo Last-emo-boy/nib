@@ -6,7 +6,8 @@ import { basename, dirname, extname, join, normalize, relative, resolve as resol
 import { WebSocketServer, type WebSocket } from 'ws';
 import { childrenOf, classifyStroke, flatten, isSketchStroke, pathInBox, sketchOutline, type Op } from '@nib/core';
 import type { Node } from '@nib/format';
-import type { FallbackFamilies, FontLoader, IconSource, ImageLoader, Renderer } from '@nib/render';
+import { parseShader, SHADER_GALLERY, type FallbackFamilies, type FontLoader, type IconSource, type ImageLoader, type Renderer } from '@nib/render';
+import { fileURLToPath } from 'node:url';
 import { faceInfo, faceOffsets, type FolderFontLoader, type SystemFontLoader } from '@nib/render/node';
 import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
 import { draftFile, draftPath, DRAFTS_DIR, drafts, newDraft, NIB_HOME, nodePreview, recents, thumbnail, trashDraft, updateRecents } from './library.ts';
@@ -189,6 +190,38 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const doc = q.get('doc') ?? '';
         if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
         return send(res, 200, { items: (await host.review(doc, q.get('frame') ?? undefined)) as unknown as Json[] });
+      }
+      case 'GET /api/shaders': {
+        // nib's own shaders: what each is, whether it is an effect (reads the layer), and its controls.
+        const dir = fileURLToPath(SHADER_GALLERY);
+        const shaders = [];
+        for (const f of (await readdir(dir)).filter((x) => x.endsWith('.frag')).sort()) {
+          const text = await readFile(join(dir, f), 'utf8');
+          const parsed = parseShader(text);
+          shaders.push({ name: f.slice(0, -5), title: (/^\/\/\s*(.*)$/m.exec(text)?.[1] ?? '').replace(/^Effect:\s*/, ''), effect: parsed.uniforms.some((u) => u.role === 'source'), inputs: parsed.uniforms.filter((u) => u.input).map((u) => ({ name: u.name, type: u.type, ...u.input })) });
+        }
+        return send(res, 200, { shaders: shaders as unknown as Json[] });
+      }
+      case 'GET /api/shader/inputs': {
+        // A document's shader file: its controls, or why it does not work.
+        const doc = q.get('doc') ?? '', url = q.get('url') ?? '';
+        if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
+        const bytes = await opts.images(doc).load(url);
+        if (!bytes) return send(res, 404, { error: `no shader at ${url}` });
+        try {
+          const parsed = parseShader(new TextDecoder().decode(bytes));
+          return send(res, 200, { effect: parsed.uniforms.some((u) => u.role === 'source'), inputs: parsed.uniforms.filter((u) => u.input).map((u) => ({ name: u.name, type: u.type, ...u.input })) as unknown as Json[] });
+        } catch (e) {
+          return send(res, 200, { error: (e as Error).message, inputs: [] });
+        }
+      }
+      case 'POST /api/shaders/use': {
+        // Copy one of nib's shaders next to the document (once) and give its url.
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || typeof body.name !== 'string') return send(res, 400, { error: 'doc and name are required' });
+        const r = await host.execute(body.doc, { input: `Print(Shader(${JSON.stringify(body.name)}))` }, 'nib', { source: { kind: 'user' }, label: 'Add shader' });
+        const url = /## Print output\n(.*)/.exec(r.text)?.[1]?.trim();
+        return r.ok && url ? send(res, 200, { url }) : send(res, 400, { error: (/Error: [^:]+: (.*)/.exec(r.text)?.[1] ?? r.text).split('\n')[0] });
       }
       case 'GET /api/picture/status':
         return send(res, 200, { stock: !!opts.pictures, make: (await opts.pictures?.canMake()) ?? false });

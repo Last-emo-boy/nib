@@ -258,13 +258,14 @@ function Fills({ t, title, value, onChange, edit }: { t: Strings; title: string;
   );
 }
 
-type FillKind = 'solid' | 'linear' | 'radial' | 'angular' | 'mesh' | 'image' | 'other';
+type FillKind = 'solid' | 'linear' | 'radial' | 'angular' | 'mesh' | 'image' | 'shader' | 'other';
 
 function kindOf(f: any): FillKind {
   if (typeof f === 'string' || f?.type === 'color') return 'solid';
   if (f?.type === 'gradient') return (f.gradientType ?? 'linear') as FillKind;
   if (f?.type === 'mesh_gradient') return 'mesh';
   if (f?.type === 'image') return 'image';
+  if (f?.type === 'shader') return 'shader';
   return 'other';
 }
 
@@ -283,13 +284,14 @@ function convert(f: any, kind: FillKind): unknown {
     return { type: 'gradient', gradientType: kind, ...(kind === 'linear' ? { rotation: 180 } : {}), colors: [{ color: base, position: 0 }, { color: `${base}00`, position: 1 }] };
   }
   if (kind === 'mesh') return { type: 'mesh_gradient', columns: 2, rows: 2, colors: [base, '#4DABF7', '#F783AC', '#FFD43B'] };
+  if (kind === 'shader') return { type: 'shader', url: '' };
   return f;
 }
 
 function FillRow({ fill, t, editing, onEdit, onChange, onRemove }: { fill: any; t: Strings; editing: boolean; onEdit?: () => void; onChange: (v: unknown) => void; onRemove: () => void }) {
   const color = typeof fill === 'string' ? fill : fill?.type === 'color' ? fill.color : undefined;
   const kind = kindOf(fill);
-  const kinds: [FillKind, string][] = [['solid', t.solid], ['linear', t.linearGradient], ['radial', t.radialGradient], ['angular', t.angularGradient], ['mesh', t.meshGradient]];
+  const kinds: [FillKind, string][] = [['solid', t.solid], ['linear', t.linearGradient], ['radial', t.radialGradient], ['angular', t.angularGradient], ['mesh', t.meshGradient], ['shader', t.shaderFill]];
   const stops: any[] = fill?.type === 'gradient' && Array.isArray(fill.colors) ? fill.colors : [];
   const putStops = (next: any[]) => onChange({ ...fill, colors: next });
   return (
@@ -301,6 +303,7 @@ function FillRow({ fill, t, editing, onEdit, onChange, onRemove }: { fill: any; 
           </select>
         )}
         {color !== undefined ? <ColorField value={color} onChange={(c) => onChange(typeof fill === 'string' ? c : { ...fill, color: c })} />
+          : kind === 'shader' ? <ShaderPicker t={t} effect={false} url={fill.url} onPick={(url) => onChange({ type: 'shader', url, ...(fill.opacity !== undefined ? { opacity: fill.opacity } : {}) })} />
           : kind === 'image' || kind === 'other' ? <span className="fill-kind">{fillKind(fill, t)}</span> : <span className="fill-kind fill-preview" style={{ background: previewOf(fill) }} />}
         {(fill?.type === 'gradient' || fill?.type === 'mesh_gradient') && onEdit && (
           <button className={`icon-button${editing ? ' on' : ''}`} title={t.editOnCanvas} onClick={onEdit}><Icon name="penTool" size={13} /></button>
@@ -310,6 +313,7 @@ function FillRow({ fill, t, editing, onEdit, onChange, onRemove }: { fill: any; 
         )}
         <button className="icon-button" onClick={onRemove}><Icon name="minus" size={13} /></button>
       </div>
+      {kind === 'shader' && fill.url && <ShaderControls t={t} url={fill.url} values={fill.uniforms} onChange={(uniforms) => onChange({ ...fill, uniforms })} />}
       {fill?.type === 'image' && (
         <div className="row indent">
           <select className="fill-type" value={imageMode(fill)} onChange={(e) => {
@@ -410,13 +414,19 @@ function Effects({ t, value, onChange }: { t: Strings; value: unknown; onChange:
             <div className="row">
               <select value={e.type === 'shadow' ? (e.shadowType === 'inner' ? 'inner' : 'drop') : e.type} onChange={(ev) => {
                 const v = ev.target.value;
+                if (v === 'shader') { write(list.map((x, j) => (j === i ? { type: 'shader', url: '' } : x))); return; }
                 put(v === 'drop' || v === 'inner' ? { type: 'shadow', shadowType: v === 'inner' ? 'inner' : undefined } : { type: v, radius: e.radius ?? e.blur ?? 8 });
               }}>
-                <option value="drop">Drop shadow</option><option value="inner">Inner shadow</option><option value="blur">Layer blur</option><option value="background_blur">Background blur</option>
+                <option value="drop">Drop shadow</option><option value="inner">Inner shadow</option><option value="blur">Layer blur</option><option value="background_blur">Background blur</option><option value="shader">{t.shaderFill}</option>
               </select>
               <button className="icon-button" onClick={() => write(list.filter((_, j) => j !== i))}><Icon name="minus" size={13} /></button>
             </div>
-            {e.type === 'shadow' ? (
+            {e.type === 'shader' ? (
+              <>
+                <div className="row"><ShaderPicker t={t} effect={true} url={e.url} onPick={(url) => write(list.map((x, j) => (j === i ? { type: 'shader', url } : x)))} /></div>
+                {e.url && <ShaderControls t={t} url={e.url} values={e.uniforms} onChange={(uniforms) => put({ uniforms })} />}
+              </>
+            ) : e.type === 'shadow' ? (
               <div className="row">
                 <Num label="X" value={e.offset?.x ?? 0} onChange={(v) => put({ offset: { ...(e.offset ?? { y: 0 }), x: v } })} />
                 <Num label="Y" value={e.offset?.y ?? 0} onChange={(v) => put({ offset: { ...(e.offset ?? { x: 0 }), y: v } })} />
@@ -429,6 +439,78 @@ function Effects({ t, value, onChange }: { t: Strings; value: unknown; onChange:
         );
       })}
     </Section>
+  );
+}
+
+type GalleryShader = { name: string; title: string; effect: boolean };
+type ShaderInputInfo = { name: string; type: string; kind: 'number' | 'color' | 'boolean' | 'vector'; default: unknown; min?: number; max?: number; label: string };
+let gallery: Promise<GalleryShader[]> | undefined;
+
+/** Which shader: one of nib's (copied into the document's shaders folder), or a file next to the document. */
+function ShaderPicker({ t, effect, url, onPick }: { t: Strings; effect: boolean; url: string; onPick: (url: string) => void }) {
+  const conn = useEditor((s) => s.conn);
+  const [list, setList] = useState<GalleryShader[]>([]);
+  const [custom, setCustom] = useState(false);
+  useEffect(() => {
+    gallery ??= fetch('/api/shaders', { headers: authHeaders() }).then((r) => r.json()).then((j) => j.shaders as GalleryShader[]);
+    void gallery.then((l) => setList(l.filter((s) => s.effect === effect)), () => setList([]));
+  }, [effect]);
+  const name = /^shaders\/([a-z0-9-]+)\.frag$/.exec(url)?.[1];
+  const known = name && list.some((s) => s.name === name);
+  if (custom || (url && !known)) {
+    return <input className="shader-url" placeholder="shaders/my-shader.frag" defaultValue={url} autoFocus={custom}
+      onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') { setCustom(false); onPick(e.currentTarget.value.trim()); } }}
+      onBlur={(e) => { setCustom(false); if (e.target.value.trim() !== url) onPick(e.target.value.trim()); }} />;
+  }
+  return (
+    <select className="shader-pick" value={known ? name : ''} onChange={(e) => {
+      const v = e.target.value;
+      if (v === '#file') { setCustom(true); return; }
+      if (!v || !conn) return;
+      post<{ url: string }>('/api/shaders/use', { doc: conn.path, name: v }).then((r) => onPick(r.url), (err: Error) => toast(err.message));
+    }}>
+      <option value="">{t.chooseShader}</option>
+      {list.map((s) => <option key={s.name} value={s.name} title={s.title}>{s.name}</option>)}
+      <option value="#file">{t.shaderFile}</option>
+    </select>
+  );
+}
+
+/** The controls a shader declares with @input, for the values stored in the fill or effect. */
+function ShaderControls({ t, url, values, onChange }: { t: Strings; url: string; values?: Record<string, unknown>; onChange: (v: Record<string, unknown> | undefined) => void }) {
+  const conn = useEditor((s) => s.conn);
+  const version = useEditor((s) => s.version);
+  const [info, setInfo] = useState<{ inputs: ShaderInputInfo[]; error?: string }>({ inputs: [] });
+  useEffect(() => {
+    if (!conn) return;
+    fetch(`/api/shader/inputs?${new URLSearchParams({ doc: conn.path, url })}`, { headers: authHeaders() }).then((r) => r.json()).then(
+      (j) => setInfo({ inputs: j.inputs ?? [], ...(j.error ? { error: j.error } : {}) }), () => setInfo({ inputs: [] }));
+  }, [conn, url, version]);
+  const set = (name: string, v: unknown) => {
+    const next = { ...(values ?? {}), [name]: v };
+    onChange(Object.keys(next).length ? next : undefined);
+  };
+  if (info.error) return <div className="shader-error">{t.shaderBroken(info.error)}</div>;
+  return (
+    <>
+      {info.inputs.map((i) => {
+        const v = values?.[i.name] ?? i.default;
+        return (
+          <div key={i.name} className="row shader-input">
+            <span className="shader-label" title={i.name}>{i.label}</span>
+            {i.kind === 'color' ? <ColorField value={String(v)} onChange={(c) => set(i.name, c)} />
+              : i.kind === 'boolean' ? <input type="checkbox" checked={v === true} onChange={(e) => set(i.name, e.target.checked)} />
+              : i.kind === 'number' && i.min !== undefined && i.max !== undefined ? (
+                <>
+                  <input type="range" min={i.min} max={i.max} step={(i.max - i.min) / 200} value={Number(v)} onChange={(e) => set(i.name, Number(e.target.value))} />
+                  <span className="shader-value">{Math.round(Number(v) * 100) / 100}</span>
+                </>
+              ) : i.kind === 'number' ? <Num label="" value={Number(v)} onChange={(n) => set(i.name, n)} />
+              : (Array.isArray(v) ? v : []).map((x, k) => <Num key={k} label={'xyzw'[k]} value={Number(x)} onChange={(n) => set(i.name, (v as number[]).map((y, m) => (m === k ? n : y)))} />)}
+          </div>
+        );
+      })}
+    </>
   );
 }
 

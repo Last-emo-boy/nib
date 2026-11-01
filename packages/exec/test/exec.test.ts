@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -345,6 +345,18 @@ Compare("box", ${JSON.stringify(join(dir, 'tall.png'))})`);
     expect(await readdir(join(dir, 'images'))).toEqual(['pic-cutout.png']);
     expect((await s.execute({ input: 'RemoveBackground("card")' })).text).toContain('card shows no picture');
     expect((await s.execute({ input: 'RemoveBackground("inner", {method: "model"})' })).text).toContain('pictures cannot be got here');
+  });
+
+  it('saves shaders that compile, and copies nib\'s', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'nib-shaders-'));
+    const s = await ExecSession.open(new PenDoc({ version: '2.20', children: [] } as unknown as PenDocument), { renderer, images: noImages, baseDir: dir });
+    const ok = await s.execute({ input: 'Print(Shader("red", "void main() { gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); }"), Shader("aurora"))' });
+    expect(ok.text).toContain('shaders/red.frag shaders/aurora.frag');
+    expect(await readFile(join(dir, 'shaders', 'aurora.frag'), 'utf8')).toContain('// @input');
+    const bad = await s.execute({ input: 'Shader("bad", "void main() { gl_FragColor = nope; }")' });
+    expect(bad.text).toMatch(/Shader: it does not compile: .*nope/);
+    expect((await s.execute({ input: 'Shader("nothing-like-it")' })).text).toMatch(/nib has no shader "nothing-like-it"; it has aurora, chromatic/);
+    expect(await readdir(join(dir, 'shaders'))).toEqual(['aurora.frag', 'red.frag']);
   });
 
   it('stops endless loops', async () => {

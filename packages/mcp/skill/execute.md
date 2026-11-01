@@ -107,6 +107,10 @@ Turns the picture a layer shows (its image fill, as cropped) into flat-colored s
 
 Takes the background away from the picture a layer shows and fills the layer with the result (a PNG with transparency in the `images` folder). `method: "color"` (default) removes a plain background (a product shot, a portrait against a wall), from the edges inwards; `tolerance` (default 0.12) says how far from the background's color still counts as background. `method: "model"` asks an image model to cut out the subject from any background (needs the person's OpenAI key).
 
+### `Shader(name, source?) → url`
+
+A shader file for shader fills and effects (see `shaders.md`): nib's own `name` copied into the document's `shaders` folder, or your GLSL `source` saved as `shaders/<name>.frag` once it compiles.
+
 ### `InsertSvg(parent, svg, props?) → id`
 
 SVG markup as editable layers: a frame the size of the drawing holding its shapes as paths, inserted like `Insert` (`props` sets the frame's name, position and size). Use it to draw illustrations, logos and icons nib's icon sets do not have: write the SVG yourself, keeping it to shapes and paths (text and embedded images are left out).

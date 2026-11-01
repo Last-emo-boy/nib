@@ -39,6 +39,7 @@ nib edits `.pen` design files: JSON documents holding a canvas of nodes (frames,
 | `layout.md` | How frames size and place children: layouts, `fit_content`, `fill_container`, text sizing, absolute positioning. |
 | `components.md` | Components, instances, overrides through `descendants`, instance paths, slots. |
 | `variables.md` | Variables and themes (light/dark modes and other axes). |
+| `shaders.md` | Shader fills and effects: nib's shaders, writing your own GLSL, controls. |
 | `guide/design.md` | Craft: hierarchy, spacing, type, color, and a review checklist. |
 | `guide/web-app.md` | Desktop app screens: shells, sidebars, tables, forms. |
 | `guide/landing-page.md` | Marketing pages: hero, sections, proof, calls to action. |

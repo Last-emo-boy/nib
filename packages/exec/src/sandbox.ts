@@ -93,6 +93,7 @@ const PRELUDE = String.raw`
     Delete: (path) => { call('delete', [path]); },
     Generate: (path, kind, prompt, options) => call('generate', [path, kind, prompt, options]),
     InsertSvg: (parent, svg, props) => call('insertSvg', [parent, svg, props]),
+    Shader: (name, source) => call('shader', [name, source]),
     Vectorize: (path, options) => call('vectorize', [path, options]),
     RemoveBackground: (path, options) => call('removeBackground', [path, options]),
     SetVariables: (variables, replace) => { call('setVariables', [variables, replace]); },

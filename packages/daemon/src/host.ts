@@ -46,6 +46,8 @@ export interface OpenDocument {
   redo: Entry[];
   listeners: Set<Listener>;
   watcher?: FSWatcher;
+  /** Watches of the shaders/ and scripts/ folders next to it. */
+  codeWatchers?: FSWatcher[];
   /** Notes from reloads nobody asked for (file watch), for the next agent call. */
   pending: string[];
 }
@@ -242,6 +244,7 @@ export class DocumentHost {
     if (await stat(dest).catch(() => undefined)) throw new Error(`${dest} already exists`);
     return this.enqueue(open, async () => {
       open.watcher?.close();
+      for (const w of open.codeWatchers ?? []) w.close();
       await rename(open.path, dest);
       const from = open.path;
       this.docs.delete(open.path);
@@ -262,6 +265,7 @@ export class DocumentHost {
     await this.enqueue(open, async () => {
       this.emit(open, { t: 'deleted', path: open.path });
       open.watcher?.close();
+      for (const w of open.codeWatchers ?? []) w.close();
       this.docs.delete(open.path);
       if (this.active === open.path) this.active = undefined;
     });
@@ -290,6 +294,7 @@ export class DocumentHost {
     const open = this.docs.get(resolvePath(filePath));
     if (!open) return;
     this.opts.renderer.images(open.images).forget(url);
+    this.opts.renderer.shaders(open.images).forget(url);
     this.emit(open, { t: 'asset', path: open.path, url });
   }
 
@@ -343,6 +348,7 @@ export class DocumentHost {
   close(): void {
     for (const d of this.docs.values()) {
       d.watcher?.close();
+      for (const w of d.codeWatchers ?? []) w.close();
       d.session.dispose();
     }
     this.docs.clear();
@@ -448,6 +454,7 @@ export class DocumentHost {
       // The folder, not the file: saves (ours and other apps') replace the file, which ends a file watch.
       const name = basename(open.path);
       open.watcher = watch(dirname(open.path), (_event, file) => {
+        if (file !== null && CODE.test(file)) { this.codeChanged(open, file); return; }
         if (file !== null && file !== name) return;
         clearTimeout(timer);
         timer = setTimeout(() => { this.sync(open, open.pending).catch(() => undefined); }, 150);
@@ -456,6 +463,26 @@ export class DocumentHost {
     } catch {
       // Not watchable (e.g. a network volume): changes are still picked up before each execute.
     }
+    // Shader and script files: editing one redraws the layers that use it.
+    open.codeWatchers = [];
+    for (const sub of ['shaders', 'scripts']) {
+      try {
+        const w = watch(join(dirname(open.path), sub), (_event, file) => { if (file !== null && CODE.test(file)) this.codeChanged(open, `${sub}/${file}`); });
+        w.on('error', () => w.close());
+        open.codeWatchers.push(w);
+      } catch {
+        // No such folder.
+      }
+    }
+  }
+
+  private codeTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /** A shader or script file next to `open` changed (editors save in bursts: once it settles). */
+  private codeChanged(open: OpenDocument, url: string): void {
+    const key = `${open.path}#${url}`;
+    clearTimeout(this.codeTimers.get(key));
+    this.codeTimers.set(key, setTimeout(() => { this.codeTimers.delete(key); this.assetChanged(open.path, url); }, 120));
   }
 
   /** Write atomically: a temporary file in the same folder, renamed over the original. */
@@ -469,6 +496,9 @@ export class DocumentHost {
     open.mtimeMs = (await stat(open.path)).mtimeMs;
   }
 }
+
+/** Files whose changes redraw what uses them, rather than reload the document. */
+const CODE = /\.(frag|glsl|js|mjs)$/i;
 
 const labels = (open: OpenDocument) => ({ undo: open.undo.map((e) => e.label), redo: open.redo.map((e) => e.label) });
 

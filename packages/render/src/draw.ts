@@ -7,6 +7,7 @@ import { cornerRadii, isRectLike, rrectPath, shapePath } from './geometry.ts';
 import { isFontIconLibrary, type IconGeometry } from './icons.ts';
 import type { ImageStore } from './images.ts';
 import { fillList, fillPaint } from './paint.ts';
+import { makeShader, type CompiledShader, type ShaderFrame, type ShaderStore } from './shaders.ts';
 import { solidTextColor, type TextEngine } from './text.ts';
 
 export type StrokeAlignment = 'inner' | 'center' | 'outer';
@@ -19,6 +20,10 @@ export interface DrawContext {
   icons: ReadonlyMap<string, IconGeometry | undefined>;
   /** Alignment for strokes that do not set one. */
   defaultStrokeAlignment: StrokeAlignment;
+  /** Shader fills and effects; time (seconds) and the pointer (device pixels) for the shaders that use them. */
+  shaders?: ShaderStore;
+  time?: number;
+  pointer?: { x: number; y: number };
 }
 
 type Rec = Record<string, unknown>;
@@ -54,6 +59,28 @@ function effects(ck: CanvasKit, node: SceneNode) {
 /** Blur radius as a Gaussian sigma, the convention CSS and design tools use. */
 const sigma = (radius: number) => radius / 2;
 
+/** What a shader drawn on `node` (w × h) gets besides its inputs, at this point of `canvas`. */
+function shaderFrame(dc: DrawContext, canvas: Canvas, node: SceneNode, w: number, h: number): ShaderFrame {
+  const { ck } = dc;
+  let mouse: { x: number; y: number } | undefined;
+  if (dc.pointer) {
+    const inv = ck.Matrix.invert(canvas.getTotalMatrix());
+    const p = inv && ck.Matrix.mapPoints(inv, [dc.pointer.x, dc.pointer.y]);
+    if (p && p[0] >= 0 && p[1] >= 0 && p[0] <= w && p[1] <= h) mouse = { x: p[0], y: p[1] };
+  }
+  return { width: w, height: h, time: dc.time ?? 0, ...(mouse ? { mouse } : {}), sdf: () => dc.shaders?.sdfShader(w, h, cornerRadii(node), node.type === 'ellipse') };
+}
+
+/** The node's enabled shader effects that compiled, in order. */
+function shaderEffects(dc: DrawContext, node: SceneNode): { compiled: CompiledShader; uniforms?: Record<string, unknown> }[] {
+  if (!dc.shaders) return [];
+  const list = (Array.isArray(node.effect) ? node.effect : node.effect ? [node.effect] : []) as Rec[];
+  return list.filter((e) => e && e.enabled !== false && e.type === 'shader' && typeof e.url === 'string').flatMap((e) => {
+    const compiled = dc.shaders!.get(e.url as string);
+    return compiled ? [{ compiled, uniforms: e.uniforms as Record<string, unknown> | undefined }] : [];
+  });
+}
+
 /** Draw `node` and its subtree. The canvas is in the parent's coordinate space. */
 export function drawNode(dc: DrawContext, canvas: Canvas, node: SceneNode): void {
   const { ck } = dc;
@@ -86,6 +113,50 @@ export function drawNode(dc: DrawContext, canvas: Canvas, node: SceneNode): void
     p.delete();
   }
 
+  const shaderFx = shaderEffects(dc, node);
+  if (shaderFx.length) drawThroughShaders(dc, canvas, node, w, h, fx, shaderFx);
+  else drawBody(dc, canvas, node, w, h, fx);
+  canvas.restoreToCount(base);
+}
+
+/**
+ * A node with shader effects: drawn into a picture, which each effect reads as its @source and changes, the
+ * last one onto the canvas (as far as the effects' margin around the node).
+ */
+function drawThroughShaders(dc: DrawContext, canvas: Canvas, node: SceneNode, w: number, h: number, fx: ReturnType<typeof effects>, list: ReturnType<typeof shaderEffects>) {
+  const { ck } = dc;
+  const m = Math.max(0, ...list.map((e) => e.compiled.parsed.margin));
+  const bounds = ck.LTRBRect(-m, -m, w + m, h + m);
+  const record = (draw: (c: Canvas) => void) => {
+    const rec = new ck.PictureRecorder();
+    draw(rec.beginRecording(bounds));
+    const pic = rec.finishRecordingAsPicture();
+    rec.delete();
+    return pic;
+  };
+  let pic = record((c) => drawBody(dc, c, node, w, h, fx));
+  for (const [i, e] of list.entries()) {
+    // A picture shader puts the picture's top-left corner (the margin's) at its origin: move it back.
+    const frame = { ...shaderFrame(dc, canvas, node, w, h), source: () => pic.makeShader(ck.TileMode.Decal, ck.TileMode.Decal, ck.FilterMode.Linear, ck.Matrix.translated(-m, -m)) };
+    const shader = makeShader(ck, e.compiled, e.uniforms, frame);
+    const paint = new ck.Paint();
+    if (shader) paint.setShader(shader);
+    const last = i === list.length - 1;
+    if (last) canvas.drawRect(bounds, paint);
+    else {
+      const next = record((c) => c.drawRect(bounds, paint));
+      pic.delete();
+      pic = next;
+    }
+    paint.delete();
+    shader?.delete();
+  }
+  pic.delete();
+}
+
+/** The node's own paint (shadows, fills, text, children, strokes), in its local space. */
+function drawBody(dc: DrawContext, canvas: Canvas, node: SceneNode, w: number, h: number, fx: ReturnType<typeof effects>) {
+  const { ck } = dc;
   const outline = shapePath(ck, node, w, h);
   const filled = outline !== undefined && fillList(node.fill).length > 0;
   // Nodes without a filled outline cast shadows from what they paint.
@@ -102,7 +173,7 @@ export function drawNode(dc: DrawContext, canvas: Canvas, node: SceneNode): void
   if (outline) {
     if (filled) for (const s of fx.shadows) if (!s.inner) outerShadow(dc, canvas, node, outline, w, h, s);
     if (fx.backgroundBlur > 0) backgroundBlur(dc, canvas, outline, fx.backgroundBlur);
-    paintFills(dc, canvas, node.fill, outline, w, h);
+    paintFills(dc, canvas, node.fill, outline, w, h, node);
     // A browser node shows the latest snapshot of its page over a neutral placeholder.
     if (node.type === 'browser') paintFills(dc, canvas, ['#F1F3F5', { type: 'image', url: browserSnapshotUrl(node), mode: 'cover' }], outline, w, h);
     for (const s of fx.shadows) if (s.inner) innerShadow(dc, canvas, node, outline, w, h, s);
@@ -124,12 +195,15 @@ export function drawNode(dc: DrawContext, canvas: Canvas, node: SceneNode): void
 
   if (outline) paintStrokes(dc, canvas, node, outline, w, h);
   outline?.delete();
-  canvas.restoreToCount(base);
 }
 
-function paintFills(dc: DrawContext, canvas: Canvas, fill: unknown, path: Path, w: number, h: number) {
+function paintFills(dc: DrawContext, canvas: Canvas, fill: unknown, path: Path, w: number, h: number, node?: SceneNode) {
+  const shaderFill = (f: Rec) => {
+    const compiled = node && typeof f.url === 'string' ? dc.shaders?.get(f.url) : undefined;
+    return compiled ? makeShader(dc.ck, compiled, f.uniforms as Record<string, unknown> | undefined, shaderFrame(dc, canvas, node!, w, h)) : undefined;
+  };
   for (const f of fillList(fill)) {
-    const p = fillPaint(dc.ck, f, { width: w, height: h }, dc.images);
+    const p = fillPaint(dc.ck, f, { width: w, height: h }, dc.images, shaderFill);
     if (!p) continue;
     canvas.drawPath(path, p);
     p.delete();

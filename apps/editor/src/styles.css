@@ -614,3 +614,9 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .overlay .aipen { position: absolute; display: flex; gap: 6px; align-items: center; padding: 6px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: var(--shadow); pointer-events: auto; z-index: 5; }
 .overlay .aipen input { width: 260px; }
 .canvas.tool-aipen { cursor: crosshair; }
+.shader-pick, .shader-url { flex: 1; min-width: 0; }
+.shader-input { gap: 6px; }
+.shader-label { font-size: 11px; color: var(--dim); width: 64px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shader-input input[type=range] { flex: 1; min-width: 0; }
+.shader-value { font-size: 11px; color: var(--dim); width: 32px; text-align: right; }
+.shader-error { font-size: 11px; color: var(--danger-text); line-height: 1.35; overflow-wrap: anywhere; padding: 2px 0; }

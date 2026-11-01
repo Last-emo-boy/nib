@@ -113,6 +113,8 @@ export interface ImageAccess {
   pixels(key: string): Pixels | string | undefined;
   /** Save pixels as a PNG in the images folder next to the .pen file; the url relative to it. */
   savePng(name: string, pixels: Pixels): string;
+  /** Save a shader (checked first: throws with what is wrong), or copy one of nib's; its url. */
+  saveShader(name: string, source: string | undefined): string;
 }
 
 /** The topmost image fill a layer shows, with its index in the fill list. */
@@ -379,6 +381,18 @@ export class PenApi {
     if (got === undefined) throw new ImagesNeeded([req]);
     if (typeof got === 'string') throw new ExecError(`${fn}: ${got}`);
     return got;
+  }
+
+  /** A shader file for fills and effects: `source` saved as shaders/<name>.frag once it compiles, or nib's own `name`. */
+  shader(name: unknown, source?: unknown): string {
+    if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9-]{0,40}$/.test(name)) throw new ExecError('Shader: the name is lowercase letters, digits and dashes, e.g. "soft-glow"');
+    if (source !== undefined && typeof source !== 'string') throw new ExecError('Shader: the source is GLSL text');
+    if (!this.images) throw new ExecError('Shader is not available here');
+    try {
+      return this.images.saveShader(name, source as string | undefined);
+    } catch (e) {
+      throw new ExecError(`Shader: ${(e as Error).message}`);
+    }
   }
 
   /** SVG markup as editable layers: a frame the drawing's size holding its shapes, placed like Insert. */

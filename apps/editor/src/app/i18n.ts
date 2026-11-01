@@ -57,6 +57,7 @@ const en = {
   recreateAsLayers: 'Recreate as editable layers', needsVision: 'Pick a model that can see pictures (in the agent panel) to recreate one.', recreatePrompt: (name: string, id: string) => `Recreate the picture in “${name}” (id ${id}) as editable layers: a new frame of the picture's size next to it, built with real text and shapes (and the document's library where it fits). Check it with Compare(newFrame, "${id}") and improve the regions it names until it is at least 95% similar, then tell me how close it got.`,
   designReview: 'Design review', wholeDocument: 'whole document', reviewClean: 'Nothing to point out.', fixWithAgent: 'Fix with the agent', askAgentReview: 'Ask the agent to review',
   reviewKinds: { contrast: 'Hard to read', 'small-text': 'Text too small', 'touch-target': 'Too small to tap', 'cut-off': 'Text cut off', overflow: 'Text runs out', alignment: 'Almost aligned', spacing: 'Uneven gaps' },
+  shaderFill: 'Shader', chooseShader: 'Choose a shader…', shaderFile: 'A file next to this document…', shaderBroken: (why: string) => `This shader does not work: ${why}`,
   aiPenTool: 'AI pen: drag a box, say what to draw', aiPenPlaceholder: 'What to draw, e.g. a fox reading a book', draw: 'Draw',
   penStyles: {
     flat: { label: 'Flat illustration', prompt: 'a flat illustration: a few solid colors, simple shapes, no outlines or gradients' },
@@ -166,6 +167,7 @@ const zh: typeof en = {
   recreateAsLayers: '用智能体重建成可编辑图层', needsVision: '重建图片需要能看图的模型，请先在智能体面板里换一个。', recreatePrompt: (name: string, id: string) => `把“${name}”（id ${id}）里的图片重建成可编辑图层：在它旁边新建一个和图片一样大的画框，用真实的文字和形状来做（合适的地方用文档的组件库）。用 Compare(新画框, "${id}") 检查，按它指出的区域改，直到相似度至少 95%，最后告诉我做到了多接近。`,
   designReview: '设计检查', wholeDocument: '整个文档', reviewClean: '没有发现问题。', fixWithAgent: '交给智能体修', askAgentReview: '请智能体评审',
   reviewKinds: { contrast: '对比度不足', 'small-text': '文字太小', 'touch-target': '点击区域太小', 'cut-off': '文字被裁切', overflow: '文字溢出', alignment: '差一点对齐', spacing: '间距不均' },
+  shaderFill: '着色器', chooseShader: '选择着色器…', shaderFile: '文档旁边的文件…', shaderBroken: (why: string) => `这个着色器无法使用：${why}`,
   aiPenTool: 'AI 画笔：拖出一个框，说要画什么', aiPenPlaceholder: '要画什么，例如：一只在看书的狐狸', draw: '画',
   penStyles: {
     flat: { label: '扁平插画', prompt: '扁平插画：几种纯色、简单形状，不要描边和渐变' },

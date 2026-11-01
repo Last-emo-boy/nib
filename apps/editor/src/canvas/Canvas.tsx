@@ -29,6 +29,8 @@ export const canvas = {
   size: { width: 0, height: 0 },
   /** When the person last panned or zoomed (performance.now()); following an agent waits after that. */
   userViewAt: 0,
+  /** The pointer over the canvas in device pixels, for shaders that follow it. */
+  pointer: undefined as { x: number; y: number } | undefined,
   /** Smart guides of the gesture in progress, and distances shown while Alt is held. */
   guides: [] as Guide[],
   measures: [] as Measure[],
@@ -267,6 +269,7 @@ export function CanvasView() {
       c.scale(dpr, dpr);
       c.translate(view.tx, view.ty);
       c.scale(view.zoom, view.zoom);
+      engine.renderer.pointer = canvas.pointer;
       canvas.cache?.draw(c, canvas.shift);
       c.restore();
       surface.flush();
@@ -437,6 +440,8 @@ export function CanvasView() {
     const { sx, sy } = local(e);
     const p = toDoc(s.view, sx, sy);
     const g = gesture.current;
+    canvas.pointer = { x: sx * (window.devicePixelRatio || 1), y: sy * (window.devicePixelRatio || 1) };
+    if (canvas.cache.followsPointer()) canvas.redraw();
     if (!g) {
       if (s.tool === 'pen') { penHover(p, e.shiftKey); return; }
       if ((s.tool === 'move' || s.tool === 'scale') && !space.current) {

@@ -5,6 +5,7 @@ import { browserSnapshotUrl, drawNode, iconKey, type StrokeAlignment } from './d
 import { FontStore, fontWeight, type FontFace, type FontLoader } from './fonts.ts';
 import { isFontIconLibrary, type IconGeometry, type IconSource } from './icons.ts';
 import { ImageStore, type ImageLoader } from './images.ts';
+import { ShaderStore } from './shaders.ts';
 import { fillList } from './paint.ts';
 import { facesOf, NOTO_FALLBACKS, TextEngine, type FallbackFamilies } from './text.ts';
 
@@ -31,6 +32,8 @@ export interface SceneAssets {
   faces: FontFace[];
   urls: Set<string>;
   icons: { library: string; name: string; weight: number | undefined }[];
+  /** Shader files of shader fills and effects. */
+  shaders: Set<string>;
 }
 
 export interface RasterOptions {
@@ -55,6 +58,8 @@ export interface RenderReport {
   missingFonts: FontFace[];
   missingImages: [string, string][];
   missingIcons: string[];
+  /** Shaders that could not be loaded or compiled, with why. */
+  brokenShaders: [string, string][];
 }
 
 /**
@@ -67,6 +72,11 @@ export class Renderer {
   private iconSource: IconSource;
   private icons = new Map<string, IconGeometry | undefined>();
   private imageStores = new WeakMap<ImageLoader, ImageStore>();
+  private shaderStores = new WeakMap<ImageLoader, ShaderStore>();
+  /** Seconds, for shaders that animate (@time); the editor advances it, exports draw at 0. */
+  time = 0;
+  /** The pointer in device pixels, for shaders that follow it (@mouse); none outside the editor. */
+  pointer: { x: number; y: number } | undefined;
   private strokeAlignment: StrokeAlignment;
   readonly fallbacks: FallbackFamilies;
 
@@ -84,10 +94,25 @@ export class Renderer {
     return s;
   }
 
+  shaders(loader: ImageLoader): ShaderStore {
+    let s = this.shaderStores.get(loader);
+    if (!s) this.shaderStores.set(loader, (s = new ShaderStore(this.ck, loader)));
+    return s;
+  }
+
+  /** Whether `root` uses shaders that change with time or follow the pointer (loaded ones only). */
+  animated(root: SceneNode, images: ImageLoader): { time: boolean; mouse: boolean } {
+    const store = this.shaders(images);
+    const roles = new Set<string>();
+    for (const url of this.assets(root).shaders) for (const u of store.get(url)?.parsed.uniforms ?? []) roles.add(u.role);
+    return { time: roles.has('time'), mouse: roles.has('mouse') };
+  }
+
   /** Fonts, image urls and vector icons a scene uses. */
   assets(root: SceneNode): SceneAssets {
     const faces: FontFace[] = [];
     const urls = new Set<string>();
+    const shaders = new Set<string>();
     const icons: { library: string; name: string; weight: number | undefined }[] = [];
     const visit = (n: SceneNode) => {
       if (n.type === 'text' || n.type === 'note' || n.type === 'prompt' || n.type === 'context') faces.push(...facesOf(n, this.fallbacks));
@@ -99,15 +124,18 @@ export class Renderer {
       }
       if (n.type === 'browser') urls.add(browserSnapshotUrl(n));
       for (const f of [...fillList(n.fill), ...fillList(n.stroke)]) {
-        if (f && typeof f === 'object' && (f as { type?: unknown }).type === 'image') {
-          const url = (f as { url?: unknown }).url;
-          if (typeof url === 'string') urls.add(url);
-        }
+        const type = f && typeof f === 'object' ? (f as { type?: unknown }).type : undefined;
+        const url = f && typeof f === 'object' ? (f as { url?: unknown }).url : undefined;
+        if (type === 'image' && typeof url === 'string') urls.add(url);
+        if (type === 'shader' && typeof url === 'string') shaders.add(url);
+      }
+      for (const e of (Array.isArray(n.effect) ? n.effect : n.effect ? [n.effect] : []) as { type?: unknown; url?: unknown }[]) {
+        if (e?.type === 'shader' && typeof e.url === 'string') shaders.add(e.url);
       }
       n.children?.forEach(visit);
     };
     visit(root);
-    return { faces, urls, icons };
+    return { faces, urls, icons, shaders };
   }
 
   async load(assets: SceneAssets, images: ImageLoader): Promise<void> {
@@ -117,7 +145,7 @@ export class Renderer {
       this.icons.set(key, undefined);
       return this.iconSource.load(library, name, weight).then((g) => { this.icons.set(key, g); });
     });
-    await Promise.all([this.fonts.ensure(assets.faces), this.images(images).ensure(assets.urls), ...iconLoads]);
+    await Promise.all([this.fonts.ensure(assets.faces), this.images(images).ensure(assets.urls), this.shaders(images).ensure(assets.shaders), ...iconLoads]);
   }
 
   /** Load the fonts, icons and images `root` uses, then lay it out. */
@@ -222,6 +250,9 @@ export class Renderer {
       images: this.images(images),
       icons: this.icons,
       defaultStrokeAlignment: this.strokeAlignment,
+      shaders: this.shaders(images),
+      time: this.time,
+      pointer: this.pointer,
     };
   }
 
@@ -236,6 +267,7 @@ export class Renderer {
       missingFonts: this.fonts.missing(),
       missingImages: this.images(images).failures(),
       missingIcons: [...this.icons].filter(([, g]) => !g).map(([k]) => k),
+      brokenShaders: this.shaders(images).failures(),
     };
   }
 }

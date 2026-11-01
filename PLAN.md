@@ -143,6 +143,7 @@ Everything pen.dev has that nib lacks, the pain points seen while using nib's ag
 - G6. Windows and Linux builds, auto-update, WebMCP.
 - G7. Web version of the editor without the desktop app.
 - G8. Plugins: local scripts on the execute API, run as commands.
+- Status 2026-11-01: G1 done (packages/cli, `nib` / `pnpm nib`: render and export frames headless, validate (schema errors exit 1, plus layout and asset problems), diff two files or two git revisions frame by frame with --images before/after/difference pictures and --markdown for a pull request, agent sends a request to nib's agent through the daemon and prints what it does, open hands a file to the app or the browser editor).
 
 ## UX: better than pen.dev
 

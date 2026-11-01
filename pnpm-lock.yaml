@@ -71,6 +71,27 @@ importers:
         specifier: ^8.3.5
         version: 8.3.5(@types/node@26.6.5)
 
+  packages/cli:
+    dependencies:
+      '@nib/core':
+        specifier: workspace:*
+        version: link:../core
+      '@nib/daemon':
+        specifier: workspace:*
+        version: link:../daemon
+      '@nib/exec':
+        specifier: workspace:*
+        version: link:../exec
+      '@nib/export':
+        specifier: workspace:*
+        version: link:../export
+      '@nib/format':
+        specifier: workspace:*
+        version: link:../format
+      '@nib/render':
+        specifier: workspace:*
+        version: link:../render
+
   packages/core:
     dependencies:
       '@nib/format':

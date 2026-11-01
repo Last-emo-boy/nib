@@ -1,0 +1,20 @@
+{
+  "name": "@nib/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "nib": "./src/main.ts"
+  },
+  "exports": {
+    ".": "./src/diff.ts"
+  },
+  "dependencies": {
+    "@nib/core": "workspace:*",
+    "@nib/daemon": "workspace:*",
+    "@nib/exec": "workspace:*",
+    "@nib/export": "workspace:*",
+    "@nib/format": "workspace:*",
+    "@nib/render": "workspace:*"
+  }
+}

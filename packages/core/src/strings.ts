@@ -51,16 +51,17 @@ export function extractStrings(doc: PenDoc, roots: string[], lang: string): { va
   const contents: { id: string; content: string }[] = [];
   const visit = (n: Node, frame: string) => {
     // Content naming a variable already shows it ("$48.2K" names none, so it is text like any other).
-    const named = typeof n.content === 'string' && n.content.startsWith('$') && (n.content.slice(1) in (doc.data.variables ?? {}) || n.content.includes(':'));
-    if (n.type === 'text' && typeof n.content === 'string' && n.content.trim() && !named) {
-      let key = known.get(n.content);
+    const content = n.type === 'text' && typeof n.content === 'string' ? n.content : undefined;
+    const named = !!content && content.startsWith('$') && (content.slice(1) in (doc.data.variables ?? {}) || content.includes(':'));
+    if (content?.trim() && !named) {
+      let key = known.get(content);
       if (!key) {
-        const base = `str.${frame}.${slug(n.name && n.name !== 'text' ? n.name : n.content)}`;
+        const base = `str.${frame}.${slug(n.name && n.name !== 'text' ? n.name : content)}`;
         key = base;
         for (let i = 2; taken.has(key); i++) key = `${base}-${i}`;
         taken.add(key);
-        known.set(n.content, key);
-        variables[key] = stringVariable(doc.data.variables?.[key], { [lang]: n.content });
+        known.set(content, key);
+        variables[key] = stringVariable(doc.data.variables?.[key], { [lang]: content });
       }
       contents.push({ id: n.id, content: `$${key}` });
     }

@@ -1,7 +1,8 @@
 name: Release
 
-# A tag v<version> (matching apps/desktop/package.json) builds the macOS app and the nib-publish image and
-# publishes them: the disk image on a GitHub release, the image on GHCR. Run by hand, it only builds.
+# A tag v<version> (matching apps/desktop/package.json) builds the app for macOS, Windows and Linux, the
+# editor extensions and the nib-publish image, and publishes them: the app and extensions on a GitHub
+# release, the image on GHCR. Run by hand, it only builds.
 on:
   push:
     tags: ['v*']
@@ -33,6 +34,8 @@ jobs:
       - run: pnpm test
       - name: Package nib.app and its disk image
         run: pnpm package:desktop
+      - name: The packaged app starts
+        run: node apps/desktop/scripts/smoke.ts
       - name: Package the VS Code and Cursor extension
         run: pnpm package:vscode
       - name: Package the Chrome extension
@@ -45,13 +48,66 @@ jobs:
             out/*.vsix
             out/nib-chrome.zip
           if-no-files-found: error
+
+  app-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Package nib for Windows
+        run: pnpm package:desktop
+      - name: The packaged app starts
+        run: node apps/desktop/scripts/smoke.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nib-windows
+          path: out/nib-*-win-*.zip
+          if-no-files-found: error
+
+  app-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Package nib for Linux
+        run: pnpm package:desktop
+      - name: The packaged app starts
+        run: xvfb-run -a node apps/desktop/scripts/smoke.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nib-linux
+          path: out/nib-*-linux-*.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [app, app-windows, app-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
       - name: GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" out/*.dmg out/*.vsix out/nib-chrome.zip --title "nib $GITHUB_REF_NAME" --generate-notes \
-            --notes "The app is ad-hoc signed, not notarized: the first time, open it with right-click > Open. nib-vscode.vsix opens .pen files in nib inside VS Code or Cursor (Extensions: Install from VSIX). nib-chrome.zip copies a web page or a part of it for pasting into nib as layers (unzip it, then Load unpacked in chrome://extensions with Developer mode on)."
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "nib $GITHUB_REF_NAME" --generate-notes \
+            --notes "The app is not signed by Apple or Microsoft. macOS (.dmg): the first time, open it with right-click > Open. Windows (.zip): unzip it anywhere you can write to and run nib.exe; SmartScreen asks once. Linux (.tar.gz): unpack it and run ./nib (if it says the sandbox is not set up, run it as ./nib --no-sandbox). nib-vscode.vsix opens .pen files in nib inside VS Code or Cursor (Extensions: Install from VSIX). nib-chrome.zip copies a web page or a part of it for pasting into nib as layers (unzip it, then Load unpacked in chrome://extensions with Developer mode on)."
 
   publish-image:
     runs-on: ubuntu-latest

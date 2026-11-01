@@ -54,7 +54,7 @@ export async function ensureDaemon(timeoutMs = 15_000): Promise<DaemonInfo> {
   if (running) return running;
   // Under Electron (the desktop app) the same executable runs the daemon as plain Node.
   const env = process.versions.electron ? { ...process.env, ELECTRON_RUN_AS_NODE: '1' } : process.env;
-  const child = spawn(process.execPath, [MAIN], { detached: true, stdio: 'ignore', env });
+  const child = spawn(process.execPath, [MAIN], { detached: true, stdio: 'ignore', env, windowsHide: true });
   child.unref();
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {

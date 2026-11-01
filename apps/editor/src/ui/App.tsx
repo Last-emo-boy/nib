@@ -35,7 +35,7 @@ export function App() {
   useEffect(() => {
     if (!file) return;
     sessionStorage.setItem('nib-file', file);
-    document.title = `${file.split('/').pop()} · nib`;
+    document.title = `${file.split(/[\\/]/).pop()} · nib`;
     const conn = new Connection(file);
     store.set({ conn, doc: undefined, selection: [], changes: [] });
     const off = conn.on((e) => {
@@ -72,8 +72,8 @@ export function App() {
 
 function TopLeft({ file }: { file: string }) {
   const t = useT();
-  const name = file.split('/').pop();
-  const folder = file.split('/').slice(-2, -1)[0];
+  const name = file.split(/[\\/]/).pop();
+  const folder = file.split(/[\\/]/).slice(-2, -1)[0];
   return (
     <div className="pill top-left">
       <span className="logo">nib</span>

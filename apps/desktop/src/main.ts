@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell, type MenuItemConstructorOptions } from 'electron';
 import { existsSync } from 'node:fs';
-import { dirname, join, resolve as resolvePath } from 'node:path';
+import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureDaemon, type DaemonInfo } from '@nib/daemon';
 import { configure, statuses, type ServerCommand } from './mcp-clients.ts';
@@ -98,7 +98,7 @@ function openDocument(file: string): void {
   }
   const open = documents.get(path);
   if (open && !open.isDestroyed()) { open.show(); open.focus(); return; }
-  const win = makeWindow(path.split('/').pop() ?? 'nib', { file: path });
+  const win = makeWindow(basename(path), { file: path });
   if (process.platform === 'darwin') win.setRepresentedFilename(path);
   documents.set(path, win);
   win.on('closed', () => documents.delete(path));
@@ -212,7 +212,7 @@ async function smoke(dir: string, files: string[]): Promise<void> {
   await mkdir(dir, { recursive: true });
   const report: Record<string, unknown> = { daemon: daemon?.port, clients: await statuses(SERVER) };
   showSettings();
-  const wins = [['dashboard', dashboard], ['settings', settings], ...files.map((f) => [f.split('/').pop()!, documents.get(resolvePath(f))])] as [string, BrowserWindow | undefined][];
+  const wins = [['dashboard', dashboard], ['settings', settings], ...files.map((f) => [basename(f), documents.get(resolvePath(f))])] as [string, BrowserWindow | undefined][];
   for (const [name, win] of wins) {
     if (!win) continue;
     if (win.webContents.isLoading()) await new Promise<void>((r) => win.webContents.once('did-finish-load', () => r()));

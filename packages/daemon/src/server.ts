@@ -23,7 +23,7 @@ import { planResponsive, responsivePrompt } from './agent/responsive.ts';
 import { helperPrompt, helperTasks } from './agent/helpers.ts';
 import { planStress, SCENARIOS, type Scenario } from './stress.ts';
 import type { Pictures } from './pictures.ts';
-import type { Exporter } from '@nib/exec';
+import { SCRIPT_GALLERY, scriptInputs, type Exporter } from '@nib/exec';
 import type { AgentService } from './agent/service.ts';
 
 export const DAEMON_VERSION = '0.1.0';
@@ -795,6 +795,31 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const weight = q.get('weight');
         const g = await opts.icons.load(q.get('library') ?? 'lucide', q.get('name') ?? '', weight ? Number(weight) : undefined);
         return g ? send(res, 200, g as unknown as Json) : send(res, 404, { error: 'icon not found' });
+      }
+      case 'GET /api/scripts': {
+        // nib's own scripts for script nodes: what each makes, and its controls.
+        const dir = fileURLToPath(SCRIPT_GALLERY);
+        const scripts = [];
+        for (const f of (await readdir(dir)).filter((x) => x.endsWith('.js')).sort()) {
+          const text = await readFile(join(dir, f), 'utf8');
+          scripts.push({ name: f.slice(0, -3), title: /^\/\/\s*(.*)$/m.exec(text)?.[1] ?? '', inputs: scriptInputs(text) });
+        }
+        return send(res, 200, { scripts: scripts as unknown as Json[] });
+      }
+      case 'POST /api/scripts/use': {
+        // Copy one of nib's scripts next to the document (once) and give its url.
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || typeof body.name !== 'string') return send(res, 400, { error: 'doc and name are required' });
+        const r = await host.execute(body.doc, { input: `Print(Script(${JSON.stringify(body.name)}))` }, 'nib', { source: { kind: 'user' }, label: 'Add script' });
+        const url = /## Print output\n(.*)/.exec(r.text)?.[1]?.trim();
+        return r.ok && url ? send(res, 200, { url }) : send(res, 400, { error: (/Error: [^:]+: (.*)/.exec(r.text)?.[1] ?? r.text).split('\n')[0] });
+      }
+      case 'GET /api/script': {
+        // A script node's layers, for editors to draw (scripts run here, in the daemon's sandbox).
+        const doc = q.get('doc') ?? '';
+        if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
+        const r = host.script(doc, q.get('node') ?? '');
+        return r ? send(res, 200, r as unknown as Json) : send(res, 404, { error: 'no such script node' });
       }
       case 'GET /api/image': {
         const doc = q.get('doc') ?? '';

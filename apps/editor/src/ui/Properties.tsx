@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { hasSketch, isSketchFrame, isSketchStroke, type PenDoc } from '@nib/core';
+import { hasSketch, isSketchFrame, isSketchStroke, reassignIds, type PenDoc } from '@nib/core';
 import type { Node, RefNode } from '@nib/format';
-import { align, isFree, resetOverrides, setProps, type Align } from '../app/actions.ts';
+import { align, commit, isFree, resetOverrides, setProps, type Align } from '../app/actions.ts';
 import { isPart, layerOf, overrideOf, ownerOf } from '../app/parts.ts';
 import { authHeaders } from '../app/connection.ts';
 import { post } from '../app/libraries.ts';
@@ -124,6 +124,7 @@ export function Properties() {
           <button className="link" title={t.responsiveHint} onClick={() => void makeResponsive(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {(canvas.cache?.box(n.id)?.width ?? 0) > 808 ? t.makeResponsive : t.makePhoneVersion}</button>
         </Section>
       )}
+      {nodes.length === 1 && !parts.length && conn && n.type === 'script' && <ScriptSection path={conn.path} n={n} t={t} set={set} />}
       {nodes.length === 1 && !parts.length && conn && ['frame', 'rectangle', 'ellipse', 'polygon'].includes(n.type) && !hasSketch(n as Node) && <Picture path={conn.path} id={n.id} t={t} hasImage={imageFillIndex(n) >= 0} />}
       {nodes.length === 1 && !parts.length && n.type === 'frame' && !doc.locate(n.id)?.parent && !hasSketch(n as Node) && conn && <Implementation path={conn.path} id={n.id} t={t} />}
       {nodes.length === 1 && !parts.length && hasSketch(n as Node) && (
@@ -539,6 +540,59 @@ function Typography({ t, shown, set }: { t: Strings; shown: (k: string) => any; 
       </div>
     </Section>
   );
+}
+
+type ScriptInfo = { nodes: Node[]; error?: string; inputs: { name: string; kind: 'number' | 'color' | 'boolean' | 'text'; default: unknown; min?: number; max?: number; label: string }[] };
+
+/** A script node: its file, the controls its script declares, what went wrong, and turning it into plain layers. */
+function ScriptSection({ path, n, t, set }: { path: string; n: Props; t: Strings; set: (p: Props, l?: string) => void }) {
+  const version = useEditor((s) => s.version);
+  const [info, setInfo] = useState<ScriptInfo | undefined>();
+  useEffect(() => {
+    const h = setTimeout(() => {
+      fetch(`/api/script?${new URLSearchParams({ doc: path, node: String(n.id) })}`, { headers: authHeaders() }).then((r) => r.json()).then(setInfo, () => setInfo(undefined));
+    }, 150);
+    return () => clearTimeout(h);
+  }, [path, n.id, version]);
+  const inputs = (n.inputs ?? {}) as Record<string, unknown>;
+  const put = (name: string, v: unknown) => set({ inputs: { ...inputs, [name]: v } }, 'Script input');
+  return (
+    <Section title={t.script}>
+      <div className="row"><input className="shader-url" defaultValue={String(n.scriptUri ?? '')} placeholder="scripts/chart.js" onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => { if (e.target.value.trim() !== n.scriptUri) set({ scriptUri: e.target.value.trim() }, 'Script file'); }} /></div>
+      {info?.error && <div className="shader-error">{info.error}</div>}
+      {info?.inputs.map((i) => {
+        const v = inputs[i.name] ?? i.default;
+        return (
+          <div key={i.name} className="row shader-input">
+            <span className="shader-label" title={i.name}>{i.label}</span>
+            {i.kind === 'color' ? <ColorField value={String(v)} onChange={(c) => put(i.name, c)} />
+              : i.kind === 'boolean' ? <input type="checkbox" checked={v === true} onChange={(e) => put(i.name, e.target.checked)} />
+              : i.kind === 'number' && i.min !== undefined && i.max !== undefined ? (
+                <>
+                  <input type="range" min={i.min} max={i.max} step={Number.isInteger(i.min) && Number.isInteger(i.max) && i.max - i.min >= 10 ? 1 : (i.max - i.min) / 100} value={Number(v)} onChange={(e) => put(i.name, Number(e.target.value))} />
+                  <span className="shader-value">{Math.round(Number(v) * 100) / 100}</span>
+                </>
+              ) : i.kind === 'number' ? <Num label="" value={Number(v)} onChange={(x) => put(i.name, x)} />
+              : <input className="shader-url" defaultValue={String(v)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') e.currentTarget.blur(); }} onBlur={(e) => { if (e.target.value !== v) put(i.name, e.target.value); }} />}
+          </div>
+        );
+      })}
+      {info && info.nodes.length > 0 && <button className="link" title={t.convertToLayersHint} onClick={() => void convertScript(n, info.nodes)}>{t.convertToLayers}</button>}
+    </Section>
+  );
+}
+
+/** Replace a script node with a frame holding the layers its script made, as plain, editable layers. */
+async function convertScript(n: Props, nodes: Node[]): Promise<void> {
+  const keep = ['name', 'x', 'y', 'width', 'height', 'rotation', 'opacity', 'fill', 'stroke', 'strokeWidth', 'cornerRadius', 'effect', 'clip', 'layoutPosition', 'enabled'];
+  const frame = { type: 'frame', id: String(n.id), layout: 'none', ...Object.fromEntries(keep.filter((k) => n[k] !== undefined).map((k) => [k, n[k]])), children: structuredClone(nodes) } as unknown as Node;
+  await commit('Convert script to layers', (ed, d) => {
+    const at = d.locate(String(n.id));
+    if (!at) return;
+    for (const c of (frame as unknown as { children: Node[] }).children) reassignIds(d, c);
+    ed.remove(String(n.id));
+    ed.insert(at.parent, frame, at.index);
+  });
 }
 
 /** A picture for the layer's fill: a stock photo of what the person describes, or one an image model makes. */

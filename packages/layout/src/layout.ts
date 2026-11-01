@@ -57,7 +57,8 @@ function insets(p: unknown): Insets {
 }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
-const isContainer = (n: SceneNode) => n.type === 'frame' || n.type === 'group';
+// A script node holds the layers its script made, each where the script put it.
+const isContainer = (n: SceneNode) => n.type === 'frame' || n.type === 'group' || n.type === 'script';
 
 /**
  * pen.dev layout: single-axis flex without wrapping.

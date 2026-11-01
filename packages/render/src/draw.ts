@@ -186,7 +186,7 @@ function drawBody(dc: DrawContext, canvas: Canvas, node: SceneNode, w: number, h
   }
 
   if (node.children?.length) {
-    const clip = node.type === 'frame' && node.clip === true && outline;
+    const clip = (node.type === 'frame' || node.type === 'script') && node.clip === true && outline;
     const save = canvas.save();
     if (clip) canvas.clipPath(outline, ck.ClipOp.Intersect, true);
     for (const child of node.children) drawNode(dc, canvas, child);

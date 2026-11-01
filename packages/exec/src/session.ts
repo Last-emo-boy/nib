@@ -1,9 +1,10 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join, resolve as resolvePath } from 'node:path';
 import type { Node } from '@nib/format';
-import { buildScene, childrenOf, DocEditor, type Op, type PenDoc, type SceneNode } from '@nib/core';
+import { buildScene, childrenOf, DocEditor, setScriptSource, type Op, type PenDoc, type SceneNode } from '@nib/core';
+import { SCRIPT_GALLERY, ScriptRunner, scriptInputs, type ScriptInput, type ScriptResult } from './scripts.ts';
 import { CELL_NAMES, comparePixels, cropPixels, decodePixels, encodePng, fillPixels, FontsNotLoaded, parseColor, parseShader, resizePixels, SHADER_GALLERY, type FontFace, type ImageLoader, type Pixels, type Renderer } from '@nib/render';
 import { imageKey, ImagesNeeded, pictureKey, PenApi, PicturesNeeded, type ApiOutput, type CapturedScene, type CompareReference, type ExportFormat, type ExportOptions, type ImageAccess, type ImageRequest, type PictureRequest, type PictureResult } from './api.ts';
 import { BoundsCache, problemOf, type LayoutFn } from './bounds.ts';
@@ -101,14 +102,74 @@ export class ExecSession {
       this.opts.renderer.shaders(this.opts.images).forget(url);
       return url;
     },
+    saveScript: (name, source) => {
+      const url = `scripts/${name}.js`;
+      const file = join(this.opts.baseDir, url);
+      if (source === undefined) {
+        const gallery = fileURLToPath(SCRIPT_GALLERY);
+        const from = join(gallery, `${name}.js`);
+        if (!existsSync(from)) throw new Error(`nib has no script "${name}"; it has ${readdirSync(gallery).filter((f) => f.endsWith('.js')).map((f) => f.slice(0, -3)).join(', ')}`);
+        if (existsSync(file)) return url;
+        source = readFileSync(from, 'utf8');
+      } else {
+        // Run once at a usual size with its defaults: a script that fails is not saved.
+        const r = this.scripts.run(source, {}, { width: 320, height: 200 }, name);
+        if (r.error) throw new Error(r.error);
+      }
+      mkdirSync(join(this.opts.baseDir, 'scripts'), { recursive: true });
+      writeFileSync(file, source);
+      return url;
+    },
   };
 
-  private constructor(doc: PenDoc, sandbox: Sandbox, opts: SessionOptions) {
+  private scripts: ScriptRunner;
+  /** Script files by path, as last read (their mtime says when to read them again). */
+  private scriptFiles = new Map<string, { mtimeMs: number; source: string } | { error: string }>();
+  /** What each script node's script made last, by node and what it was made from. */
+  private scriptRuns = new Map<string, { key: string; result: ScriptResult }>();
+
+  private constructor(doc: PenDoc, sandbox: Sandbox, scripts: ScriptRunner, opts: SessionOptions) {
     this.current = doc;
     this.opts = opts;
     this.sandbox = sandbox;
+    this.scripts = scripts;
     this.editor = new DocEditor(doc);
     this.bounds = new BoundsCache(doc, this.layoutFn);
+    setScriptSource(doc, (node) => this.scriptLayers(node));
+  }
+
+  /**
+   * The layers a script node's script makes, for its inputs and size: the script file (relative to the .pen
+   * file) is read when it changes, and run when it, the inputs or the size change.
+   */
+  script(node: Node): ScriptResult & { inputs: ScriptInput[] } {
+    const n = node as { id: string; scriptUri?: unknown; inputs?: unknown; width?: unknown; height?: unknown };
+    if (typeof n.scriptUri !== 'string' || !n.scriptUri) return { nodes: [], inputs: [], error: 'the script node names no script file (scriptUri)' };
+    if (/^[a-z]+:/i.test(n.scriptUri)) return { nodes: [], inputs: [], error: 'scripts are files next to the .pen file, not urls' };
+    const path = resolvePath(this.opts.baseDir, n.scriptUri);
+    let file = this.scriptFiles.get(path);
+    try {
+      const mtimeMs = statSync(path).mtimeMs;
+      if (!file || !('source' in file) || file.mtimeMs !== mtimeMs) this.scriptFiles.set(path, (file = { mtimeMs, source: readFileSync(path, 'utf8') }));
+    } catch {
+      this.scriptFiles.set(path, (file = { error: `cannot read ${n.scriptUri}` }));
+    }
+    if ('error' in file) return { nodes: [], inputs: [], error: file.error };
+    const size = { width: typeof n.width === 'number' ? n.width : 200, height: typeof n.height === 'number' ? n.height : 200 };
+    const input = n.inputs && typeof n.inputs === 'object' ? (n.inputs as Record<string, unknown>) : {};
+    const key = JSON.stringify([path, file.mtimeMs, input, size]);
+    let run = this.scriptRuns.get(n.id);
+    if (run?.key !== key) this.scriptRuns.set(n.id, (run = { key, result: this.scripts.run(file.source, input, size, n.id) }));
+    return { ...run.result, inputs: scriptInputs(file.source) };
+  }
+
+  private scriptLayers(node: Node): Node[] {
+    return structuredClone(this.script(node).nodes);
+  }
+
+  /** Why script nodes' scripts made nothing (or not everything), by node id. */
+  scriptErrors(): Map<string, string> {
+    return new Map([...this.scriptRuns].flatMap(([id, r]) => (r.result.error ? [[id, r.result.error] as [string, string]] : [])));
   }
 
   get doc(): PenDoc {
@@ -118,7 +179,7 @@ export class ExecSession {
   private layoutFn: LayoutFn = (scene) => this.opts.renderer.layoutSync(scene);
 
   static async open(doc: PenDoc, opts: SessionOptions): Promise<ExecSession> {
-    const session = new ExecSession(doc, await Sandbox.create(), opts);
+    const session = new ExecSession(doc, await Sandbox.create(), await ScriptRunner.create(), opts);
     await session.loadScenes(doc.data.children);
     return session;
   }
@@ -131,6 +192,7 @@ export class ExecSession {
   /** Work on `doc` from now on (the file was reloaded); global variables and pending editIds stay. */
   async reset(doc: PenDoc): Promise<void> {
     this.current = doc;
+    setScriptSource(doc, (node) => this.scriptLayers(node));
     this.editor = new DocEditor(doc);
     this.bounds = new BoundsCache(doc, this.layoutFn);
     await this.loadScenes(doc.data.children);
@@ -158,7 +220,7 @@ export class ExecSession {
     } catch (e) {
       if (!(e instanceof FontsNotLoaded)) throw e;
     }
-    out.push(...assetIssues(this.opts.renderer, scenes, ids, this.opts.renderer.report(this.opts.images).missingImages, this.opts.renderer.report(this.opts.images).brokenShaders));
+    out.push(...assetIssues(this.opts.renderer, scenes, ids, this.opts.renderer.report(this.opts.images).missingImages, this.opts.renderer.report(this.opts.images).brokenShaders, this.scriptErrors()));
     return out;
   }
 
@@ -344,7 +406,7 @@ export class ExecSession {
     } catch (e) {
       if (!(e instanceof FontsNotLoaded)) throw e;
     }
-    issues.push(...assetIssues(this.opts.renderer, scenes, touched, this.opts.renderer.report(this.opts.images).missingImages, this.opts.renderer.report(this.opts.images).brokenShaders).map((p) => p.message));
+    issues.push(...assetIssues(this.opts.renderer, scenes, touched, this.opts.renderer.report(this.opts.images).missingImages, this.opts.renderer.report(this.opts.images).brokenShaders, this.scriptErrors()).map((p) => p.message));
 
     const images: ExecuteImage[] = [];
     const shots: string[] = [];

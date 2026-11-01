@@ -1,5 +1,5 @@
 import type { Canvas, Paint, SkPicture as Picture } from 'canvaskit-wasm';
-import { buildScene, type Op, type PenDoc, type SceneNode } from '@nib/core';
+import { buildScene, setScriptSource, type Op, type PenDoc, type SceneNode } from '@nib/core';
 import type { Node } from '@nib/format';
 import type { Box } from '@nib/layout';
 import { browserSnapshotUrl, type ImageLoader, type PreparedScene } from '@nib/render';
@@ -72,11 +72,40 @@ export class SceneCache {
   reveal = new Map<string, number>();
   onUpdate: () => void = () => {};
 
+  /** Script nodes' layers as the daemon last made them, by node; versions of script files that changed. */
+  private scripts = new Map<string, { key: string; nodes?: Node[]; loading?: boolean }>();
+  private scriptVersions = new Map<string, number>();
+  /** Fetches what a script node's script makes (the daemon runs scripts). */
+  fetchScript: (id: string) => Promise<{ nodes: Node[]; error?: string }> = async () => ({ nodes: [] });
+
   constructor(engine: Engine, doc: PenDoc, images: ImageLoader) {
     this.engine = engine;
     this.doc = doc;
     this.images = images;
     for (const n of doc.data.children) this.dirty.add(n.id);
+    setScriptSource(doc, (node) => this.scriptLayers(node));
+  }
+
+  /**
+   * A script node's layers: the last ones the daemon made for it, fetched again when its script file, inputs
+   * or size change (meanwhile the previous ones are drawn).
+   */
+  private scriptLayers(node: Node): Node[] | undefined {
+    const n = node as Node & { scriptUri?: unknown; inputs?: unknown; width?: unknown; height?: unknown };
+    const key = JSON.stringify([n.scriptUri, n.inputs, n.width, n.height, this.scriptVersions.get(String(n.scriptUri)) ?? 0]);
+    const got = this.scripts.get(n.id);
+    if (got?.key !== key) {
+      const entry = { key, nodes: got?.nodes, loading: true };
+      this.scripts.set(n.id, entry);
+      void this.fetchScript(n.id).then((r) => {
+        if (this.scripts.get(n.id) !== entry) return;
+        entry.nodes = r.nodes;
+        entry.loading = false;
+        if (this.touchesComponent(n.id) || this.mark(n.id)) for (const c of this.doc.data.children) this.dirty.add(c.id);
+        void this.rebuild();
+      }, () => { entry.loading = false; });
+    }
+    return got?.nodes ? structuredClone(got.nodes) : undefined;
   }
 
   /** Mark what `ops` (already applied to the document) changed; resolves when it is redrawn. */
@@ -95,15 +124,17 @@ export class SceneCache {
     return this.rebuild();
   }
 
-  /** Load `url` again (an image, a browser node's page, a shader file) and redraw the nodes showing it. */
+  /** Load `url` again (an image, a browser node's page, a shader or script file) and redraw the nodes showing it. */
   refreshImage(url: string): void {
     this.engine.renderer.images(this.images).forget(url);
     this.engine.renderer.shaders(this.images).forget(url);
+    // A script that changed is run again for every node using it.
+    this.scriptVersions.set(url, (this.scriptVersions.get(url) ?? 0) + 1);
     const uses = (v: unknown) => (Array.isArray(v) ? v : v ? [v] : []).some((f) => f && typeof f === 'object' && (f as { url?: unknown }).url === url);
     let everything = false;
     for (const id of this.doc.ids()) {
       const n = this.doc.get(id) as (Record<string, unknown> & { id: string; type: string }) | undefined;
-      if (n && ((n.type === 'browser' && browserSnapshotUrl(n) === url) || uses(n.fill) || uses(n.stroke) || uses(n.effect))) everything ||= this.touchesComponent(id) || this.mark(id);
+      if (n && ((n.type === 'browser' && browserSnapshotUrl(n) === url) || (n.type === 'script' && n.scriptUri === url) || uses(n.fill) || uses(n.stroke) || uses(n.effect))) everything ||= this.touchesComponent(id) || this.mark(id);
     }
     if (everything) for (const n of this.doc.data.children) this.dirty.add(n.id);
     void this.rebuild();
@@ -290,7 +321,8 @@ export class SceneCache {
       const bounds = boundsOf(quad(matrix, b.width, b.height));
       placed.push({ id: n.id, type: n.type, abs: { x: matrix[4], y: matrix[5], width: b.width, height: b.height }, matrix, inner, parent, bounds, clip, depth, parentId });
       const within = n.clip === true ? intersect(bounds, clip) : clip;
-      for (const c of n.children ?? []) walk(c, inner, depth + 1, within, n.id);
+      // What a script made is part of its node: clicks select the script node, not the layers it drew.
+      if (n.type !== 'script') for (const c of n.children ?? []) walk(c, inner, depth + 1, within, n.id);
     };
     walk(scene, IDENTITY, 0, undefined);
     // Turned children can reach past the top-level node unless it clips them.

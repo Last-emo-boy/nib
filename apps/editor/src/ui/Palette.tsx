@@ -11,6 +11,23 @@ import { Icon } from './Icon.tsx';
 import type { IconName } from './icons.ts';
 import { layerName, typeIcon } from './LeftPanel.tsx';
 import { loadAgent, sendMessage, useAgent } from '../app/agent.ts';
+import { authHeaders } from '../app/connection.ts';
+import { insertNode } from '../app/actions.ts';
+import { post } from '../app/libraries.ts';
+
+/** A script node running one of nib's scripts, 360×220 in the middle of the view. */
+async function insertScript(name: string): Promise<void> {
+  const { conn, view } = store.get();
+  if (!conn) return;
+  try {
+    const { url } = await post<{ url: string }>('/api/scripts/use', { doc: conn.path, name });
+    const box = document.querySelector('.canvas')?.getBoundingClientRect();
+    const cx = box ? (box.width / 2 - view.tx) / view.zoom : 0, cy = box ? (box.height / 2 - view.ty) / view.zoom : 0;
+    await insertNode(null, { type: 'script', name: name.replace(/-/g, ' '), x: Math.round(cx - 180), y: Math.round(cy - 110), width: 360, height: 220, scriptUri: url, inputs: {} }, 'Insert script');
+  } catch (e) {
+    toast((e as Error).message);
+  }
+}
 
 interface Item { key: string; label: string; hint?: string; icon: IconName; run: () => void }
 
@@ -23,6 +40,11 @@ export function Palette() {
   const doc = useEditor((s) => s.doc);
   const version = useEditor((s) => s.version);
   const macros = useAgent((s) => s.macros);
+  const [scripts, setScripts] = useState<{ name: string; title: string }[]>([]);
+  useEffect(() => {
+    if (!open || scripts.length) return;
+    fetch('/api/scripts', { headers: authHeaders() }).then((r) => r.json()).then((j) => setScripts(j.scripts ?? []), () => {});
+  }, [open]);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -72,6 +94,8 @@ export function Palette() {
       { key: 'browser', label: t.toggleBrowser, icon: 'globe', run: () => toggleSide('browserOpen') },
       { key: 'problems', label: t.problems, icon: 'scan', run: () => store.set({ leftOpen: true, leftTab: 'problems' }) },
       { key: 'lang', label: t.switchLanguage, icon: 'languages', run: () => { const lang = store.get().lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', lang); store.set({ lang }); } },
+      // nib's scripts, as a script node in the middle of the view.
+      ...scripts.map((sc): Item => ({ key: `script:${sc.name}`, label: `${t.insertScript}: ${sc.name}`, hint: sc.title, icon: 'command', run: () => void insertScript(sc.name) })),
       // Saved commands: their message, sent to the agent with what is selected now.
       ...macros.map((m): Item => ({ key: `macro:${m.name}`, label: `${t.runCommand}: ${m.name}`, icon: 'command', run: () => {
         const { conn, selection } = store.get();
@@ -80,7 +104,7 @@ export function Palette() {
         void loadAgent(conn.path).then(() => sendMessage(conn.path, m.text, selection)).catch((e: Error) => toast(e.message));
       } })),
     ];
-  }, [t, macros]);
+  }, [t, macros, scripts]);
 
   const layers = useMemo<Item[]>(() => {
     if (!doc) return [];

@@ -115,6 +115,8 @@ export interface ImageAccess {
   savePng(name: string, pixels: Pixels): string;
   /** Save a shader (checked first: throws with what is wrong), or copy one of nib's; its url. */
   saveShader(name: string, source: string | undefined): string;
+  /** Save a script for script nodes (run once first: throws with what is wrong), or copy one of nib's; its url. */
+  saveScript(name: string, source: string | undefined): string;
 }
 
 /** The topmost image fill a layer shows, with its index in the fill list. */
@@ -392,6 +394,18 @@ export class PenApi {
       return this.images.saveShader(name, source as string | undefined);
     } catch (e) {
       throw new ExecError(`Shader: ${(e as Error).message}`);
+    }
+  }
+
+  /** A script file for script nodes: `source` saved as scripts/<name>.js once it runs, or nib's own `name`. */
+  script(name: unknown, source?: unknown): string {
+    if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9-]{0,40}$/.test(name)) throw new ExecError('Script: the name is lowercase letters, digits and dashes, e.g. "bar-chart"');
+    if (source !== undefined && typeof source !== 'string') throw new ExecError('Script: the source is JavaScript text');
+    if (!this.images) throw new ExecError('Script is not available here');
+    try {
+      return this.images.saveScript(name, source as string | undefined);
+    } catch (e) {
+      throw new ExecError(`Script: ${(e as Error).message}`);
     }
   }
 

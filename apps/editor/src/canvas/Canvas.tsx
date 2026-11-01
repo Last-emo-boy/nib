@@ -4,7 +4,7 @@ import { newId, svgToNodes, type PenDoc } from '@nib/core';
 import type { Box } from '@nib/layout';
 import { commit, insertNode, isContainer, isFree, pruneSelection } from '../app/actions.ts';
 import { COMPONENT_MIME, post } from '../app/libraries.ts';
-import type { Connection } from '../app/connection.ts';
+import { authHeaders, type Connection } from '../app/connection.ts';
 import { store, toast, type View } from '../app/store.ts';
 import { getEngine, imagesFor, type Engine } from './engine.ts';
 import { AgentCursors } from './AgentCursors.tsx';
@@ -297,6 +297,8 @@ export function CanvasView() {
       const { conn } = store.get();
       const cache = new SceneCache(engine, doc, imagesFor(conn!.path));
       cache.reveal = presence.reveal;
+      const path = conn!.path;
+      cache.fetchScript = (id) => fetch(`/api/script?${new URLSearchParams({ doc: path, node: id })}`, { headers: authHeaders() }).then((r) => r.json());
       canvas.cache = cache;
       cache.onUpdate = () => {
         store.set((s) => ({ layoutVersion: s.layoutVersion + 1 }));

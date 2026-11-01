@@ -111,6 +111,10 @@ Takes the background away from the picture a layer shows and fills the layer wit
 
 A shader file for shader fills and effects (see `shaders.md`): nib's own `name` copied into the document's `shaders` folder, or your GLSL `source` saved as `shaders/<name>.frag` once it compiles.
 
+### `Script(name, source?) → url`
+
+A script file for script nodes (see `scripts.md`): nib's own `name` copied into the document's `scripts` folder, or your JavaScript `source` saved as `scripts/<name>.js` once it runs.
+
 ### `InsertSvg(parent, svg, props?) → id`
 
 SVG markup as editable layers: a frame the size of the drawing holding its shapes as paths, inserted like `Insert` (`props` sets the frame's name, position and size). Use it to draw illustrations, logos and icons nib's icon sets do not have: write the SVG yourself, keeping it to shapes and paths (text and embedded images are left out).

@@ -213,6 +213,13 @@ export class DocumentHost {
     return this.enqueue(open, () => open.session.problems());
   }
 
+  /** What a script node's script makes now (see ExecSession.script). */
+  script(path: string, id: string): ReturnType<ExecSession['script']> | undefined {
+    const open = this.require(path);
+    const node = open.session.doc.get(id);
+    return node?.type === 'script' ? open.session.script(node) : undefined;
+  }
+
   /** Top-level frame `id` against a picture of its implementation: see ExecSession.implementationFacts. */
   implementationFacts(path: string, id: string, picture: Uint8Array): ReturnType<ExecSession['implementationFacts']> {
     const open = this.require(path);

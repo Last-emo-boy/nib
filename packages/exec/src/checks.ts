@@ -76,7 +76,7 @@ export function layoutIssues(doc: PenDoc, bounds: BoundsCache, ids: Iterable<str
 }
 
 /** Icons, fonts and images the changed nodes use that could not be loaded. Call after loading their scenes. */
-export function assetIssues(renderer: Renderer, scenes: SceneNode[], ids: Set<string>, imageFailures: [string, string][], shaderFailures: [string, string][] = []): Problem[] {
+export function assetIssues(renderer: Renderer, scenes: SceneNode[], ids: Set<string>, imageFailures: [string, string][], shaderFailures: [string, string][] = [], scriptErrors: Map<string, string> = new Map()): Problem[] {
   const out = new Problems();
   const missingFonts = renderer.fonts.missing();
   const failed = new Map(imageFailures);
@@ -101,6 +101,7 @@ export function assetIssues(renderer: Renderer, scenes: SceneNode[], ids: Set<st
         const url = f && typeof f === 'object' && (f as { type?: unknown }).type === 'image' ? (f as { url?: unknown }).url : undefined;
         if (typeof url === 'string' && failed.has(url)) out.add(n.id, `image "${url}" on ${label(n)} could not be loaded: ${failed.get(url)}.`);
       }
+      if (n.type === 'script' && scriptErrors.has(n.id)) out.add(n.id, `the script of ${label(n)} (${String(n.scriptUri ?? '')}): ${scriptErrors.get(n.id)}.`);
       for (const f of [n.fill, n.effect].flat()) {
         const url = f && typeof f === 'object' && (f as { type?: unknown }).type === 'shader' ? (f as { url?: unknown }).url : undefined;
         if (typeof url === 'string' && broken.has(url)) out.add(n.id, `shader "${url}" on ${label(n)} does not work: ${broken.get(url)}. It draws nothing.`);

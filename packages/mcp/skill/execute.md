@@ -250,3 +250,17 @@ for (const [label, value] of [["Revenue", "$48.2K"], ["Users", "1,204"], ["Churn
 }
 TakeScreenshot([screen])
 ```
+
+## Plugins
+
+A snippet the person can run again from the command palette (or `nib plugin <file> <id>`) is a plugin: a `.js` file in `~/.nib/plugins/`, or in a `plugins/` folder beside the design. It starts with comments naming it and its inputs, and reads `selection` (the ids selected when it runs) and `input` (its inputs' values). It runs like any snippet, as one undo step named after it; what it prints is shown to the person.
+
+```js
+// @name Snap to grid
+// @description Round positions and sizes to a step.
+// @input step 8 1..64 Grid step (px)
+for (const id of selection) Get(id, (n) => { if (typeof n.x === "number") Update(n.id, {x: Math.round(n.x / input.step) * input.step}) })
+Print("Snapped")
+```
+
+`@input name default label`: a number (with an optional `min..max`), a color (`#RRGGBB`), `true`/`false`, or text in quotes.

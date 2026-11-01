@@ -13,6 +13,7 @@ import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
 import { draftFile, draftPath, DRAFTS_DIR, drafts, newDraft, NIB_HOME, nodePreview, recents, thumbnail, trashDraft, updateRecents } from './library.ts';
 import { importFigma } from './figma/index.ts';
 import { SKILL_DIR } from './agent/prompt.ts';
+import { listPlugins, runPlugin, userPluginsFolder, USER_PLUGINS } from './plugins.ts';
 import { aliasFor, brandLibrary, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
 import { brandFromPage, brandFromPalette, paletteFromPixels, paletteFromSvg, type Brand } from './brand.ts';
 import { templateDocument, templateFile, templates } from './templates.ts';
@@ -324,6 +325,26 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           return send(res, 200, { path: await host.saveAs(body.filePath, body.target) });
         } catch (e) {
           return send(res, 409, { error: (e as Error).message });
+        }
+      }
+      case 'GET /api/plugins': {
+        // Plugins the document can run: nib's, the person's, and those in a plugins/ folder beside it.
+        const doc = q.get('doc') ?? undefined;
+        const plugins = (await listPlugins(doc)).map(({ file: _, ...p }) => p);
+        return send(res, 200, { plugins: plugins as unknown as Json[], folder: USER_PLUGINS });
+      }
+      case 'POST /api/plugins/folder':
+        return send(res, 200, { folder: await userPluginsFolder() });
+      case 'POST /api/plugins/run': {
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || typeof body.id !== 'string' || body.id.endsWith('.js')) return send(res, 400, { error: 'doc and id are required' });
+        if (!host.list().some((d) => d.path === body.doc)) return send(res, 404, { error: 'document is not open' });
+        const selection = Array.isArray(body.selection) ? body.selection.filter((s): s is string => typeof s === 'string') : [];
+        try {
+          const r = await runPlugin(host, body.doc, body.id, selection, (body.inputs && typeof body.inputs === 'object' ? body.inputs : {}) as Record<string, unknown>);
+          return send(res, 200, r as unknown as Json);
+        } catch (e) {
+          return send(res, 404, { error: (e as Error).message });
         }
       }
       case 'GET /api/skill': {

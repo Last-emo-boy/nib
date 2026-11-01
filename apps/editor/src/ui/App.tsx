@@ -27,6 +27,7 @@ import { AgentPanel } from './Agent.tsx';
 import { BrowserPanel } from './Browser.tsx';
 import { modelContext, registerTools } from '../app/webmcp.ts';
 import { UpdateNotice } from './UpdateNotice.tsx';
+import { PluginDialog } from './Plugins.tsx';
 import { LocalConnection } from '../web/local.ts';
 import { isWebDoc } from '../web/mode.ts';
 import { WebHome } from '../web/Home.tsx';
@@ -76,6 +77,7 @@ export function App() {
       {!web && <BrowserPanel />}
       <Status />
       <Palette />
+      <PluginDialog />
       <UpdateNotice />
       <Toast />
     </div>

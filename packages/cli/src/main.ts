@@ -5,7 +5,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parsePen, serializePen, validateNode, type PenDocument } from '@nib/format';
-import { DocumentHost, ensureDaemon, framePictures, importFigma, startWebHost, versionFile } from '@nib/daemon';
+import { DocumentHost, ensureDaemon, framePictures, importFigma, listPlugins, runPlugin, startWebHost, versionFile } from '@nib/daemon';
 import { EXPORTERS } from '@nib/export';
 import type { ExportFormat } from '@nib/exec';
 import { createNodeRenderer, FallbackFontLoader, GoogleFontsLoader, imagesFor, PackageIconSource } from '@nib/render/node';
@@ -27,6 +27,9 @@ const HELP = `nib — design files (.pen) from the command line
       --markdown <file>  a summary for a pull request   --json  the diff as JSON
   nib import <file.fig> [--out <folder>]
       A Figma file (File > Save local copy) as a .pen document beside it, or in the folder given.
+  nib plugin <file.pen> <plugin> [--select <id>]… [--set <input>=<value>]…
+      Run a plugin (an id such as nib/snap-to-grid, or a .js file) on the design and save it.
+      nib plugin <file.pen> lists the plugins it can run.
   nib agent <file.pen> <request…> [--provider <id>] [--model <id>] [--select <id>]
       Ask nib's agent to change the design, and print what it says and does.
   nib open <file.pen>
@@ -215,6 +218,36 @@ async function importFig(a: Args) {
   for (const n of r.notes) process.stdout.write(`  ${n}\n`);
 }
 
+async function plugin(a: Args) {
+  const path = penFile(a);
+  const which = a._[1];
+  if (!which) {
+    for (const p of await listPlugins(path)) process.stdout.write(`${p.id.padEnd(28)} ${p.name}${p.inputs.length ? ` (${p.inputs.map((i) => `${i.name}=${i.default}`).join(', ')})` : ''}\n`);
+    return;
+  }
+  const values: Record<string, string> = {};
+  for (const s of a.flags.set ?? []) {
+    const eq = s.indexOf('=');
+    if (eq <= 0) fail(`--set takes <input>=<value>, not "${s}"`);
+    values[s.slice(0, eq)] = s.slice(eq + 1);
+  }
+  const { host } = await headless();
+  try {
+    await host.open(path);
+    let r: Awaited<ReturnType<typeof runPlugin>>;
+    try {
+      r = await runPlugin(host, path, which.endsWith('.js') ? resolve(which) : which, a.flags.select ?? [], values);
+    } catch (e) {
+      return fail((e as Error).message);
+    }
+    if (r.ok) process.stdout.write(`${r.output.join('\n') || 'Done.'}\n`);
+    else process.stderr.write(`${r.text}\n`);
+    process.exitCode = r.ok ? 0 : 1;
+  } finally {
+    host.close();
+  }
+}
+
 async function agent(a: Args) {
   const path = penFile(a);
   const text = a._.slice(1).join(' ').trim() || fail('say what the agent should do');
@@ -302,6 +335,7 @@ switch (command) {
   case 'validate': await validate(args); break;
   case 'diff': await diff(args); break;
   case 'import': await importFig(args); break;
+  case 'plugin': await plugin(args); break;
   case 'agent': await agent(args); break;
   case 'open': await open(args); break;
   case 'web': await web(args); break;

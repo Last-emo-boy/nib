@@ -768,7 +768,7 @@ function Section({ title, add, children }: { title: string; add?: () => void; ch
 }
 
 /** A number field that commits on Enter or blur; `$variable` values are shown, not edited. */
-function Num({ label, title, value, onChange, step = 1, dim }: { label: string; title?: string; value: unknown; onChange: (v: number) => void; step?: number; dim?: boolean }) {
+export function Num({ label, title, value, onChange, step = 1, dim }: { label: string; title?: string; value: unknown; onChange: (v: number) => void; step?: number; dim?: boolean }) {
   const shown = isVar(value) ? value : typeof value === 'number' ? String(Math.round(value * 100) / 100) : '';
   const [text, setText] = useState(shown);
   useEffect(() => setText(shown), [shown]);
@@ -807,7 +807,7 @@ function Text({ label, value, onChange }: { label: string; value: string; onChan
 }
 
 /** A color: swatch (system picker) and hex text with alpha; variable references are shown as chips. */
-function ColorField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export function ColorField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [text, setText] = useState(value);
   useEffect(() => setText(value), [value]);
   if (value.startsWith("$")) return <span className="var-chip"><Icon name="variable" size={12} /> {value.slice(1)}</span>;

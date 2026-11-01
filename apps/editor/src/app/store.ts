@@ -60,6 +60,8 @@ export interface EditorState {
   lang: Lang;
   paletteOpen: boolean;
   toast?: { text: string; at: number };
+  /** A plugin waiting for its inputs (ui/Plugins.tsx). */
+  pluginAsking?: unknown;
   /** nib's website (no daemon): documents are kept in the browser. */
   web?: boolean;
   /** Where the website last saved the open document: only in this browser, or also to its file on disk. */

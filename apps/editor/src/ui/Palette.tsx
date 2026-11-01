@@ -14,6 +14,7 @@ import { loadAgent, sendMessage, useAgent } from '../app/agent.ts';
 import { authHeaders } from '../app/connection.ts';
 import { insertNode } from '../app/actions.ts';
 import { post } from '../app/libraries.ts';
+import { listPlugins, openPluginsFolder, startPlugin, type Plugin } from './Plugins.tsx';
 
 /** A script node running one of nib's scripts, 360×220 in the middle of the view. */
 async function insertScript(name: string): Promise<void> {
@@ -41,9 +42,14 @@ export function Palette() {
   const version = useEditor((s) => s.version);
   const macros = useAgent((s) => s.macros);
   const [scripts, setScripts] = useState<{ name: string; title: string }[]>([]);
+  const [plugins, setPlugins] = useState<Plugin[]>([]);
+  const web = useEditor((s) => s.web);
   useEffect(() => {
-    if (!open || scripts.length) return;
-    fetch('/api/scripts', { headers: authHeaders() }).then((r) => r.json()).then((j) => setScripts(j.scripts ?? []), () => {});
+    if (!open || web) return;
+    if (!scripts.length) fetch('/api/scripts', { headers: authHeaders() }).then((r) => r.json()).then((j) => setScripts(j.scripts ?? []), () => {});
+    // Read again each time: plugin files come and go.
+    const doc = store.get().conn?.path;
+    if (doc) void listPlugins(doc).then((r) => setPlugins(r.plugins), () => {});
   }, [open]);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -96,6 +102,9 @@ export function Palette() {
       { key: 'lang', label: t.switchLanguage, icon: 'languages', run: () => { const lang = store.get().lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', lang); store.set({ lang }); } },
       // nib's scripts, as a script node in the middle of the view.
       ...scripts.map((sc): Item => ({ key: `script:${sc.name}`, label: `${t.insertScript}: ${sc.name}`, hint: sc.title, icon: 'command', run: () => void insertScript(sc.name) })),
+      // Plugins: nib's, the person's, the design's; their inputs asked for first.
+      ...plugins.map((p): Item => ({ key: `plugin:${p.id}`, label: `${t.runPlugin}: ${p.name}`, hint: p.description, icon: 'command', run: () => startPlugin(p) })),
+      ...(web ? [] : [{ key: 'plugins-folder', label: t.openPluginsFolder, icon: 'folder', run: () => void openPluginsFolder().catch((e: Error) => toast(e.message)) } as Item]),
       // Saved commands: their message, sent to the agent with what is selected now.
       ...macros.map((m): Item => ({ key: `macro:${m.name}`, label: `${t.runCommand}: ${m.name}`, icon: 'command', run: () => {
         const { conn, selection } = store.get();
@@ -104,7 +113,7 @@ export function Palette() {
         void loadAgent(conn.path).then(() => sendMessage(conn.path, m.text, selection)).catch((e: Error) => toast(e.message));
       } })),
     ];
-  }, [t, macros, scripts]);
+  }, [t, macros, scripts, plugins, web]);
 
   const layers = useMemo<Item[]>(() => {
     if (!doc) return [];

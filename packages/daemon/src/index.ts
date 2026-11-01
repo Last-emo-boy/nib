@@ -10,3 +10,4 @@ export { Keys } from './agent/keys.ts';
 export * from './history.ts';
 export * from './figma/index.ts';
 export * from './web-host.ts';
+export * from './plugins.ts';

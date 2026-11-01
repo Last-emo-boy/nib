@@ -360,4 +360,20 @@ describe('library', () => {
     expect((await api('/api/import-figma', { path: join(dir, 'notes.txt') })).status).toBe(400);
     expect((await api('/api/import-figma', { name: 'x.fig', data: 'AAAA' })).status).toBe(400);
   });
+
+  it('lists plugins for a document and runs one on its selection', async () => {
+    const file = join(dir, 'plugged.pen');
+    await writeFile(file, serializePen({ version: '2.20', children: [{ type: 'rectangle', id: 'r', x: 3, y: 5, width: 10, height: 10 }] } as unknown as PenDocument));
+    const ed = await editor(file);
+    const list = await (await fetch(`http://127.0.0.1:${daemon.port}/api/plugins?doc=${encodeURIComponent(file)}`, { headers: { authorization: `Bearer ${daemon.token}` } })).json() as { plugins: { id: string; file?: string }[] };
+    expect(list.plugins.map((p) => p.id)).toContain('nib/snap-to-grid');
+    expect(list.plugins.every((p) => p.file === undefined)).toBe(true);
+    const r = await (await api('/api/plugins/run', { doc: file, id: 'nib/snap-to-grid', selection: ['r'], inputs: { step: 4 } })).json() as { ok: boolean; output: string[] };
+    expect(r).toMatchObject({ ok: true, output: ['Snapped 1 layer to 4 px.'] });
+    await ed.next((m) => m.t === 'ops' && m.label === 'Snap to grid' && m.source.kind === 'user');
+    expect(ed.copy().get('r')).toMatchObject({ x: 4, y: 4, width: 12, height: 12 });
+    expect((await api('/api/plugins/run', { doc: file, id: '/etc/passwd.js' })).status).toBe(400);
+    expect((await api('/api/plugins/run', { doc: file, id: 'nib/nope' })).status).toBe(404);
+    ed.close();
+  });
 });

@@ -2,7 +2,7 @@
 // pages came up: node apps/desktop/scripts/smoke.ts. On Linux run it under xvfb-run.
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,7 +22,10 @@ execFileSync(exe, [`--user-data-dir=${join(dir, 'profile')}`, ...(process.platfo
   stdio: 'inherit', timeout: 120_000,
   env: { ...process.env, NIB_HOME: join(dir, 'home'), NIB_PORT: '7499', NIB_IDLE_MS: '10000', NIB_DESKTOP_SMOKE: report },
 });
-const r = JSON.parse(await readFile(join(report, 'report.json'), 'utf8')) as { daemon?: number; dashboard?: { bridge?: string; text?: string }; settings?: { bridge?: string } };
+const text = await readFile(join(report, 'report.json'), 'utf8');
+// Its daemon stops by itself once idle; the folder holds nothing else of use.
+await rm(dir, { recursive: true, force: true, maxRetries: 5 }).catch(() => {});
+const r = JSON.parse(text) as { daemon?: number; dashboard?: { bridge?: string; text?: string }; settings?: { bridge?: string } };
 const ok = typeof r.daemon === 'number' && r.dashboard?.bridge === 'object' && r.settings?.bridge === 'object' && !!r.dashboard.text?.trim();
 console.log(ok ? `The app started its daemon (port ${r.daemon}) and showed its pages.` : `The app did not come up: ${JSON.stringify(r).slice(0, 600)}`);
 process.exit(ok ? 0 : 1);

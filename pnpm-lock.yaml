@@ -71,6 +71,8 @@ importers:
         specifier: ^8.3.5
         version: 8.3.5(@types/node@26.6.5)
 
+  apps/vscode: {}
+
   packages/cli:
     dependencies:
       '@nib/core':

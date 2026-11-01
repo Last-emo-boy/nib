@@ -11,7 +11,8 @@
     "dev": "sh scripts/dev.sh",
     "desktop": "pnpm --filter @nib/editor build && pnpm --filter @nib/desktop exec electron .",
     "package:desktop": "pnpm --filter @nib/desktop package",
-    "nib": "node packages/cli/src/main.ts"
+    "nib": "node packages/cli/src/main.ts",
+    "package:vscode": "cp LICENSE apps/vscode/LICENSE && cd apps/vscode && npx --yes @vscode/vsce@3 package --no-dependencies --skip-license -o ../../out/nib-vscode.vsix; rm -f LICENSE"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

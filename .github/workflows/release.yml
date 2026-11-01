@@ -33,18 +33,22 @@ jobs:
       - run: pnpm test
       - name: Package nib.app and its disk image
         run: pnpm package:desktop
+      - name: Package the VS Code and Cursor extension
+        run: pnpm package:vscode
       - uses: actions/upload-artifact@v4
         with:
           name: nib-macos
-          path: out/*.dmg
+          path: |
+            out/*.dmg
+            out/*.vsix
           if-no-files-found: error
       - name: GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" out/*.dmg --title "nib $GITHUB_REF_NAME" --generate-notes \
-            --notes "The app is ad-hoc signed, not notarized: the first time, open it with right-click > Open."
+          gh release create "$GITHUB_REF_NAME" out/*.dmg out/*.vsix --title "nib $GITHUB_REF_NAME" --generate-notes \
+            --notes "The app is ad-hoc signed, not notarized: the first time, open it with right-click > Open. nib-vscode.vsix opens .pen files in nib inside VS Code or Cursor (Extensions: Install from VSIX)."
 
   publish-image:
     runs-on: ubuntu-latest

@@ -1,0 +1,43 @@
+{
+  "name": "nib-vscode",
+  "displayName": "nib",
+  "description": "Open .pen designs in nib's editor inside VS Code and Cursor.",
+  "publisher": "nib",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/Last-emo-boy/nib" },
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Visualization", "Other"],
+  "main": "./src/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "nib.pen",
+        "displayName": "nib design",
+        "selector": [{ "filenamePattern": "*.pen" }],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      { "command": "nib.openInApp", "title": "Open in the nib app", "category": "nib" },
+      { "command": "nib.openAsText", "title": "Open as JSON", "category": "nib" }
+    ],
+    "menus": {
+      "editor/title": [
+        { "command": "nib.openInApp", "when": "activeCustomEditorId == nib.pen", "group": "navigation" }
+      ]
+    },
+    "configuration": {
+      "title": "nib",
+      "properties": {
+        "nib.path": {
+          "type": "string",
+          "default": "",
+          "description": "Where nib is, when it is not found by itself: the nib app (nib.app) or a nib checkout."
+        }
+      }
+    }
+  }
+}

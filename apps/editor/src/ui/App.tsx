@@ -134,8 +134,25 @@ function TopRight() {
       </button>
       <ShareButton />
       <button className="text-button" title={`${t.present} (⌥⌘↵)`} onClick={() => startPresenting()}><Icon name="play" size={15} /></button>
+      <LanguagePreview />
       <button className="text-button" title={t.language} onClick={() => { const next = lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', next); store.set({ lang: next }); }}><Icon name="languages" size={15} /></button>
     </div>
+  );
+}
+
+/** The language every frame is shown in, when the document has several (its Language theme axis). */
+function LanguagePreview() {
+  const t = useT();
+  const doc = useEditor((s) => s.doc);
+  const preview = useEditor((s) => s.previewLanguage);
+  useEditor((s) => s.version);
+  const langs = doc?.data.themes?.Language ?? [];
+  if (langs.length < 2) return null;
+  return (
+    <select className="language-preview" title={t.previewLanguage} value={preview ?? ''} onChange={(e) => store.set({ previewLanguage: e.target.value || undefined })}>
+      <option value="">{t.asDesigned}</option>
+      {langs.map((l) => <option key={l} value={l}>{l}</option>)}
+    </select>
   );
 }
 

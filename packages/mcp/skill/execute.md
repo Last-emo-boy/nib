@@ -126,6 +126,10 @@ Insert(row, {type: "text", content: "{{email}}", fill: "#6B6F7A"})
 Repeat(row, FakeData(["name", "email"], 8))
 ```
 
+### `ExtractStrings(path, options?) → keys`
+
+Makes the texts under `path` (a layer or a list of them) translatable: each distinct literal text becomes a string variable `str.<frame>.<text>` with its words as the value for `options.language` (default: the first value of the Language axis, else `"en"`), and the text layers show the variable. See "Text in several languages" in `variables.md`.
+
 ### `Shader(name, source?) → url`
 
 A shader file for shader fills and effects (see `shaders.md`): nib's own `name` copied into the document's `shaders` folder, or your GLSL `source` saved as `shaders/<name>.frag` once it compiles.

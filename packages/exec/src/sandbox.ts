@@ -98,6 +98,7 @@ const PRELUDE = String.raw`
     Repeat: (path, rows, options) => call('repeat', [path, rows, options]),
     ReadData: (path) => call('readData', [path]),
     FakeData: (fields, count, options) => call('fakeData', [fields, count, options]),
+    ExtractStrings: (path, options) => call('extractStrings', [path, options]),
     Vectorize: (path, options) => call('vectorize', [path, options]),
     RemoveBackground: (path, options) => call('removeBackground', [path, options]),
     SetVariables: (variables, replace) => { call('setVariables', [variables, replace]); },

@@ -623,3 +623,11 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .data-fields { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; font-size: 11px; }
 .data-fields code { background: var(--sunken); border-radius: 4px; padding: 1px 5px; }
 .data-paste { width: 100%; font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+.strings-langs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 8px 8px; }
+.strings-langs .chip { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); background: none; color: var(--text); cursor: pointer; }
+.strings-langs .chip.on { background: var(--accent-soft); border-color: var(--accent); }
+.strings-new-lang { width: 60px; }
+.strings-table td.missing { background: var(--danger-bg); }
+.strings-table .var-input { width: 100%; background: none; border: 0; color: inherit; font: inherit; }
+.strings-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 8px; }
+.language-preview { font-size: 12px; }

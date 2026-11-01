@@ -37,3 +37,16 @@ SetVariables({
 - Set `theme: {mode: "dark"}` on a frame to show it, and everything inside, in that theme. Put a light and a dark copy of a screen side by side to check both.
 - Axes combine: `{mode: "dark", density: "compact"}`. When several entries match, the last matching one wins, so list general entries before specific ones.
 - An entry without `theme` applies everywhere: use it first as the fallback.
+
+## Text in several languages
+
+Translations are string variables on a theme axis named `Language`, whose values are language codes (`en`, `zh`, `ja`, `pt-BR`…; the first is the source). A text layer whose content is `"$str.home.title"` shows that variable's value for the language in effect, so a frame's `theme: {Language: "zh"}` shows it in Chinese, and a copy of a screen per language needs no other change.
+
+```js
+SetVariables({
+  "str.home.title": {type: "string", value: [{value: "Plan your week", theme: {Language: "en"}}, {value: "规划你的一周", theme: {Language: "zh"}}]},
+})
+Update(title, {content: "$str.home.title"})
+```
+
+`ExtractStrings(path, {language})` (see execute.md) turns a screen's literal texts into such variables in one go. When you add a language, give every `str.*` variable a value for it (SetVariables keeps the other values only if you pass them too, so read them first with GetVariables), then check each language for text that runs out: translations are often longer.

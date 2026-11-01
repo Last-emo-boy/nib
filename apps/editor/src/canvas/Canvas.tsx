@@ -298,6 +298,8 @@ export function CanvasView() {
       const cache = new SceneCache(engine, doc, imagesFor(conn!.path));
       cache.reveal = presence.reveal;
       const path = conn!.path;
+      const lang = store.get().previewLanguage;
+      if (lang) cache.setForce({ Language: lang });
       cache.fetchScript = (id) => fetch(`/api/script?${new URLSearchParams({ doc: path, node: id })}`, { headers: authHeaders() }).then((r) => r.json());
       canvas.cache = cache;
       cache.onUpdate = () => {
@@ -347,6 +349,8 @@ export function CanvasView() {
       const s = store.get();
       follow(s.conn);
       if (s.doc && s.doc !== cacheDoc) attach(s.doc, !cacheDoc);
+      // The language every frame is previewed in (setForce does nothing when it is the same).
+      canvas.cache?.setForce(s.previewLanguage ? { Language: s.previewLanguage } : undefined);
       canvas.redraw();
     });
     const ro = new ResizeObserver(() => engine && makeSurface());

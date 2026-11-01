@@ -1,6 +1,6 @@
 import { NODE_SPECS, validateNode, type Issue, type Node, type NodeType, type RefNode, type Variable } from '@nib/format';
 import {
-  buildScene, childrenOf, defaultTheme, expandTree, inheritedTheme, newId, pathNodeProps, reassignIds, resolveDeep, svgToNodes, withTheme,
+  buildScene, childrenOf, defaultTheme, expandTree, extractStrings, inheritedTheme, languagesOf, newId, pathNodeProps, reassignIds, resolveDeep, svgToNodes, withTheme,
   type DocEditor, type PenDoc, type SceneNode, type ThemeContext,
 } from '@nib/core';
 import type { Box } from '@nib/layout';
@@ -454,6 +454,22 @@ export class PenApi {
     const missing = placeholders(template).filter((f) => !(rows as Record<string, unknown>[]).some((r) => f.split('.').reduce<unknown>((v, k) => (v && typeof v === 'object' ? (v as Props)[k] : undefined), r) !== undefined));
     if (missing.length) this.out.warnings.push(`Repeat: no row has ${missing.map((m) => `"${m}"`).join(', ')}; those placeholders came out empty.`);
     return ids;
+  }
+
+  /**
+   * Make the texts under `path` translatable: each literal text becomes a string variable (str.<frame>.<text>)
+   * with its words as the `language` value, and the layer shows the variable. Returns the keys made.
+   */
+  extractStrings(path: unknown, options?: unknown): string[] {
+    if (options !== undefined && !isObject(options)) throw new ExecError('ExtractStrings: options must be an object, e.g. {language: "en"}');
+    const lang = (options as { language?: unknown } | undefined)?.language ?? languagesOf(this.doc.data)[0] ?? 'en';
+    if (typeof lang !== 'string' || !/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(lang)) throw new ExecError('ExtractStrings: language is a language code such as "en", "zh" or "pt-BR"');
+    const ids = (Array.isArray(path) ? path : [path]).map((p) => { const t = this.mutable(p, 'ExtractStrings'); if (t.kind === 'inside') throw new ExecError('ExtractStrings: works on layers of this document, not on parts of an instance'); return t.node.id; });
+    const { variables, contents } = extractStrings(this.doc, ids, lang);
+    if (Object.keys(variables).length) this.setVariables(variables);
+    for (const c of contents) this.editor.set(c.id, { content: c.content });
+    if (contents.length) this.changed();
+    return Object.keys(variables);
   }
 
   /** Rows from a CSV or JSON file next to the .pen file. */

@@ -75,6 +75,17 @@ export class SceneCache {
   /** Script nodes' layers as the daemon last made them, by node; versions of script files that changed. */
   private scripts = new Map<string, { key: string; nodes?: Node[]; loading?: boolean }>();
   private scriptVersions = new Map<string, number>();
+  /** Theme values every frame is drawn with (the language previewed on the canvas). */
+  private force: Record<string, string> | undefined;
+
+  /** Draw every frame with `force` winning over their own themes (undefined: as they are). */
+  setForce(force: Record<string, string> | undefined): void {
+    if (JSON.stringify(force) === JSON.stringify(this.force)) return;
+    this.force = force;
+    for (const n of this.doc.data.children) this.dirty.add(n.id);
+    void this.rebuild();
+  }
+
   /** Fetches what a script node's script makes (the daemon runs scripts). */
   fetchScript: (id: string) => Promise<{ nodes: Node[]; error?: string }> = async () => ({ nodes: [] });
 
@@ -291,7 +302,7 @@ export class SceneCache {
   private async build(node: Node): Promise<void> {
     const { renderer } = this.engine;
     const old = this.entries.get(node.id);
-    const scene = buildScene(this.doc, node);
+    const scene = buildScene(this.doc, node, this.force ? { force: this.force } : {});
     if (scene && this.hidden) {
       const hide = (n: SceneNode) => { if (n.id === this.hidden) n.opacity = 0; n.children?.forEach(hide); };
       hide(scene);

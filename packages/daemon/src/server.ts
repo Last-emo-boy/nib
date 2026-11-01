@@ -796,6 +796,15 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const g = await opts.icons.load(q.get('library') ?? 'lucide', q.get('name') ?? '', weight ? Number(weight) : undefined);
         return g ? send(res, 200, g as unknown as Json) : send(res, 404, { error: 'icon not found' });
       }
+      case 'POST /api/strings/extract': {
+        // The selection's texts as translatable strings, as the person's change.
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || !Array.isArray(body.ids) || !body.ids.length) return send(res, 400, { error: 'doc and ids are required' });
+        const lang = typeof body.language === 'string' ? body.language : undefined;
+        const r = await host.execute(body.doc, { input: `Print(ExtractStrings(${JSON.stringify(body.ids)}${lang ? `, {language: ${JSON.stringify(lang)}}` : ''}).length)` }, 'nib', { source: { kind: 'user' }, label: 'Make texts translatable' });
+        if (!r.ok) return send(res, 400, { error: (/Error: [^:]+: (.*)/.exec(r.text)?.[1] ?? r.text).split('\n')[0] });
+        return send(res, 200, { made: Number(/## Print output\n(\d+)/.exec(r.text)?.[1] ?? 0) });
+      }
       case 'POST /api/data/repeat': {
         // Rows into a template, as the person's change: made up, from a file next to the document, or pasted.
         const body = await readJson(req);

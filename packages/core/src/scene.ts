@@ -23,6 +23,8 @@ export interface SceneOptions {
   issues?: ExpandIssue[];
   /** The layers a script node draws (from running its script); none: it draws only its own fill. */
   scripts?: (node: Node) => Node[] | undefined;
+  /** Theme values that win over every node's own (the editor previewing all frames in one language). */
+  force?: ThemeContext;
 }
 
 const scriptSources = new WeakMap<PenDoc, NonNullable<SceneOptions['scripts']>>();
@@ -35,7 +37,8 @@ export function setScriptSource(doc: PenDoc, source: SceneOptions['scripts'] | u
 export function buildScene(doc: PenDoc, node: Node, opts: SceneOptions = {}): SceneNode | undefined {
   const expanded = expandTree(doc, node, { issues: opts.issues });
   if (!expanded) return undefined;
-  return resolveNode(doc, expanded, opts.theme ?? inheritedTheme(doc, node.id), opts.scripts ?? scriptSources.get(doc));
+  const start = opts.theme ?? inheritedTheme(doc, node.id);
+  return resolveNode(doc, expanded, opts.force ? { ...start, ...opts.force } : start, { scripts: opts.scripts ?? scriptSources.get(doc), force: opts.force });
 }
 
 /** Theme context in effect at a document node: defaults overridden by each ancestor's `theme`. */
@@ -52,21 +55,22 @@ function documentTheme(doc: PenDoc): ThemeContext {
   return { ...ctx, ...defaultTheme(doc.data) };
 }
 
-function resolveNode(doc: PenDoc, node: Node, outer: ThemeContext, scripts?: SceneOptions['scripts']): SceneNode | undefined {
-  const ctx = withTheme(outer, node.theme);
+function resolveNode(doc: PenDoc, node: Node, outer: ThemeContext, ro: { scripts?: SceneOptions['scripts']; force?: ThemeContext }): SceneNode | undefined {
+  const own = withTheme(outer, node.theme);
+  const ctx = ro.force ? { ...own, ...ro.force } : own;
   const out = { ...resolveDeep(doc, node, ctx) } as SceneNode;
   if (out.enabled === false) return undefined;
   const marks = out as unknown as Record<symbol, unknown>;
   marks[UNRESOLVED] = node;
   if (INSTANCE in node) marks[INSTANCE] = (node as unknown as Record<symbol, unknown>)[INSTANCE];
   // A script node holds what its script made, placed freely in its box (scene only: never stored).
-  const made = node.type === 'script' ? scripts?.(node) : undefined;
+  const made = node.type === 'script' ? ro.scripts?.(node) : undefined;
   if (node.type === 'script') out.layout = 'none';
   const children = made ?? (node as { children?: Node[] }).children;
   if (children) {
     out.children = [];
     for (const c of children) {
-      const r = resolveNode(doc, c, ctx, scripts);
+      const r = resolveNode(doc, c, ctx, ro);
       if (r) out.children.push(r);
     }
   }

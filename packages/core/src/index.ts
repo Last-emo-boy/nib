@@ -8,3 +8,5 @@ export * from './svg.ts';
 export * from './slides.ts';
 export * from './sketch.ts';
 export * from './placeholders.ts';
+export * from './csv.ts';
+export * from './strings.ts';

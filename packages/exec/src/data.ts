@@ -1,5 +1,5 @@
 import type { Node } from '@nib/format';
-import { PLACEHOLDER } from '@nib/core';
+import { parseCsvRows, PLACEHOLDER } from '@nib/core';
 
 /**
  * Data for designs: rows read from CSV or JSON, or made up (fake names, prices, dates), poured into a
@@ -10,28 +10,7 @@ export type Row = Record<string, unknown>;
 
 /** CSV as rows keyed by its header line (quoted fields, doubled quotes, commas or semicolons or tabs). */
 export function parseCsv(text: string): Row[] {
-  const lines: string[][] = [];
-  const first = text.split(/\r?\n/, 1)[0] ?? '';
-  const sep = [',', ';', '\t'].sort((a, b) => first.split(b).length - first.split(a).length)[0];
-  let row: string[] = [], field = '', quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (quoted) {
-      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
-      else if (c === '"') quoted = false;
-      else field += c;
-    } else if (c === '"' && field === '') quoted = true;
-    else if (c === sep) { row.push(field); field = ''; }
-    else if (c === '\n' || c === '\r') {
-      if (c === '\r' && text[i + 1] === '\n') i++;
-      row.push(field); field = '';
-      if (row.some((x) => x !== '')) lines.push(row);
-      row = [];
-    } else field += c;
-  }
-  row.push(field);
-  if (row.some((x) => x !== '')) lines.push(row);
-  const [head, ...rest] = lines;
+  const [head, ...rest] = parseCsvRows(text);
   if (!head) return [];
   const keys = head.map((k) => k.trim());
   return rest.map((r) => Object.fromEntries(keys.map((k, i) => [k, r[i]?.trim() ?? ''])));

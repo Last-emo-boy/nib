@@ -11,6 +11,7 @@ import { Icon } from './Icon.tsx';
 import { Components, Libraries } from './Libraries.tsx';
 import type { IconName } from './icons.ts';
 import { Slides } from './Slides.tsx';
+import { Strings } from './Strings.tsx';
 import { loadAgent, openSession, sendMessage } from '../app/agent.ts';
 
 export function typeIcon(n: Node): IconName {
@@ -41,7 +42,7 @@ export function layerName(doc: PenDoc, n: Node): string {
 export function LeftPanel() {
   const t = useT();
   const tab = useEditor((s) => s.leftTab);
-  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['slides', 'presentation', t.slides], ['components', 'component', t.components], ['libraries', 'library', t.libraries], ['variables', 'variable', t.variables], ['problems', 'scan', t.problems]];
+  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['slides', 'presentation', t.slides], ['components', 'component', t.components], ['libraries', 'library', t.libraries], ['variables', 'variable', t.variables], ['strings', 'text', t.strings], ['problems', 'scan', t.problems]];
   return (
     <div className="panel left-panel">
       <div className="tabs">
@@ -57,6 +58,7 @@ export function LeftPanel() {
         {tab === 'components' && <Components />}
         {tab === 'libraries' && <Libraries />}
         {tab === 'variables' && <Variables />}
+        {tab === 'strings' && <Strings />}
         {tab === 'problems' && <Problems />}
       </div>
     </div>

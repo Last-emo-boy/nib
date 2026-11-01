@@ -28,6 +28,8 @@ export interface FileEntry {
 
 /** Remember that a document was opened (by an editor or an agent). */
 export async function noteOpened(path: string): Promise<void> {
+  // Hidden files are nib's own (a version from git opened to compare), not documents people opened.
+  if (basename(path).startsWith('.')) return;
   const list = await readRecents();
   const next = [{ path, opened: Date.now() }, ...list.filter((r) => r.path !== path)].slice(0, RECENTS_LIMIT);
   await mkdir(NIB_HOME, { recursive: true });

@@ -61,6 +61,8 @@ export interface HostOptions {
   watch?: boolean;
   /** Where Generate gets pictures (absent: it fails, saying so). */
   pictures?: Pictures;
+  /** Add opened files to the recent documents. Default true; false for one-off tools (the command line). */
+  recents?: boolean;
 }
 
 const HISTORY_LIMIT = 200;
@@ -110,7 +112,7 @@ export class DocumentHost {
       if (this.opts.watch !== false) this.watchFile(open);
     }
     this.active = path;
-    await noteOpened(path).catch(() => undefined);
+    if (this.opts.recents !== false) await noteOpened(path).catch(() => undefined);
     return open;
   }
 

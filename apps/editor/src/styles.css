@@ -136,8 +136,9 @@ input, select { font: inherit; color: var(--text); }
 .left-panel { width: 264px; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
 .tool-strip { flex-direction: column; width: 40px; }
 
-.tabs { display: flex; gap: 2px; padding: 8px; border-bottom: 1px solid var(--line); }
-.tab { height: 30px; padding: 0 9px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; color: var(--dim); white-space: nowrap; }
+.tabs { display: flex; gap: 1px; padding: 8px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { height: 30px; padding: 0 7px; border-radius: 8px; display: inline-flex; flex: none; align-items: center; gap: 6px; color: var(--dim); white-space: nowrap; }
 .tab:hover { color: var(--text); background: var(--panel-2); }
 .tab.active { color: var(--text); background: var(--panel-2); }
 .panel-body { flex: 1; overflow: auto; padding: 6px 0; }
@@ -631,3 +632,11 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .strings-table .var-input { width: 100%; background: none; border: 0; color: inherit; font: inherit; }
 .strings-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 8px; }
 .language-preview { font-size: 12px; }
+.history-commits { display: flex; flex-direction: column; max-height: 40%; overflow: auto; }
+.history-commit { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 8px; background: none; border: 0; border-radius: 6px; color: var(--text); text-align: left; cursor: pointer; }
+.history-commit:hover, .history-commit.on { background: var(--hover); }
+.history-subject { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.history-meta { font-size: 11px; color: var(--dim); }
+.history-diff { padding: 0 8px 8px; }
+.history-frame { margin-top: 8px; }
+.history-frame-name { background: none; border: 0; color: var(--text); font-size: 12px; font-weight: 600; padding: 0; cursor: pointer; }

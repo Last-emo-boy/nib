@@ -6,9 +6,6 @@
   "bin": {
     "nib": "./src/main.ts"
   },
-  "exports": {
-    ".": "./src/diff.ts"
-  },
   "dependencies": {
     "@nib/core": "workspace:*",
     "@nib/daemon": "workspace:*",

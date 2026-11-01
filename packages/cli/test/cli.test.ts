@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { serializePen, type PenDocument } from '@nib/format';
-import { diffDocs, diffMarkdown, diffText } from '../src/diff.ts';
+import { diffDocs, diffMarkdown, diffText } from '@nib/core';
 
 const run = promisify(execFile);
 const MAIN = fileURLToPath(new URL('../src/main.ts', import.meta.url));

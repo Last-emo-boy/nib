@@ -10,3 +10,5 @@ export * from './sketch.ts';
 export * from './placeholders.ts';
 export * from './csv.ts';
 export * from './strings.ts';
+export * from './docdiff.ts';
+export * from './merge.ts';

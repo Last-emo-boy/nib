@@ -1,0 +1,48 @@
+name: nib design diff
+description: Pictures of what changed in .pen designs (each frame before, after and the difference), posted on the pull request.
+inputs:
+  files:
+    description: The .pen files to compare, space separated. Default, every .pen file the pull request changes.
+    default: ''
+  images-branch:
+    description: >-
+      A branch to keep the pictures on, so they show in the comment (public repositories). Empty: the pictures
+      are uploaded as an artifact, linked from the comment.
+    default: ''
+  github-token:
+    description: Token to comment with (and push the pictures).
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+      with:
+        version: 11.15.0
+        package_json_file: ${{ github.action_path }}/../../../package.json
+    - uses: actions/setup-node@v5
+      with:
+        node-version: 24
+    - name: Install nib
+      shell: bash
+      working-directory: ${{ github.action_path }}/../../..
+      run: pnpm install --frozen-lockfile --prod=false
+    - name: Compare the designs
+      id: diff
+      shell: bash
+      env:
+        NIB_ROOT: ${{ github.action_path }}/../../..
+        NIB_FILES: ${{ inputs.files }}
+        NIB_IMAGES_BRANCH: ${{ inputs.images-branch }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: node "${{ github.action_path }}/run.mjs"
+    - name: Upload the pictures
+      if: ${{ inputs.images-branch == '' && steps.diff.outputs.changed == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: nib-design-diff
+        path: ${{ runner.temp }}/nib-design-diff

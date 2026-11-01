@@ -3,13 +3,13 @@ import { execFile, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
-import { parsePen, validateNode, type PenDocument } from '@nib/format';
-import { DocumentHost, ensureDaemon } from '@nib/daemon';
+import { fileURLToPath } from 'node:url';
+import { parsePen, serializePen, validateNode, type PenDocument } from '@nib/format';
+import { DocumentHost, ensureDaemon, framePictures, versionFile } from '@nib/daemon';
 import { EXPORTERS } from '@nib/export';
 import type { ExportFormat } from '@nib/exec';
-import { comparePixels, cropPixels, decodePixels, encodePng } from '@nib/render';
 import { createNodeRenderer, imagesFor } from '@nib/render/node';
-import { diffDocs, diffMarkdown, diffText } from './diff.ts';
+import { diffDocs, diffMarkdown, diffText, mergeDocs } from '@nib/core';
 
 const HELP = `nib — design files (.pen) from the command line
 
@@ -28,6 +28,11 @@ const HELP = `nib — design files (.pen) from the command line
       Ask nib's agent to change the design, and print what it says and does.
   nib open <file.pen>
       Open it in the nib app (or the editor in the browser).
+  nib git-setup
+      Let git merge .pen files layer by layer in this repository (a merge driver for *.pen).
+  nib merge-driver <base> <ours> <theirs> [path]
+      The merge git runs (set up by git-setup): writes the merged design over <ours>; exits 1 when
+      both sides changed the same thing (ours is kept there, and each case is listed).
 `;
 
 interface Args { _: string[]; flags: Record<string, string[]> }
@@ -61,7 +66,7 @@ function penFile(a: Args, i = 0): string {
 
 async function headless() {
   const renderer = await createNodeRenderer();
-  return { renderer, host: new DocumentHost({ renderer, images: imagesFor, exporters: EXPORTERS, watch: false }) };
+  return { renderer, host: new DocumentHost({ renderer, images: imagesFor, exporters: EXPORTERS, watch: false, recents: false }) };
 }
 
 /** Top-level frames by the names or ids asked for (all of them when none are). */
@@ -137,15 +142,7 @@ async function validate(a: Args) {
 
 /** A version of `path` from git (`ref`), as a temporary file beside it so its images still resolve. */
 async function fromGit(path: string, ref: string): Promise<string> {
-  let text: string;
-  try {
-    text = execFileSync('git', ['-C', dirname(path), 'show', `${ref}:./${basename(path)}`], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch {
-    return fail(`git has no ${basename(path)} at ${ref}`);
-  }
-  const tmp = join(dirname(path), `.${basename(path, '.pen')}.${ref.replace(/[^\w.-]+/g, '_')}.nib-diff.pen`);
-  await writeFile(tmp, text);
-  return tmp;
+  return (await versionFile(path, ref)) ?? fail(`git has no ${basename(path)} at ${ref}`);
 }
 
 async function diff(a: Args) {
@@ -173,24 +170,16 @@ async function diff(a: Args) {
         await host.open(after);
         const md = flag(a, 'markdown');
         const link = (file: string) => (md ? relative(dirname(resolve(md)), file) : file);
-        const ck = renderer.ck;
-        for (const f of d.frames.filter((x) => x.kind !== 'moved')) {
-          const shot = async (path: string) => (await host.exportNodes(path, [f.id], 'png', 1).catch(() => []))[0]?.data;
-          const [b, c] = [f.kind === 'added' ? undefined : await shot(before), f.kind === 'removed' ? undefined : await shot(after)];
-          const entry: { before?: string; after?: string; diff?: string; similarity?: number } = {};
-          const name = slug(f.name);
-          if (b) { const file = join(out, `${name}.before.png`); await writeFile(file, b); entry.before = link(file); }
-          if (c) { const file = join(out, `${name}.after.png`); await writeFile(file, c); entry.after = link(file); }
-          if (b && c) {
-            const pb = decodePixels(ck, b), pc = decodePixels(ck, c);
-            const w = Math.max(pb.width, pc.width), h = Math.max(pb.height, pc.height);
-            const cmp = comparePixels(cropPixels(pb, w, h), cropPixels(pc, w, h));
-            const file = join(out, `${name}.diff.png`);
-            await writeFile(file, encodePng(ck, cmp.diff));
-            entry.diff = link(file);
-            entry.similarity = cmp.similarity;
+        for (const [id, p] of await framePictures(host, renderer, before, after, d)) {
+          const name = slug(d.frames.find((f) => f.id === id)!.name);
+          const entry: { before?: string; after?: string; diff?: string; similarity?: number } = { ...(p.similarity !== undefined ? { similarity: p.similarity } : {}) };
+          for (const k of ['before', 'after', 'diff'] as const) {
+            if (!p[k]) continue;
+            const file = join(out, `${name}.${k}.png`);
+            await writeFile(file, p[k]!);
+            entry[k] = link(file);
           }
-          images.set(f.id, entry);
+          images.set(id, entry);
         }
       } finally {
         host.close();
@@ -237,6 +226,33 @@ async function agent(a: Args) {
   process.exitCode = failed ? 1 : 0;
 }
 
+async function mergeDriver(a: Args) {
+  const [base, ours, theirs, name] = a._;
+  if (!base || !ours || !theirs) fail('merge-driver needs <base> <ours> <theirs>');
+  const read = async (p: string) => parsePen(await readFile(p, 'utf8'));
+  const r = mergeDocs(await read(base), await read(ours), await read(theirs));
+  await writeFile(ours, serializePen(r.doc));
+  for (const c of r.conflicts) process.stderr.write(`nib merge${name ? ` ${name}` : ''}: ${c}\n`);
+  process.exitCode = r.conflicts.length ? 1 : 0;
+}
+
+/** Register nib's merge driver in the current git repository: git config, and *.pen in .gitattributes. */
+async function gitSetup() {
+  let top: string;
+  try {
+    top = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return fail('not in a git repository');
+  }
+  const self = fileURLToPath(import.meta.url);
+  execFileSync('git', ['config', 'merge.nib.name', 'nib: merge .pen designs layer by layer']);
+  execFileSync('git', ['config', 'merge.nib.driver', `"${process.execPath}" "${self}" merge-driver %O %A %B %P`]);
+  const attrs = join(top, '.gitattributes');
+  const text = existsSync(attrs) ? await readFile(attrs, 'utf8') : '';
+  if (!/^\*\.pen\s+.*merge=nib/m.test(text)) await writeFile(attrs, `${text}${text && !text.endsWith('\n') ? '\n' : ''}*.pen merge=nib\n`);
+  process.stdout.write(`git merges .pen files with nib in ${top} (.gitattributes: *.pen merge=nib).\n`);
+}
+
 async function open(a: Args) {
   const path = penFile(a);
   const app = '/Applications/nib.app';
@@ -257,6 +273,8 @@ switch (command) {
   case 'diff': await diff(args); break;
   case 'agent': await agent(args); break;
   case 'open': await open(args); break;
+  case 'merge-driver': await mergeDriver(args); break;
+  case 'git-setup': await gitSetup(); break;
   case 'version': case '--version': process.stdout.write('nib 0.1.0\n'); break;
   case undefined: case 'help': case '--help': case '-h': process.stdout.write(HELP); break;
   default: process.stderr.write(`nib: no command "${command}"\n\n${HELP}`); process.exitCode = 2;

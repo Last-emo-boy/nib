@@ -7,3 +7,4 @@ export * from './browser/index.ts';
 export type * from './agent/types.ts';
 export * from './pictures.ts';
 export { Keys } from './agent/keys.ts';
+export * from './history.ts';

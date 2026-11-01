@@ -22,6 +22,7 @@ import { planVariants, variantPrompt } from './agent/variants.ts';
 import { planResponsive, responsivePrompt } from './agent/responsive.ts';
 import { helperPrompt, helperTasks } from './agent/helpers.ts';
 import { planStress, SCENARIOS, type Scenario } from './stress.ts';
+import { commitsOf, diffWithHistory } from './history.ts';
 import type { Pictures } from './pictures.ts';
 import { parseRows, placeholders, SCRIPT_GALLERY, scriptInputs, type Exporter } from '@nib/exec';
 import type { AgentService } from './agent/service.ts';
@@ -795,6 +796,21 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const weight = q.get('weight');
         const g = await opts.icons.load(q.get('library') ?? 'lucide', q.get('name') ?? '', weight ? Number(weight) : undefined);
         return g ? send(res, 200, g as unknown as Json) : send(res, 404, { error: 'icon not found' });
+      }
+      case 'GET /api/git/commits': {
+        // The commits that changed the document (none outside a git repository).
+        const doc = q.get('doc') ?? '';
+        if (!host.list().some((d) => d.path === doc)) return send(res, 404, { error: 'document is not open' });
+        return send(res, 200, { commits: commitsOf(doc) as unknown as Json[] });
+      }
+      case 'POST /api/git/diff': {
+        // The document at a commit against it now: what changed, and pictures of each changed frame.
+        const body = await readJson(req);
+        if (typeof body.doc !== 'string' || typeof body.ref !== 'string' || !/^[\w./~^-]{1,80}$/.test(body.ref)) return send(res, 400, { error: 'doc and ref are required' });
+        const r = await diffWithHistory(host, opts.renderer, body.doc, body.ref);
+        if (!r) return send(res, 404, { error: `git has no version of this file at ${body.ref}` });
+        const b64 = (x?: Uint8Array) => (x ? Buffer.from(x).toString('base64') : undefined);
+        return send(res, 200, { diff: r.diff as unknown as Json, pictures: Object.fromEntries([...r.pictures].map(([id, p]) => [id, { before: b64(p.before), after: b64(p.after), diff: b64(p.diff), similarity: p.similarity }])) as unknown as Json });
       }
       case 'POST /api/strings/extract': {
         // The selection's texts as translatable strings, as the person's change.

@@ -12,6 +12,7 @@ import { Components, Libraries } from './Libraries.tsx';
 import type { IconName } from './icons.ts';
 import { Slides } from './Slides.tsx';
 import { Strings } from './Strings.tsx';
+import { History } from './History.tsx';
 import { loadAgent, openSession, sendMessage } from '../app/agent.ts';
 
 export function typeIcon(n: Node): IconName {
@@ -42,12 +43,12 @@ export function layerName(doc: PenDoc, n: Node): string {
 export function LeftPanel() {
   const t = useT();
   const tab = useEditor((s) => s.leftTab);
-  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['slides', 'presentation', t.slides], ['components', 'component', t.components], ['libraries', 'library', t.libraries], ['variables', 'variable', t.variables], ['strings', 'text', t.strings], ['problems', 'scan', t.problems]];
+  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['slides', 'presentation', t.slides], ['components', 'component', t.components], ['libraries', 'library', t.libraries], ['variables', 'variable', t.variables], ['strings', 'text', t.strings], ['history', 'history', t.history], ['problems', 'scan', t.problems]];
   return (
     <div className="panel left-panel">
       <div className="tabs">
         {tabs.map(([id, icon, label]) => (
-          <button key={id} className={`tab${tab === id ? ' active' : ''}`} title={label} onClick={() => store.set({ leftTab: id })}>
+          <button key={id} className={`tab${tab === id ? ' active' : ''}`} title={label} ref={tab === id ? (el) => el?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) : undefined} onClick={() => store.set({ leftTab: id })}>
             <Icon name={icon} />{tab === id && <span>{label}</span>}
           </button>
         ))}
@@ -59,6 +60,7 @@ export function LeftPanel() {
         {tab === 'libraries' && <Libraries />}
         {tab === 'variables' && <Variables />}
         {tab === 'strings' && <Strings />}
+        {tab === 'history' && <History />}
         {tab === 'problems' && <Problems />}
       </div>
     </div>

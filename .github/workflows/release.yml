@@ -45,6 +45,7 @@ jobs:
           name: nib-macos
           path: |
             out/*.dmg
+            out/nib-*-mac-*.zip
             out/*.vsix
             out/nib-chrome.zip
           if-no-files-found: error

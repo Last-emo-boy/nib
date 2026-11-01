@@ -1,5 +1,6 @@
 // Package the desktop app for this machine: pnpm package:desktop (node apps/desktop/scripts/package.ts)
-// macOS: out/nib-darwin-<arch>/nib.app (ad-hoc signed) and out/nib-<version>-<arch>.dmg.
+// macOS: out/nib-darwin-<arch>/nib.app (ad-hoc signed), out/nib-<version>-<arch>.dmg, and
+// out/nib-<version>-mac-<arch>.zip (what nib downloads to update itself).
 // Linux: out/nib-linux-<arch>/ and out/nib-<version>-linux-<arch>.tar.gz. Windows: out/nib-win32-<arch>/
 // and out/nib-<version>-win-<arch>.zip.
 //
@@ -147,6 +148,11 @@ console.log('Signing (ad hoc)…');
 run('codesign', ['--force', '--deep', '--sign', '-', app]);
 run('codesign', ['--verify', '--deep', '--strict', app]);
 
+// The app as a zip too: what a running nib downloads to update itself.
+const zip = join(out, `nib-${version}-mac-${arch}.zip`);
+await rm(zip, { force: true });
+run('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', app, zip]);
+
 console.log('Making the disk image…');
 const dmgDir = join(out, 'dmg');
 await rm(dmgDir, { recursive: true, force: true });
@@ -163,4 +169,4 @@ try {
 }
 await rm(dmgDir, { recursive: true, force: true });
 
-console.log(`\n${app}\n${dmg}`);
+console.log(`\n${app}\n${dmg}\n${zip}`);

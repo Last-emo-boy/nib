@@ -14,6 +14,15 @@ contextBridge.exposeInMainWorld('nibDesktop', {
   openExternal: (url) => ipcRenderer.send('nib:open-external', String(url)),
   mcpClients: () => ipcRenderer.invoke('nib:mcp-clients'),
   configureMcp: (id) => ipcRenderer.invoke('nib:configure-mcp', String(id)),
+  updateState: () => ipcRenderer.invoke('nib:update-state'),
+  checkForUpdates: () => ipcRenderer.invoke('nib:update-check'),
+  installUpdate: () => ipcRenderer.invoke('nib:update-install'),
+  setAutomaticUpdates: (on) => ipcRenderer.invoke('nib:update-automatic', on === true),
+  onUpdate: (listener) => {
+    const handler = (_event, state) => listener(state);
+    ipcRenderer.on('nib:update', handler);
+    return () => ipcRenderer.removeListener('nib:update', handler);
+  },
   onCommand: (listener) => {
     const handler = (_event, command) => listener(command);
     ipcRenderer.on('nib:command', handler);

@@ -5,6 +5,7 @@ import { useT } from '../app/i18n.ts';
 import { setPrefs, store, useEditor } from '../app/store.ts';
 import type { Prefs } from '../app/prefs.ts';
 import { Icon } from './Icon.tsx';
+import { UpdateSettings } from './UpdateNotice.tsx';
 
 /** Language, how the editor behaves and looks, agent (MCP client) setup, and where nib keeps things. */
 export function Settings() {
@@ -53,6 +54,7 @@ export function Settings() {
       </section>
       <section>
         <h2>{t.aboutTitle}</h2>
+        <UpdateSettings />
         <p className="dim">nib {version} · {t.aboutText}</p>
         <p className="dim">{t.credits}</p>
       </section>

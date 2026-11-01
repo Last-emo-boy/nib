@@ -13,6 +13,23 @@ export interface DesktopApi {
   mcpClients(): Promise<McpClientStatus[]>;
   configureMcp(id: string): Promise<McpClientStatus>;
   onCommand(listener: (command: string) => void): () => void;
+  updateState(): Promise<UpdateState>;
+  checkForUpdates(): Promise<UpdateState>;
+  /** Quits and restarts into the downloaded version. */
+  installUpdate(): Promise<boolean>;
+  setAutomaticUpdates(on: boolean): Promise<UpdateState>;
+  onUpdate(listener: (state: UpdateState) => void): () => void;
+}
+
+/** What the desktop app knows about a newer nib (apps/desktop/src/updates.ts). */
+export interface UpdateState {
+  status: 'idle' | 'checking' | 'current' | 'available' | 'downloading' | 'ready' | 'error';
+  current: string;
+  version?: string;
+  url?: string;
+  error?: string;
+  installs: boolean;
+  automatic: boolean;
 }
 
 export interface McpClientStatus {

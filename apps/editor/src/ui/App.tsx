@@ -26,6 +26,7 @@ import { receive as receiveAgent } from '../app/agent.ts';
 import { AgentPanel } from './Agent.tsx';
 import { BrowserPanel } from './Browser.tsx';
 import { modelContext, registerTools } from '../app/webmcp.ts';
+import { UpdateNotice } from './UpdateNotice.tsx';
 
 export function App() {
   const [file, setFile] = useState(fileFromUrl());
@@ -69,6 +70,7 @@ export function App() {
       <BrowserPanel />
       <Status />
       <Palette />
+      <UpdateNotice />
       <Toast />
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { authHeaders, token } from '../app/connection.ts';
 import { desktop, openDocument } from '../app/desktop.ts';
 import { isFigmaFile, openFigma } from '../app/figma.ts';
+import { UpdateNotice } from './UpdateNotice.tsx';
 import { useT } from '../app/i18n.ts';
 import { refreshProviders, sendMessage, useAgent } from '../app/agent.ts';
 import { useLibraries, type LibraryInfo } from '../app/libraries.ts';
@@ -64,6 +65,7 @@ export function Dashboard() {
 
   return (
     <div className={`dashboard${desktop ? ' in-desktop' : ''}`}>
+      <UpdateNotice />
       <aside className="dash-side">
         <div className="dash-logo"><span className="logo">nib</span></div>
         <NavItem icon="file" label={t.recents} active={view === 'recents'} onClick={() => setView('recents')} />

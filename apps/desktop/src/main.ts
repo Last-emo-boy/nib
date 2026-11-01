@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureDaemon, type DaemonInfo } from '@nib/daemon';
 import { configure, statuses, type ServerCommand } from './mcp-clients.ts';
+import { check, install, setAutomatic, startUpdates, updateState } from './updates.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PRELOAD = join(here, 'preload.cjs');
@@ -138,6 +139,7 @@ function buildMenu(): void {
   const template: MenuItemConstructorOptions[] = [
     ...(mac ? [{ label: 'nib', submenu: [
       { role: 'about' }, { type: 'separator' },
+      { label: 'Check for Updates…', click: () => void checkByHand() },
       { label: 'Settings…', accelerator: 'Cmd+,', click: showSettings },
       { type: 'separator' }, { role: 'services' }, { type: 'separator' },
       { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' },
@@ -175,8 +177,22 @@ function buildMenu(): void {
       { role: 'reload' }, { role: 'toggleDevTools' }, { role: 'togglefullscreen' },
     ] },
     { role: 'windowMenu' },
+    ...(mac ? [] : [{ label: 'Help', submenu: [{ label: 'Check for Updates…', click: () => void checkByHand() }] } as MenuItemConstructorOptions]),
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+/** The menu's Check for Updates: says what it found, since nothing else may show it. */
+async function checkByHand(): Promise<void> {
+  const s = await check();
+  if (s.status === 'ready') {
+    const r = await dialog.showMessageBox({ message: `nib ${s.version} is ready`, detail: 'nib restarts to update; open documents come back.', buttons: ['Restart to Update', 'Later'], defaultId: 0 });
+    if (r.response === 0) await install(daemon?.pid);
+  } else if (s.status === 'available') {
+    const r = await dialog.showMessageBox({ message: `nib ${s.version} is out`, detail: `You have ${s.current}.`, buttons: ['Download', 'Later'], defaultId: 0 });
+    if (r.response === 0 && s.url) void shell.openExternal(s.url);
+  } else if (s.status === 'current') void dialog.showMessageBox({ message: 'nib is up to date', detail: `Version ${s.current}.` });
+  else if (s.status === 'error') void dialog.showMessageBox({ type: 'warning', message: 'nib could not check for updates', detail: s.error ?? '' });
 }
 
 ipcMain.handle('nib:pick-file', () => pickFile());
@@ -190,6 +206,10 @@ ipcMain.on('nib:open-settings', () => showSettings());
 ipcMain.on('nib:reveal', (_e, path: string) => { if (typeof path === 'string' && existsSync(path)) shell.showItemInFolder(path); });
 ipcMain.on('nib:open-external', (_e, url: string) => { if (typeof url === 'string' && /^https?:\/\//.test(url)) void shell.openExternal(url); });
 ipcMain.handle('nib:mcp-clients', () => statuses(SERVER));
+ipcMain.handle('nib:update-state', () => updateState());
+ipcMain.handle('nib:update-check', () => check());
+ipcMain.handle('nib:update-install', () => install(daemon?.pid));
+ipcMain.handle('nib:update-automatic', (_e, on: boolean) => setAutomatic(on === true));
 ipcMain.handle('nib:configure-mcp', (_e, id: string) => configure(id, SERVER));
 
 app.whenReady().then(async () => {
@@ -201,6 +221,7 @@ app.whenReady().then(async () => {
     return;
   }
   buildMenu();
+  void startUpdates((s) => { for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('nib:update', s); });
   const files = [...pending, ...pensIn(process.argv)];
   if (files.length) files.forEach(openDocument);
   else showDashboard();

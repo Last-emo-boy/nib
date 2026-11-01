@@ -4,6 +4,8 @@ export interface DesktopApi {
   pickFile(): Promise<string | undefined>;
   pickSavePath(suggested: string): Promise<string | undefined>;
   openDocument(path: string): void;
+  /** Where a dropped file is on disk. */
+  pathForFile(file: File): string;
   openDashboard(): void;
   openSettings(): void;
   revealInFolder(path: string): void;

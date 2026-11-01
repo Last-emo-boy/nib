@@ -25,7 +25,7 @@ const pending: string[] = [];
 if (!app.requestSingleInstanceLock()) app.quit();
 app.setName('nib');
 
-const pensIn = (argv: string[]) => argv.slice(1).filter((a) => a.endsWith('.pen') && !a.startsWith('-')).map((a) => resolvePath(a));
+const pensIn = (argv: string[]) => argv.slice(1).filter((a) => /\.(pen|fig)$/i.test(a) && !a.startsWith('-')).map((a) => resolvePath(a));
 
 app.on('second-instance', (_e, argv) => {
   const files = pensIn(argv);
@@ -87,6 +87,15 @@ function showDashboard(): void {
 
 function openDocument(file: string): void {
   const path = resolvePath(file);
+  // A Figma file opens as the .pen document made from it, beside it.
+  if (/\.fig$/i.test(path)) {
+    void api('/api/import-figma', { path }).then((r) => {
+      const made = r as { path?: string; error?: string };
+      if (made.path) openDocument(made.path);
+      else dialog.showErrorBox('nib could not open the Figma file', made.error ?? path);
+    });
+    return;
+  }
   const open = documents.get(path);
   if (open && !open.isDestroyed()) { open.show(); open.focus(); return; }
   const win = makeWindow(path.split('/').pop() ?? 'nib', { file: path });
@@ -108,7 +117,7 @@ async function newFile(): Promise<void> {
 }
 
 async function pickFile(): Promise<string | undefined> {
-  const r = await dialog.showOpenDialog({ title: 'Open a design', filters: [{ name: 'Designs (.pen)', extensions: ['pen'] }], properties: ['openFile'] });
+  const r = await dialog.showOpenDialog({ title: 'Open a design', filters: [{ name: 'Designs (.pen, Figma .fig)', extensions: ['pen', 'fig'] }], properties: ['openFile'] });
   return r.canceled ? undefined : r.filePaths[0];
 }
 
@@ -175,7 +184,7 @@ ipcMain.handle('nib:pick-save-path', async (_e, suggested: string) => {
   const r = await dialog.showSaveDialog({ defaultPath: suggested, filters: [{ name: 'Designs (.pen)', extensions: ['pen'] }] });
   return r.canceled ? undefined : r.filePath;
 });
-ipcMain.on('nib:open-document', (_e, path: string) => { if (typeof path === 'string' && path.endsWith('.pen')) openDocument(path); });
+ipcMain.on('nib:open-document', (_e, path: string) => { if (typeof path === 'string' && /\.(pen|fig)$/i.test(path)) openDocument(path); });
 ipcMain.on('nib:open-dashboard', () => showDashboard());
 ipcMain.on('nib:open-settings', () => showSettings());
 ipcMain.on('nib:reveal', (_e, path: string) => { if (typeof path === 'string' && existsSync(path)) shell.showItemInFolder(path); });

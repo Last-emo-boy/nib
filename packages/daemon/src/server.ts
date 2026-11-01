@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { faceInfo, faceOffsets, type FolderFontLoader, type SystemFontLoader } from '@nib/render/node';
 import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
 import { draftFile, draftPath, DRAFTS_DIR, drafts, newDraft, NIB_HOME, nodePreview, recents, thumbnail, trashDraft, updateRecents } from './library.ts';
+import { importFigma } from './figma/index.ts';
 import { aliasFor, brandLibrary, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
 import { brandFromPage, brandFromPalette, paletteFromPixels, paletteFromSvg, type Brand } from './brand.ts';
 import { templateDocument, templateFile, templates } from './templates.ts';
@@ -321,6 +322,27 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           return send(res, 200, { path: await host.saveAs(body.filePath, body.target) });
         } catch (e) {
           return send(res, 409, { error: (e as Error).message });
+        }
+      }
+      case 'POST /api/import-figma': {
+        // A Figma file as a new document: one on disk ({path}) goes beside it, one sent ({name, data}) into the drafts.
+        const body = await readJson(req);
+        let bytes: Uint8Array, dir: string, name: string;
+        if (typeof body.path === 'string') {
+          if (!/\.fig$/i.test(body.path)) return send(res, 400, { error: 'expected a .fig file' });
+          const path = resolvePath(body.path);
+          bytes = new Uint8Array(await readFile(path).catch(() => { throw new Error(`cannot read ${body.path}`); }));
+          dir = dirname(path);
+          name = basename(path).replace(/\.fig$/i, '');
+        } else if (typeof body.data === 'string') {
+          bytes = new Uint8Array(Buffer.from(body.data, 'base64'));
+          dir = DRAFTS_DIR;
+          name = typeof body.name === 'string' ? body.name.replace(/\.fig$/i, '') : 'Figma import';
+        } else return send(res, 400, { error: 'path, or name and data (base64), are required' });
+        try {
+          return send(res, 200, await importFigma(bytes, dir, name));
+        } catch (e) {
+          return send(res, 400, { error: `not a Figma file nib can read: ${(e as Error).message}` });
         }
       }
       case 'POST /api/import-dom': {

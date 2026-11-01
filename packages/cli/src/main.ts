@@ -5,7 +5,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parsePen, serializePen, validateNode, type PenDocument } from '@nib/format';
-import { DocumentHost, ensureDaemon, framePictures, versionFile } from '@nib/daemon';
+import { DocumentHost, ensureDaemon, framePictures, importFigma, versionFile } from '@nib/daemon';
 import { EXPORTERS } from '@nib/export';
 import type { ExportFormat } from '@nib/exec';
 import { createNodeRenderer, imagesFor } from '@nib/render/node';
@@ -24,6 +24,8 @@ const HELP = `nib — design files (.pen) from the command line
       What changed, frame by frame (git: from HEAD to the file as it is, unless given).
       --images <dir>  before, after and difference pictures of each changed frame
       --markdown <file>  a summary for a pull request   --json  the diff as JSON
+  nib import <file.fig> [--out <folder>]
+      A Figma file (File > Save local copy) as a .pen document beside it, or in the folder given.
   nib agent <file.pen> <request…> [--provider <id>] [--model <id>] [--select <id>]
       Ask nib's agent to change the design, and print what it says and does.
   nib open <file.pen>
@@ -194,6 +196,21 @@ async function diff(a: Args) {
   }
 }
 
+async function importFig(a: Args) {
+  const f = a._[0];
+  if (!f || !/\.fig$/i.test(f)) fail('give a .fig file');
+  const path = resolve(f!);
+  if (!existsSync(path)) fail(`no such file: ${f}`);
+  let r: Awaited<ReturnType<typeof importFigma>>;
+  try {
+    r = await importFigma(new Uint8Array(await readFile(path)), resolve(flag(a, 'out') ?? dirname(path)), basename(path).replace(/\.fig$/i, ''));
+  } catch (e) {
+    return fail(`${basename(path)} is not a Figma file nib can read (${(e as Error).message})`);
+  }
+  process.stdout.write(`${shown(r.path)} (${r.layers} layers)\n`);
+  for (const n of r.notes) process.stdout.write(`  ${n}\n`);
+}
+
 async function agent(a: Args) {
   const path = penFile(a);
   const text = a._.slice(1).join(' ').trim() || fail('say what the agent should do');
@@ -271,6 +288,7 @@ switch (command) {
   case 'export': await render(args, (flag(args, 'format') ?? fail('export needs --format')) as ExportFormat); break;
   case 'validate': await validate(args); break;
   case 'diff': await diff(args); break;
+  case 'import': await importFig(args); break;
   case 'agent': await agent(args); break;
   case 'open': await open(args); break;
   case 'merge-driver': await mergeDriver(args); break;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { authHeaders, token } from '../app/connection.ts';
 import { desktop, openDocument } from '../app/desktop.ts';
+import { isFigmaFile, openFigma } from '../app/figma.ts';
 import { useT } from '../app/i18n.ts';
 import { refreshProviders, sendMessage, useAgent } from '../app/agent.ts';
 import { useLibraries, type LibraryInfo } from '../app/libraries.ts';
@@ -53,7 +54,8 @@ export function Dashboard() {
   };
   const openFile = async () => {
     const path = desktop ? await desktop.pickFile() : prompt(t.openHint)?.trim();
-    if (path) openDocument(path);
+    if (path && isFigmaFile(path)) void openFigma(path);
+    else if (path) openDocument(path);
   };
 
   const scene = view.startsWith('templates:') ? view.slice('templates:'.length) : undefined;

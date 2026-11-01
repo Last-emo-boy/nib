@@ -29,6 +29,10 @@ import { BrowserPanel } from './Browser.tsx';
 export function App() {
   const [file, setFile] = useState(fileFromUrl());
   useEffect(() => {
+    const notice = sessionStorage.getItem('nib-notice');
+    if (notice) { sessionStorage.removeItem('nib-notice'); toast(notice); }
+  }, []);
+  useEffect(() => {
     if (!file) return;
     sessionStorage.setItem('nib-file', file);
     document.title = `${file.split('/').pop()} · nib`;

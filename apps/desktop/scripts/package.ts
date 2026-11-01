@@ -94,6 +94,12 @@ const [appDir] = await packager({
       CFBundleTypeRole: 'Editor',
       LSHandlerRank: 'Default',
       CFBundleTypeIconFile: 'electron.icns',
+    }, {
+      // Figma files open as a .pen document made from them; Figma stays their usual app.
+      CFBundleTypeName: 'Figma design',
+      CFBundleTypeExtensions: ['fig'],
+      CFBundleTypeRole: 'Viewer',
+      LSHandlerRank: 'Alternate',
     }],
   },
 });

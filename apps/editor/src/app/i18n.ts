@@ -1,4 +1,4 @@
-import { useEditor, type Lang } from './store.ts';
+import { store, useEditor, type Lang } from './store.ts';
 
 const en = {
   layers: 'Layers', components: 'Components', variables: 'Variables', activity: 'Activity',
@@ -15,7 +15,9 @@ const en = {
   noVariables: 'No variables. Agents create them with SetVariables; values show here.',
   noActivity: 'Changes by you and by agents appear here.', agent: 'Agent', you: 'You',
   connecting: 'Connecting to nib…', disconnected: 'Disconnected from nib. Reconnecting…',
-  openTitle: 'Open a .pen file', openHint: 'Absolute path of a .pen file (a missing file is created)', open: 'Open',
+  openTitle: 'Open a .pen file', openHint: 'Absolute path of a .pen file (a missing file is created), or of a Figma .fig file to import', open: 'Open',
+  importingFigma: 'Importing the Figma file…',
+  figmaImported: (layers: number, notes: string[]) => `Imported ${layers} layers from Figma.${notes.length ? ` Not carried over exactly: ${notes.join('; ')}.` : ''}`,
   openDocs: 'Open in nib', makeComponent: 'Make component', detach: 'Go to component', hidden: 'Hidden',
   shortcuts: 'Shortcuts', language: '中文', loading: 'Rendering…',
   problems: 'Problems', noProblems: 'No problems found.', palette: 'Search layers and commands…', exportAs: 'Export', exportButton: 'Export selection',
@@ -137,7 +139,9 @@ const zh: typeof en = {
   noVariables: '没有变量。智能体用 SetVariables 创建，取值显示在这里。',
   noActivity: '你和智能体做的修改会显示在这里。', agent: '智能体', you: '你',
   connecting: '正在连接 nib…', disconnected: '与 nib 断开，正在重连…',
-  openTitle: '打开 .pen 文件', openHint: '.pen 文件的绝对路径（不存在会新建）', open: '打开',
+  openTitle: '打开 .pen 文件', openHint: '.pen 文件的绝对路径（不存在会新建），或要导入的 Figma .fig 文件的路径', open: '打开',
+  importingFigma: '正在导入 Figma 文件…',
+  figmaImported: (layers: number, notes: string[]) => `已从 Figma 导入 ${layers} 个图层。${notes.length ? `没有完全照搬的：${notes.join('; ')}。` : ''}`,
   openDocs: 'nib 中已打开', makeComponent: '创建组件', detach: '前往组件', hidden: '已隐藏',
   shortcuts: '快捷键', language: 'English', loading: '渲染中…',
   problems: '问题', noProblems: '没有发现问题。', palette: '搜索图层和命令…', exportAs: '导出', exportButton: '导出所选',
@@ -250,4 +254,9 @@ const TABLES: Record<Lang, Strings> = { en, zh };
 
 export function useT(): Strings {
   return TABLES[useEditor((s) => s.lang)];
+}
+
+/** The strings in the editor's language, for code outside components. */
+export function strings(): Strings {
+  return TABLES[store.get().lang];
 }

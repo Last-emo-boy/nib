@@ -19,6 +19,7 @@ import { apply, applyLinear, invert, isAxisAligned, placement, type P } from './
 import { scaleTree } from '../app/geometry.ts';
 import { isPart, layerOf } from '../app/parts.ts';
 import { addFontFiles, isFontFile } from '../app/fonts.ts';
+import { isFigmaFile, openFigma } from '../app/figma.ts';
 
 /** What other parts of the editor need from the canvas. */
 export const canvas = {
@@ -590,6 +591,8 @@ export function CanvasView() {
         if (images.length) void importImages(images, at);
         const fonts = files.filter(isFontFile);
         if (fonts.length) void addFontFiles(fonts);
+        // A Figma file is a document of its own: it opens beside this one.
+        for (const f of files.filter(isFigmaFile)) void openFigma(f);
       }}>
       <canvas ref={el} />
       <AgentCursors />

@@ -6,7 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { applyOp, buildScene, PenDoc, type Op, type SceneNode } from '@nib/core';
 import { parsePen, serializePen, type PenDocument } from '@nib/format';
 import { createNodeRenderer, FolderFontLoader, PackageIconSource } from '@nib/render/node';
-import { DocumentHost, startDaemon, type Daemon } from '../src/index.ts';
+import { DocumentHost, DRAFTS_DIR, startDaemon, type Daemon } from '../src/index.ts';
+import { figFile } from './figma-fixture.ts';
 
 let daemon: Daemon;
 let host: DocumentHost;
@@ -344,5 +345,19 @@ describe('library', () => {
     // The same name again makes a second file rather than overwriting the first.
     expect((await (await api('/api/library/brand', { path, base: 'shadcn', name: 'Acme Green', brand: { primary: '#E8590C' } })).json()).path).toBe('./libraries/acme-green-2.lib.pen');
     expect((await api('/api/library/brand', { path, base: 'nope', brand: { primary: '#E8590C' } })).status).toBe(422);
+  });
+
+  it('imports a Figma file beside it, or into the drafts when it is sent', async () => {
+    const fig = join(dir, 'Imported.fig');
+    await writeFile(fig, figFile());
+    const r = await api('/api/import-figma', { path: fig });
+    expect(r.status).toBe(200);
+    const j = await r.json() as { path: string; layers: number; notes: string[] };
+    expect(j.path).toBe(join(dir, 'Imported.pen'));
+    expect(parsePen(await readFile(j.path, 'utf8')).children.length).toBeGreaterThan(3);
+    const sent = await api('/api/import-figma', { name: 'Sent.fig', data: Buffer.from(figFile()).toString('base64') });
+    expect(((await sent.json()) as { path: string }).path).toBe(join(DRAFTS_DIR, 'Sent.pen'));
+    expect((await api('/api/import-figma', { path: join(dir, 'notes.txt') })).status).toBe(400);
+    expect((await api('/api/import-figma', { name: 'x.fig', data: 'AAAA' })).status).toBe(400);
   });
 });

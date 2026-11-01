@@ -25,6 +25,7 @@ import { agentLabel } from '../canvas/presence.ts';
 import { receive as receiveAgent } from '../app/agent.ts';
 import { AgentPanel } from './Agent.tsx';
 import { BrowserPanel } from './Browser.tsx';
+import { modelContext, registerTools } from '../app/webmcp.ts';
 
 export function App() {
   const [file, setFile] = useState(fileFromUrl());
@@ -45,7 +46,10 @@ export function App() {
       if (e.t === 'change') store.set((s) => ({ version: s.version + 1, changes: [...s.changes.slice(-199), e.change] }));
       if (e.t === 'agent') receiveAgent(e.event);
     });
-    return () => { off(); conn.close(); };
+    // AI assistants in the browser (WebMCP) get this document's tools while it is open.
+    const mc = modelContext();
+    const withdraw = mc ? registerTools(mc, file) : undefined;
+    return () => { off(); conn.close(); withdraw?.(); };
   }, [file]);
   useShortcuts();
   const presenting = useEditor((s) => !!s.present);

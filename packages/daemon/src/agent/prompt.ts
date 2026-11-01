@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** nib's design guide, the one agents read with read_skill. */
-const SKILL_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'mcp', 'skill');
+export const SKILL_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'mcp', 'skill');
 const guide = new Map<string, string>();
 const read = (file: string) => {
   if (!guide.has(file)) guide.set(file, readFileSync(join(SKILL_DIR, file), 'utf8'));

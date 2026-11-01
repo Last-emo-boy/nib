@@ -12,6 +12,7 @@ import { faceInfo, faceOffsets, type FolderFontLoader, type SystemFontLoader } f
 import type { DocEvent, DocumentHost, OpenDocument, Source } from './host.ts';
 import { draftFile, draftPath, DRAFTS_DIR, drafts, newDraft, NIB_HOME, nodePreview, recents, thumbnail, trashDraft, updateRecents } from './library.ts';
 import { importFigma } from './figma/index.ts';
+import { SKILL_DIR } from './agent/prompt.ts';
 import { aliasFor, brandLibrary, documentFromLibrary, installLibrary, libraries, libraryFile } from './libraries.ts';
 import { brandFromPage, brandFromPalette, paletteFromPixels, paletteFromSvg, type Brand } from './brand.ts';
 import { templateDocument, templateFile, templates } from './templates.ts';
@@ -166,7 +167,8 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
     switch (`${req.method} ${url.pathname}`) {
       case 'POST /api/state': {
         const body = await readJson(req);
-        const text = await host.appState(typeof body.filePath === 'string' ? body.filePath : undefined, editorUrl);
+        // Without the editor's link (it carries the token) when the reader is not one of the person's MCP clients.
+        const text = await host.appState(typeof body.filePath === 'string' ? body.filePath : undefined, body.link === false ? undefined : editorUrl);
         return send(res, 200, { text });
       }
       case 'POST /api/execute': {
@@ -322,6 +324,17 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
           return send(res, 200, { path: await host.saveAs(body.filePath, body.target) });
         } catch (e) {
           return send(res, 409, { error: (e as Error).message });
+        }
+      }
+      case 'GET /api/skill': {
+        // nib's design guide, for agents that reach nib through the editor page (WebMCP) rather than MCP.
+        const path = q.get('path') || 'SKILL.md';
+        const file = normalize(join(SKILL_DIR, path));
+        if (relative(SKILL_DIR, file).startsWith('..') || !file.endsWith('.md')) return send(res, 400, { error: `"${path}" is not part of the guide` });
+        try {
+          return send(res, 200, { text: await readFile(file, 'utf8') });
+        } catch {
+          return send(res, 404, { error: `no guide file "${path}"` });
         }
       }
       case 'POST /api/import-figma': {

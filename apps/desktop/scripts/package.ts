@@ -27,7 +27,7 @@ const platform = process.platform === 'win32' ? 'win32' : process.platform === '
 const windows = platform === 'win32';
 
 // pnpm is a .cmd script on Windows, which only a shell runs.
-const run = (cmd: string, args: string[], cwd = root) => execFileSync(cmd, args, { cwd, stdio: 'inherit', shell: windows });
+const run = (cmd: string, args: string[], cwd = root) => execFileSync(cmd, args, { cwd, stdio: 'inherit', shell: windows && cmd === 'pnpm' });
 
 console.log('Building the editor…');
 run('pnpm', ['--filter', '@nib/editor', 'build']);
@@ -42,7 +42,7 @@ for (const name of ['core', 'daemon', 'exec', 'export', 'format', 'layout', 'mcp
 await cp(join(desktop, 'package.json'), join(stage, 'apps', 'desktop', 'package.json'));
 await cp(join(desktop, 'src'), join(stage, 'apps', 'desktop', 'src'), { recursive: true, filter: skip });
 await cp(join(root, 'apps', 'editor', 'dist'), join(stage, 'apps', 'editor', 'dist'), { recursive: true });
-await writeFile(join(stage, 'package.json'), `${JSON.stringify({ name: 'nib', productName: 'nib', version, private: true, type: 'module', main: windows ? 'apps/desktop/src/start.mjs' : 'apps/desktop/src/main.ts' }, null, 2)}\n`);
+await writeFile(join(stage, 'package.json'), `${JSON.stringify({ name: 'nib', productName: 'nib', version, author: 'nib contributors', private: true, type: 'module', main: windows ? 'apps/desktop/src/start.mjs' : 'apps/desktop/src/main.ts' }, null, 2)}\n`);
 await writeFile(join(stage, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n  - apps/desktop\n');
 // The repository's lockfile keeps the versions it was tested with (the stage lists fewer projects, so it
 // is not frozen); the modules come from the pnpm store of the repository's install. Not --offline: the
@@ -105,6 +105,7 @@ const [appDir] = await packager({
   derefSymlinks: false,
   overwrite: true,
   darwinDarkModeSupport: true,
+  win32metadata: { CompanyName: 'nib contributors', ProductName: 'nib', FileDescription: 'nib', InternalName: 'nib', OriginalFilename: 'nib.exe' },
   extendInfo: {
     CFBundleDocumentTypes: [{
       CFBundleTypeName: 'nib design',

@@ -248,7 +248,7 @@ function match(query: string, fields: string[]): boolean {
   return !q || fields.some((f) => f.toLowerCase().includes(q));
 }
 
-function ago(ms: number, lang: string): string {
+export function ago(ms: number, lang: string): string {
   const rtf = new Intl.RelativeTimeFormat(lang === 'zh' ? 'zh-CN' : 'en', { numeric: 'auto' });
   const s = (ms - Date.now()) / 1000;
   const steps: [number, Intl.RelativeTimeFormatUnit][] = [[60, 'second'], [60, 'minute'], [24, 'hour'], [7, 'day'], [4.35, 'week'], [12, 'month'], [Infinity, 'year']];

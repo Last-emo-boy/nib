@@ -3,10 +3,11 @@ import { commit } from '../app/actions.ts';
 import { authHeaders, token } from '../app/connection.ts';
 import { desktop, openDocument } from '../app/desktop.ts';
 import { useT } from '../app/i18n.ts';
-import { COMPONENT_MIME, componentsOf, post, previewUrl, useLibraries, type ComponentEntry } from '../app/libraries.ts';
+import { COMPONENT_MIME, componentsOf, post, useLibraries, type ComponentEntry } from '../app/libraries.ts';
 import { store, toast, useEditor } from '../app/store.ts';
 import { boundsOf, fitView, insertInstance } from '../canvas/Canvas.tsx';
 import { Icon } from './Icon.tsx';
+import { NodeImage } from '../web/preview.tsx';
 
 /** Components of this file and of the libraries it uses, to find, insert or drag onto the canvas. */
 export function Components() {
@@ -45,7 +46,7 @@ export function Components() {
             <div key={group} className="comp-group">
               {items.length > 1 && <div className="comp-group-title">{group}</div>}
               <div className="comp-grid">
-                {items.map((e) => <Tile key={e.id} entry={e} local={!s.key} src={previewUrl(conn.path, e.id, s.key ? 0 : version)} label={items.length > 1 ? e.label : e.name} />)}
+                {items.map((e) => <Tile key={e.id} entry={e} local={!s.key} path={conn.path} version={s.key ? 0 : version} label={items.length > 1 ? e.label : e.name} />)}
               </div>
             </div>
           ))}
@@ -55,14 +56,14 @@ export function Components() {
   );
 }
 
-function Tile({ entry, local, src, label }: { entry: ComponentEntry; local: boolean; src: string; label: string }) {
+function Tile({ entry, local, path, version, label }: { entry: ComponentEntry; local: boolean; path: string; version: number; label: string }) {
   const t = useT();
   const goTo = () => { store.set({ selection: [entry.id] }); const b = boundsOf([entry.id]); if (b) store.set({ view: fitView(b, 2) }); };
   return (
     <button className="comp-tile" title={`${entry.name}\n${local ? t.localComponentHint : t.insertHint}`} draggable
       onDragStart={(e) => { e.dataTransfer.setData(COMPONENT_MIME, entry.id); e.dataTransfer.effectAllowed = 'copy'; }}
       onClick={() => (local ? goTo() : void insertInstance(entry.id))} onDoubleClick={() => local && void insertInstance(entry.id)}>
-      <div className="comp-thumb"><img loading="lazy" src={src} alt="" draggable={false}
+      <div className="comp-thumb"><NodeImage loading="lazy" path={path} id={entry.id} version={version} alt="" draggable={false}
         // Previews come at twice their size: show them at their real size, smaller only when they do not fit.
         onLoad={(e) => { const img = e.currentTarget; img.style.width = `${img.naturalWidth / 2}px`; }}
         onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} /></div>

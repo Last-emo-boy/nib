@@ -17,6 +17,8 @@ import { LINK, linkOf } from '../canvas/links.ts';
 import { imageFillIndex } from '../canvas/crop.ts';
 import { agent, loadAgent, openSession, sendMessage, sendResponsive } from '../app/agent.ts';
 import { layerName, typeIcon } from './LeftPanel.tsx';
+import { exportPictures } from '../web/files.ts';
+import { isWebDoc } from '../web/mode.ts';
 
 type Props = Record<string, any>;
 
@@ -904,6 +906,8 @@ function Prototype({ doc, n, t, set }: { doc: PenDoc; n: Props; t: Strings; set:
 
 /** Export the selection through the daemon (same renderer as agents' Export) and download the files. */
 function ExportSection({ t, ids }: { t: Strings; ids: string[] }) {
+  // The website draws pictures itself; PDF and code need the app.
+  const web = useEditor((s) => s.web);
   const [format, setFormat] = useState('png');
   const [scale, setScale] = useState(2);
   const [busy, setBusy] = useState(false);
@@ -912,6 +916,7 @@ function ExportSection({ t, ids }: { t: Strings; ids: string[] }) {
     if (!conn) return;
     setBusy(true);
     try {
+      if (isWebDoc(conn.path)) { await exportPictures(ids, format as 'png' | 'jpeg' | 'webp', scale); return; }
       const r = await fetch('/api/export', { method: 'POST', headers: { ...authHeaders(), 'content-type': 'application/json' }, body: JSON.stringify({ filePath: conn.path, ids, format, scale }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error);
@@ -934,7 +939,7 @@ function ExportSection({ t, ids }: { t: Strings; ids: string[] }) {
     <Section title={t.exportAs}>
       <div className="row">
         <select value={format} onChange={(e) => setFormat(e.target.value)}>
-          {['png', 'jpeg', 'webp', 'pdf', 'html-css', 'html-tailwind', 'react-tailwind'].map((f) => <option key={f} value={f}>{f === 'react-tailwind' ? 'React + Tailwind' : f.toUpperCase().replace('HTML-', 'HTML ')}</option>)}
+          {(web ? ['png', 'jpeg', 'webp'] : ['png', 'jpeg', 'webp', 'pdf', 'html-css', 'html-tailwind', 'react-tailwind']).map((f) => <option key={f} value={f}>{f === 'react-tailwind' ? 'React + Tailwind' : f.toUpperCase().replace('HTML-', 'HTML ')}</option>)}
         </select>
         {['png', 'jpeg', 'webp', 'pdf'].includes(format) && (
           <select value={scale} onChange={(e) => setScale(Number(e.target.value))}>

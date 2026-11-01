@@ -5,10 +5,11 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parsePen, serializePen, validateNode, type PenDocument } from '@nib/format';
-import { DocumentHost, ensureDaemon, framePictures, importFigma, versionFile } from '@nib/daemon';
+import { DocumentHost, ensureDaemon, framePictures, importFigma, startWebHost, versionFile } from '@nib/daemon';
 import { EXPORTERS } from '@nib/export';
 import type { ExportFormat } from '@nib/exec';
-import { createNodeRenderer, imagesFor } from '@nib/render/node';
+import { createNodeRenderer, FallbackFontLoader, GoogleFontsLoader, imagesFor, PackageIconSource } from '@nib/render/node';
+import { NOTO_FALLBACKS } from '@nib/render';
 import { diffDocs, diffMarkdown, diffText, mergeDocs } from '@nib/core';
 
 const HELP = `nib — design files (.pen) from the command line
@@ -30,6 +31,9 @@ const HELP = `nib — design files (.pen) from the command line
       Ask nib's agent to change the design, and print what it says and does.
   nib open <file.pen>
       Open it in the nib app (or the editor in the browser).
+  nib web [--port 8080] [--host 127.0.0.1]
+      nib's editor as a website (documents stay in each visitor's browser): the built editor
+      (pnpm --filter @nib/editor build) and the fonts and icons it draws with.
   nib git-setup
       Let git merge .pen files layer by layer in this repository (a merge driver for *.pen).
   nib merge-driver <base> <ours> <theirs> [path]
@@ -270,6 +274,15 @@ async function gitSetup() {
   process.stdout.write(`git merges .pen files with nib in ${top} (.gitattributes: *.pen merge=nib).\n`);
 }
 
+async function web(a: Args) {
+  const editorDir = fileURLToPath(new URL('../../../apps/editor/dist', import.meta.url));
+  if (!existsSync(join(editorDir, 'index.html'))) fail(`no built editor in ${shown(editorDir)}: run pnpm --filter @nib/editor build`);
+  const host = flag(a, 'host') ?? '127.0.0.1';
+  const site = await startWebHost({ port: Number(flag(a, 'port') ?? 8080), host, editorDir, fonts: new FallbackFontLoader(new GoogleFontsLoader()), icons: new PackageIconSource(), fallbacks: NOTO_FALLBACKS });
+  process.stdout.write(`nib's editor at http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${site.port}/ (Ctrl-C to stop)\n`);
+  await new Promise(() => {});
+}
+
 async function open(a: Args) {
   const path = penFile(a);
   const app = '/Applications/nib.app';
@@ -291,6 +304,7 @@ switch (command) {
   case 'import': await importFig(args); break;
   case 'agent': await agent(args); break;
   case 'open': await open(args); break;
+  case 'web': await web(args); break;
   case 'merge-driver': await mergeDriver(args); break;
   case 'git-setup': await gitSetup(); break;
   case 'version': case '--version': process.stdout.write('nib 0.1.0\n'); break;

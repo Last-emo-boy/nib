@@ -27,9 +27,15 @@ import { AgentPanel } from './Agent.tsx';
 import { BrowserPanel } from './Browser.tsx';
 import { modelContext, registerTools } from '../app/webmcp.ts';
 import { UpdateNotice } from './UpdateNotice.tsx';
+import { LocalConnection } from '../web/local.ts';
+import { isWebDoc } from '../web/mode.ts';
+import { WebHome } from '../web/Home.tsx';
+import { WebSave } from '../web/Save.tsx';
 
 export function App() {
-  const [file, setFile] = useState(fileFromUrl());
+  const web = useEditor((s) => s.web);
+  // On the website only documents kept in the browser open; a path from elsewhere shows its home.
+  const [file, setFile] = useState(() => { const f = fileFromUrl(); return store.get().web && !isWebDoc(f) ? undefined : f; });
   useEffect(() => {
     const notice = sessionStorage.getItem('nib-notice');
     if (notice) { sessionStorage.removeItem('nib-notice'); toast(notice); }
@@ -38,7 +44,7 @@ export function App() {
     if (!file) return;
     sessionStorage.setItem('nib-file', file);
     document.title = `${file.split(/[\\/]/).pop()} · nib`;
-    const conn = new Connection(file);
+    const conn = isWebDoc(file) ? new LocalConnection(file) : new Connection(file);
     store.set({ conn, doc: undefined, selection: [], changes: [] });
     const off = conn.on((e) => {
       if (e.t === 'status') store.set({ status: e.status });
@@ -55,7 +61,7 @@ export function App() {
   useShortcuts();
   const presenting = useEditor((s) => !!s.present);
   if (new URLSearchParams(location.hash.slice(1)).get('view') === 'settings') return <Settings />;
-  if (!file) return <Dashboard />;
+  if (!file) return web ? <WebHome /> : <Dashboard />;
   if (presenting) return <div className="editor presenting"><CanvasView /><Present onClick={followLink} /><Toast /></div>;
   return (
     <div className={`editor${desktop ? ' in-desktop-editor' : ''}`}>
@@ -66,8 +72,8 @@ export function App() {
       <Properties />
       <Zoom />
       <ActivityFeed />
-      <AgentPanel />
-      <BrowserPanel />
+      {!web && <AgentPanel />}
+      {!web && <BrowserPanel />}
       <Status />
       <Palette />
       <UpdateNotice />
@@ -79,7 +85,7 @@ export function App() {
 function TopLeft({ file }: { file: string }) {
   const t = useT();
   const name = file.split(/[\\/]/).pop();
-  const folder = file.split(/[\\/]/).slice(-2, -1)[0];
+  const folder = isWebDoc(file) ? t.inThisBrowser : file.split(/[\\/]/).slice(-2, -1)[0];
   return (
     <div className="pill top-left">
       <span className="logo">nib</span>
@@ -130,19 +136,22 @@ function TopRight() {
   const changes = useEditor((s) => s.changes);
   const lang = useEditor((s) => s.lang);
   const agentBusy = changes.length > 0 && changes[changes.length - 1].source.kind === 'agent' && Date.now() - changes[changes.length - 1].at < 4000;
+  const web = useEditor((s) => s.web);
   return (
     <div className="pill top-right">
       <button title={`${t.undo}${history.undo.length ? `: ${history.undo[history.undo.length - 1]}` : ''}`} disabled={!history.undo.length} onClick={() => store.get().conn?.undo()}><Icon name="undo" /></button>
       <button title={`${t.redo}${history.redo.length ? `: ${history.redo[history.redo.length - 1]}` : ''}`} disabled={!history.redo.length} onClick={() => store.get().conn?.redo()}><Icon name="redo" /></button>
       <span className="sep" />
-      <button className={`text-button${agentOpen ? ' on' : ''}`} title={`${t.agent} (⌘J)`} onClick={() => toggleSide('agentOpen')}>
-        <Icon name="sparkles" size={15} />{t.agent}
-      </button>
-      <button className={`text-button${browserOpen ? ' on' : ''}`} title={t.browser} onClick={() => toggleSide('browserOpen')}><Icon name="globe" size={15} /></button>
+      {web ? <WebSave /> : <>
+        <button className={`text-button${agentOpen ? ' on' : ''}`} title={`${t.agent} (⌘J)`} onClick={() => toggleSide('agentOpen')}>
+          <Icon name="sparkles" size={15} />{t.agent}
+        </button>
+        <button className={`text-button${browserOpen ? ' on' : ''}`} title={t.browser} onClick={() => toggleSide('browserOpen')}><Icon name="globe" size={15} /></button>
+      </>}
       <button className={`text-button${activity ? ' on' : ''}`} onClick={() => toggleSide('activityOpen')}>
         <span className={`dot${agentBusy ? ' busy' : ''}`} />{t.activity}
       </button>
-      <ShareButton />
+      {!web && <ShareButton />}
       <button className="text-button" title={`${t.present} (⌥⌘↵)`} onClick={() => startPresenting()}><Icon name="play" size={15} /></button>
       <LanguagePreview />
       <button className="text-button" title={t.language} onClick={() => { const next = lang === 'en' ? 'zh' : 'en'; localStorage.setItem('nib-lang', next); store.set({ lang: next }); }}><Icon name="languages" size={15} /></button>

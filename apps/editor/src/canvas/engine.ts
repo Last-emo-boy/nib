@@ -2,6 +2,8 @@ import type { CanvasKit } from 'canvaskit-wasm';
 import wasmUrl from 'canvaskit-wasm/bin/full/canvaskit.wasm?url';
 import { loadCanvasKit, Renderer, type FallbackFamilies, type FontLoader, type IconGeometry, type IconSource, type ImageLoader } from '@nib/render';
 import { authHeaders } from '../app/connection.ts';
+import { webImages } from '../web/images.ts';
+import { isWebDoc } from '../web/mode.ts';
 
 /** Fonts, icons and images come from the daemon, which finds them the same way headless rendering does. */
 async function fetchBytes(url: string): Promise<Uint8Array | undefined> {
@@ -20,9 +22,9 @@ const icons: IconSource = {
   },
 };
 
-export const imagesFor = (docPath: string): ImageLoader => ({
+export const imagesFor = (docPath: string): ImageLoader => isWebDoc(docPath) ? webImages(docPath) : {
   load: (url) => fetchBytes(`/api/image?${new URLSearchParams({ doc: docPath, url })}`),
-});
+};
 
 export interface Engine {
   ck: CanvasKit;

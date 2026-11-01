@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { commit } from '../app/actions.ts';
-import { authHeaders, token } from '../app/connection.ts';
+import { authHeaders } from '../app/connection.ts';
 import { useT } from '../app/i18n.ts';
 import { moveSlide } from '../app/slides.ts';
 import { store, toast, useEditor } from '../app/store.ts';
@@ -8,6 +8,7 @@ import { boundsOf, fitView } from '../canvas/Canvas.tsx';
 import { slideIds, startPresenting } from '../canvas/present.tsx';
 import { Icon } from './Icon.tsx';
 import { layerName } from './LeftPanel.tsx';
+import { NodeImage } from '../web/preview.tsx';
 
 /** The design's slides (top-level frames in reading order): pick, reorder by dragging, present, save as PDF. */
 export function Slides() {
@@ -15,6 +16,7 @@ export function Slides() {
   const doc = useEditor((s) => s.doc);
   const conn = useEditor((s) => s.conn);
   const selection = useEditor((s) => s.selection);
+  const web = useEditor((s) => s.web);
   useEditor((s) => s.layoutVersion);
   const version = useEditor((s) => s.version);
   // Thumbnails follow edits, but not on every keystroke.
@@ -54,11 +56,10 @@ export function Slides() {
     <div className="slides">
       <div className="slides-actions">
         <button className="dash-button" onClick={() => startPresenting()}><Icon name="play" size={13} /> {t.present}</button>
-        <button className="dash-button" disabled={busy} onClick={() => void pdf()}><Icon name="download" size={13} /> PDF</button>
+        {!web && <button className="dash-button" disabled={busy} onClick={() => void pdf()}><Icon name="download" size={13} /> PDF</button>}
       </div>
       {ids.map((id, i) => {
         const n = doc.get(id)!;
-        const src = `/api/node-preview?${new URLSearchParams({ doc: conn.path, id, size: '240', v: String(shown), t: token() })}`;
         return (
           <div key={id} className={`slide-row${selection.includes(id) ? ' selected' : ''}${dragging === i ? ' dragging' : ''}`} draggable
             onDragStart={(e) => { setDragging(i); e.dataTransfer.effectAllowed = 'move'; }}
@@ -68,7 +69,7 @@ export function Slides() {
             onClick={() => { store.set({ selection: [id] }); const b = boundsOf([id]); if (b) store.set({ view: fitView(b, 1.2) }); }}
             onDoubleClick={() => startPresenting(id)}>
             <span className="slide-number">{i + 1}</span>
-            <img className="slide-thumb" src={src} alt="" draggable={false} />
+            <NodeImage className="slide-thumb" path={conn.path} id={id} version={shown} alt="" draggable={false} />
             <span className="slide-name">{layerName(doc, n)}</span>
           </div>
         );

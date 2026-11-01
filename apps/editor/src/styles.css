@@ -645,3 +645,18 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .update-notice { position: fixed; left: 16px; bottom: 16px; z-index: 60; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); }
 .update-notice .dash-button { height: 28px; padding: 0 10px; }
 .update-settings { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+
+/* nib's website: its home page. */
+.web-home .dash-main { max-width: 1100px; margin: 0 auto; padding-top: 28px; }
+.web-home-head { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+.web-home-head .logo { font-size: 20px; }
+.web-home-spacer { flex: 1; }
+.web-home-actions { display: flex; gap: 10px; margin-bottom: 32px; }
+.web-home-title { font-size: 14px; font-weight: 600; margin: 0 0 14px; }
+.web-home-note { margin-top: 36px; max-width: 640px; }
+.web-thumb { display: flex; align-items: center; justify-content: center; color: var(--faint); }
+.web-card-actions { display: flex; gap: 12px; margin-top: 4px; }
+.web-save { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.link-button { background: none; border: none; padding: 0; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.link-button:hover { color: var(--text); }
+.link-button.danger:hover { color: var(--danger-text); }

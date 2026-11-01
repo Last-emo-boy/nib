@@ -4,7 +4,7 @@ import { newId, svgToNodes, type PenDoc } from '@nib/core';
 import type { Box } from '@nib/layout';
 import { commit, insertNode, isContainer, isFree, pruneSelection } from '../app/actions.ts';
 import { COMPONENT_MIME, post } from '../app/libraries.ts';
-import { authHeaders, type Connection } from '../app/connection.ts';
+import { authHeaders, type DocConnection } from '../app/connection.ts';
 import { store, toast, type View } from '../app/store.ts';
 import { getEngine, imagesFor, type Engine } from './engine.ts';
 import { AgentCursors } from './AgentCursors.tsx';
@@ -20,6 +20,8 @@ import { scaleTree } from '../app/geometry.ts';
 import { isPart, layerOf } from '../app/parts.ts';
 import { addFontFiles, isFontFile } from '../app/fonts.ts';
 import { isFigmaFile, openFigma } from '../app/figma.ts';
+import { addPicture } from '../web/files.ts';
+import { isWebDoc } from '../web/mode.ts';
 
 /** What other parts of the editor need from the canvas. */
 export const canvas = {
@@ -201,10 +203,14 @@ export async function importImages(files: File[], screen?: { sx: number; sy: num
   if (!conn) return;
   for (const f of files) {
     try {
-      const bytes = new Uint8Array(await f.arrayBuffer());
-      let bin = '';
-      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      const r = await post<{ url: string; width: number; height: number }>('/api/asset', { path: conn.path, name: f.name || 'image.png', data: btoa(bin) });
+      let r: { url: string; width: number; height: number };
+      if (isWebDoc(conn.path)) r = await addPicture(conn.path, f);
+      else {
+        const bytes = new Uint8Array(await f.arrayBuffer());
+        let bin = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        r = await post<{ url: string; width: number; height: number }>('/api/asset', { path: conn.path, name: f.name || 'image.png', data: btoa(bin) });
+      }
       const k = Math.min(1, 1000 / Math.max(r.width, r.height));
       const name = (f.name || 'Image').replace(/\.[^.]+$/, '');
       const id = await placeNode({ type: 'rectangle', name, width: Math.round(r.width * k), height: Math.round(r.height * k), fill: { type: 'image', url: r.url, mode: 'cover' } }, `Place ${name}`, screen);
@@ -326,9 +332,9 @@ export function CanvasView() {
 
     // The connection is made by App after this effect runs (children's effects run first), and is
     // replaced when another file opens: follow whichever one the store holds.
-    let conn: Connection | undefined;
+    let conn: DocConnection | undefined;
     let offConn: (() => void) | undefined;
-    const follow = (next: Connection | undefined) => {
+    const follow = (next: DocConnection | undefined) => {
       if (next === conn) return;
       offConn?.();
       conn = next;

@@ -45,12 +45,26 @@ export function authHeaders(): HeadersInit {
   return { authorization: `Bearer ${token()}` };
 }
 
+/** What the editor needs of the document it shows: the daemon's (Connection) or one kept in the browser (web/local.ts). */
+export interface DocConnection {
+  readonly path: string;
+  doc: PenDoc | undefined;
+  version: number;
+  client: string | undefined;
+  on(listener: (e: ConnectionEvent) => void): () => void;
+  /** Ops as one undoable change; changes with the same `merge` key in a row undo as one (a drag). */
+  edit(ops: Op[], label: string, merge?: string): Promise<void>;
+  undo(): void;
+  redo(): void;
+  close(): void;
+}
+
 /**
  * The editor's link to the daemon for one document. The daemon owns the document: edits are sent as ops
  * and applied here only when the daemon sends them back, in order, with everyone else's. So this copy
  * always matches the file.
  */
-export class Connection {
+export class Connection implements DocConnection {
   readonly path: string;
   doc: PenDoc | undefined;
   version = 0;

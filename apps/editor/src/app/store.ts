@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { PenDoc } from '@nib/core';
-import type { Change, Connection } from './connection.ts';
+import type { Change, DocConnection } from './connection.ts';
 
 import type { PenSession } from '../canvas/pen.tsx';
 import type { GradientEdit } from '../canvas/GradientOverlay.tsx';
@@ -15,7 +15,7 @@ export type Lang = 'en' | 'zh';
 export interface View { tx: number; ty: number; zoom: number }
 
 export interface EditorState {
-  conn?: Connection;
+  conn?: DocConnection;
   status: 'connecting' | 'open' | 'closed';
   doc?: PenDoc;
   /** Bumps on every document change; components that read `doc` select it. */
@@ -60,6 +60,10 @@ export interface EditorState {
   lang: Lang;
   paletteOpen: boolean;
   toast?: { text: string; at: number };
+  /** nib's website (no daemon): documents are kept in the browser. */
+  web?: boolean;
+  /** Where the website last saved the open document: only in this browser, or also to its file on disk. */
+  webSave?: { where: 'browser' | 'disk'; file?: string; error?: string };
 }
 
 type Listener = () => void;

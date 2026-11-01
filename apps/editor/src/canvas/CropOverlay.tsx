@@ -5,6 +5,8 @@ import { store, useEditor } from '../app/store.ts';
 import { canvas } from './Canvas.tsx';
 import { coverBox, cropFill, imageRect, type R } from './crop.ts';
 import { applyLinear, invert, svgMatrix } from './affine.ts';
+import { webImages } from '../web/images.ts';
+import { isWebDoc } from '../web/mode.ts';
 
 /** The image fill being cropped: which node, which entry of its fills. */
 export interface CropEdit { id: string; index: number }
@@ -28,6 +30,26 @@ function naturalSize(src: string): Promise<{ w: number; h: number }> {
  * Crop mode: the whole image shows faintly around the node; drag it to move it, drag its corners to scale it
  * (keeping its proportions, always covering the node). The node keeps showing what falls inside it.
  */
+/** An address an <img> can show the picture at: the daemon's, or (on the website) one made from its bytes. */
+function usePictureUrl(path: string | undefined, url: string | undefined): string | undefined {
+  const [made, setMade] = useState<{ key: string; src: string } | undefined>();
+  const key = `${path}\n${url}`;
+  const web = isWebDoc(path);
+  useEffect(() => {
+    if (!web || !path || !url) return;
+    let live = true, src: string | undefined;
+    void webImages(path).load(url).then((bytes) => {
+      if (!bytes || !live) return;
+      src = URL.createObjectURL(new Blob([bytes as BlobPart]));
+      setMade({ key, src });
+    });
+    return () => { live = false; if (src) URL.revokeObjectURL(src); };
+  }, [key, web]);
+  if (!path || !url) return undefined;
+  if (!web) return `/api/image?${new URLSearchParams({ doc: path, url, t: token() })}`;
+  return made?.key === key ? made.src : undefined;
+}
+
 export function CropOverlay() {
   const crop = useEditor((s) => s.crop);
   const doc = useEditor((s) => s.doc);
@@ -39,7 +61,7 @@ export function CropOverlay() {
   const [live, setLive] = useState<R | undefined>();
   const node = crop && doc ? (doc.get(crop.id) as Record<string, unknown> | undefined) : undefined;
   const fill = node && crop ? (list(node.fill)[crop.index] as Fill | undefined) : undefined;
-  const src = fill?.type === 'image' && typeof fill.url === 'string' && conn ? `/api/image?${new URLSearchParams({ doc: conn.path, url: fill.url, t: token() })}` : undefined;
+  const src = usePictureUrl(conn?.path, fill?.type === 'image' && typeof fill.url === 'string' ? fill.url : undefined);
   useEffect(() => {
     if (!src || natural?.url === src) return;
     void naturalSize(src).then((s) => setNatural({ url: src, ...s }), () => store.set({ crop: undefined }));

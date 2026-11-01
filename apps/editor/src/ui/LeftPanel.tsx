@@ -43,7 +43,10 @@ export function layerName(doc: PenDoc, n: Node): string {
 export function LeftPanel() {
   const t = useT();
   const tab = useEditor((s) => s.leftTab);
-  const tabs: [LeftTab, IconName, string][] = [['layers', 'layers', t.layers], ['slides', 'presentation', t.slides], ['components', 'component', t.components], ['libraries', 'library', t.libraries], ['variables', 'variable', t.variables], ['strings', 'text', t.strings], ['history', 'history', t.history], ['problems', 'scan', t.problems]];
+  // The website has no daemon to install libraries or read git history with.
+  const web = useEditor((s) => s.web);
+  const tabs = ([['layers', 'layers', t.layers], ['slides', 'presentation', t.slides], ['components', 'component', t.components], ['libraries', 'library', t.libraries], ['variables', 'variable', t.variables], ['strings', 'text', t.strings], ['history', 'history', t.history], ['problems', 'scan', t.problems]] as [LeftTab, IconName, string][])
+    .filter(([id]) => !web || (id !== 'libraries' && id !== 'history'));
   return (
     <div className="panel left-panel">
       <div className="tabs">
@@ -275,8 +278,9 @@ function Problems() {
   const setStress = (s: Stress | undefined) => { if (conn) { if (s) stressByDoc.set(conn.path, s); else stressByDoc.delete(conn.path); } setStressState(s); };
   // The review covers the selected top-level frame, else the whole document.
   const top = selection.length === 1 ? doc?.topLevel(selection[0])?.id : undefined;
+  const web = useEditor((s) => s.web);
   useEffect(() => {
-    if (!conn) return;
+    if (!conn || web) return;
     const h = setTimeout(() => {
       fetch(`/api/problems?${new URLSearchParams({ doc: conn.path })}`, { headers: authHeaders() })
         .then((r) => r.json()).then((j) => setProblems(j.problems ?? [])).catch(() => setProblems([]));
@@ -285,6 +289,8 @@ function Problems() {
     }, 400);
     return () => clearTimeout(h);
   }, [conn, version, top]);
+  // The checks run in the daemon, with the renderer that measures text.
+  if (web) return <p className="empty">{t.checksNeedApp}</p>;
   if (!problems) return <p className="empty">{t.loading}</p>;
   const show = (id: string) => { if (doc?.has(id)) { store.set({ selection: [id] }); const b = boundsOf([id]); if (b) store.set({ view: fitView(b, 2) }); } };
   const row = (p: Finding, i: number) => (

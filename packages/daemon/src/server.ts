@@ -23,7 +23,7 @@ import { planResponsive, responsivePrompt } from './agent/responsive.ts';
 import { helperPrompt, helperTasks } from './agent/helpers.ts';
 import { planStress, SCENARIOS, type Scenario } from './stress.ts';
 import type { Pictures } from './pictures.ts';
-import { SCRIPT_GALLERY, scriptInputs, type Exporter } from '@nib/exec';
+import { parseRows, placeholders, SCRIPT_GALLERY, scriptInputs, type Exporter } from '@nib/exec';
 import type { AgentService } from './agent/service.ts';
 
 export const DAEMON_VERSION = '0.1.0';
@@ -795,6 +795,27 @@ export async function startDaemon(opts: DaemonOptions): Promise<Daemon> {
         const weight = q.get('weight');
         const g = await opts.icons.load(q.get('library') ?? 'lucide', q.get('name') ?? '', weight ? Number(weight) : undefined);
         return g ? send(res, 200, g as unknown as Json) : send(res, 404, { error: 'icon not found' });
+      }
+      case 'POST /api/data/repeat': {
+        // Rows into a template, as the person's change: made up, from a file next to the document, or pasted.
+        const body = await readJson(req);
+        const source = body.source as { kind?: unknown; count?: unknown; locale?: unknown; path?: unknown; text?: unknown } | undefined;
+        if (typeof body.doc !== 'string' || typeof body.node !== 'string' || !source) return send(res, 400, { error: 'doc, node and source are required' });
+        const open = await host.open(body.doc);
+        const template = open.session.doc.get(body.node);
+        if (!template) return send(res, 400, { error: 'no such layer' });
+        let rows: string;
+        try {
+          if (source.kind === 'fake') rows = `FakeData(${JSON.stringify(placeholders(template).length ? placeholders(template) : ['name'])}, ${Math.min(500, Math.max(1, Math.round(Number(source.count) || 6)))}, {locale: ${JSON.stringify(source.locale === 'zh' ? 'zh' : 'en')}})`;
+          else if (source.kind === 'file' && typeof source.path === 'string') rows = `ReadData(${JSON.stringify(source.path)})`;
+          else if (source.kind === 'text' && typeof source.text === 'string') rows = JSON.stringify(parseRows(source.text, source.text.trim().startsWith('[') || source.text.trim().startsWith('{') ? 'pasted.json' : 'pasted.csv'));
+          else return send(res, 400, { error: 'source is fake, file or text' });
+        } catch (e) {
+          return send(res, 400, { error: (e as Error).message });
+        }
+        const r = await host.execute(open.path, { input: `Print(Repeat(${JSON.stringify(body.node)}, ${rows}).length)` }, 'nib', { source: { kind: 'user' }, label: 'Fill rows' });
+        if (!r.ok) return send(res, 400, { error: (/Error: [^:]+: (.*)/.exec(r.text)?.[1] ?? r.text).split('\n')[0] });
+        return send(res, 200, { rows: Number(/## Print output\n(\d+)/.exec(r.text)?.[1] ?? 0), warnings: r.text.split('\n').filter((l) => l.startsWith('- Repeat:')).map((l) => l.slice(2)) });
       }
       case 'GET /api/scripts': {
         // nib's own scripts for script nodes: what each makes, and its controls.

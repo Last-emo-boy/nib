@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { hasSketch, isSketchFrame, isSketchStroke, reassignIds, type PenDoc } from '@nib/core';
+import { hasSketch, isSketchFrame, isSketchStroke, placeholders, reassignIds, type PenDoc } from '@nib/core';
 import type { Node, RefNode } from '@nib/format';
 import { align, commit, isFree, resetOverrides, setProps, type Align } from '../app/actions.ts';
 import { isPart, layerOf, overrideOf, ownerOf } from '../app/parts.ts';
@@ -124,6 +124,13 @@ export function Properties() {
           <button className="link" title={t.responsiveHint} onClick={() => void makeResponsive(doc, n as Node, t)}><Icon name="sparkles" size={12} /> {(canvas.cache?.box(n.id)?.width ?? 0) > 808 ? t.makeResponsive : t.makePhoneVersion}</button>
         </Section>
       )}
+      {nodes.length === 1 && !parts.length && conn && (() => {
+        // The template: this layer if it has placeholders, or the one a filled row was made from.
+        const row = (n.metadata as { type?: string; template?: string } | undefined);
+        const template = row?.type === 'nib-row' && row.template && doc.has(row.template) ? row.template : n.id;
+        const fields = placeholders(doc.get(template));
+        return fields.length || template !== n.id ? <DataSection path={conn.path} template={template} fields={fields} t={t} /> : null;
+      })()}
       {nodes.length === 1 && !parts.length && conn && n.type === 'script' && <ScriptSection path={conn.path} n={n} t={t} set={set} />}
       {nodes.length === 1 && !parts.length && conn && ['frame', 'rectangle', 'ellipse', 'polygon'].includes(n.type) && !hasSketch(n as Node) && <Picture path={conn.path} id={n.id} t={t} hasImage={imageFillIndex(n) >= 0} />}
       {nodes.length === 1 && !parts.length && n.type === 'frame' && !doc.locate(n.id)?.parent && !hasSketch(n as Node) && conn && <Implementation path={conn.path} id={n.id} t={t} />}
@@ -538,6 +545,42 @@ function Typography({ t, shown, set }: { t: Strings; shown: (k: string) => any; 
           <option value="auto">auto</option><option value="fixed-width">fixed width</option><option value="fixed-width-height">fixed</option>
         </select>
       </div>
+    </Section>
+  );
+}
+
+/** Rows into a template (a layer with {{field}} placeholders): made up, from a CSV or JSON file, or pasted. */
+function DataSection({ path, template, fields, t }: { path: string; template: string; fields: string[]; t: Strings }) {
+  const lang = useEditor((s) => s.lang);
+  const [kind, setKind] = useState<'fake' | 'file' | 'text'>('fake');
+  const [count, setCount] = useState(6);
+  const [file, setFile] = useState('');
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      const source = kind === 'fake' ? { kind, count, locale: lang === 'zh' ? 'zh' : 'en' } : kind === 'file' ? { kind, path: file.trim() } : { kind, text };
+      const r = await post<{ rows: number; warnings: string[] }>('/api/data/repeat', { doc: path, node: template, source });
+      toast([t.rowsMade(r.rows), ...r.warnings].join(' '));
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Section title={t.data}>
+      <div className="data-fields">{fields.length ? fields.map((f) => <code key={f}>{`{{${f}}}`}</code>) : <span className="dim">{t.noPlaceholders}</span>}</div>
+      <div className="row">
+        <select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+          <option value="fake">{t.fakeData}</option><option value="file">{t.dataFile}</option><option value="text">{t.pasteData}</option>
+        </select>
+        {kind === 'fake' && <Num label="×" value={count} onChange={(v) => setCount(Math.min(500, Math.max(1, Math.round(v))))} />}
+      </div>
+      {kind === 'file' && <input className="shader-url" placeholder="data/people.csv" value={file} onChange={(e) => setFile(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />}
+      {kind === 'text' && <textarea className="data-paste" rows={4} placeholder={'name,email\nAva Chen,ava@example.com'} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.stopPropagation()} />}
+      <button className="link" disabled={busy || (kind === 'file' && !file.trim()) || (kind === 'text' && !text.trim())} title={t.fillRowsHint} onClick={() => void run()}>{busy ? t.filling : t.fillRows}</button>
     </Section>
   );
 }

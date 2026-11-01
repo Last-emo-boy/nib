@@ -107,6 +107,25 @@ Turns the picture a layer shows (its image fill, as cropped) into flat-colored s
 
 Takes the background away from the picture a layer shows and fills the layer with the result (a PNG with transparency in the `images` folder). `method: "color"` (default) removes a plain background (a product shot, a portrait against a wall), from the edges inwards; `tolerance` (default 0.12) says how far from the background's color still counts as background. `method: "model"` asks an image model to cut out the subject from any background (needs the person's OpenAI key).
 
+### `Repeat(template, rows, options?) → ids`
+
+Fills a list from data: one copy of `template` per row, after it in its parent, with every `{{field}}` in its strings (text, names, image urls, colors) replaced by the row's value (`{{address.city}}` reads nested values). The template stays, hidden, with its placeholders; repeating it again replaces the copies made before, so the same call refreshes the list. Put the template in a frame with a vertical or horizontal layout so the rows stack; in a frame without a layout they go down from the template, `options.gap` (default 12) apart. Placeholders go in strings that take any text; for colors and numbers use `options.bind`, which sets properties of the template's layers by name from row fields: `{bind: {"Avatar": {fill: "color"}, "Bar": {width: "share"}}}`.
+
+### `ReadData(path) → rows`
+
+Rows from a `.csv` (header line first) or `.json` file (a list of objects, or an object holding one) next to the .pen file.
+
+### `FakeData(fields, count, options?) → rows`
+
+`count` rows (up to 500) of believable made-up values, each field chosen by its name: name, firstName, email, phone, company, job/title/role, city, country, address, status, product, tag, price/amount, percent/change, rating, date, time, color, number/count, headline, description/bio/text, id/code; anything else gets a word. `options.locale`: `"en"` (default) or `"zh"` for Chinese names, cities and dates; `options.seed` for another set (the same seed gives the same rows).
+
+```js
+row = Insert(list, {type: "frame", name: "Person", width: "fill_container", layout: "horizontal", gap: 12, padding: 12})
+Insert(row, {type: "text", content: "{{name}}", fontWeight: "600"})
+Insert(row, {type: "text", content: "{{email}}", fill: "#6B6F7A"})
+Repeat(row, FakeData(["name", "email"], 8))
+```
+
 ### `Shader(name, source?) → url`
 
 A shader file for shader fills and effects (see `shaders.md`): nib's own `name` copied into the document's `shaders` folder, or your GLSL `source` saved as `shaders/<name>.frag` once it compiles.

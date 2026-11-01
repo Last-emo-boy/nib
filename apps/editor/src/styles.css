@@ -620,3 +620,6 @@ select.grow { flex: 1; max-width: none; min-width: 0; }
 .shader-input input[type=range] { flex: 1; min-width: 0; }
 .shader-value { font-size: 11px; color: var(--dim); width: 32px; text-align: right; }
 .shader-error { font-size: 11px; color: var(--danger-text); line-height: 1.35; overflow-wrap: anywhere; padding: 2px 0; }
+.data-fields { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; font-size: 11px; }
+.data-fields code { background: var(--sunken); border-radius: 4px; padding: 1px 5px; }
+.data-paste { width: 100%; font-family: ui-monospace, Menlo, monospace; font-size: 11px; }

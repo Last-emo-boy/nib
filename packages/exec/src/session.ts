@@ -102,6 +102,14 @@ export class ExecSession {
       this.opts.renderer.shaders(this.opts.images).forget(url);
       return url;
     },
+    readText: (path) => {
+      const file = resolvePath(this.opts.baseDir, path);
+      try {
+        return readFileSync(file, 'utf8');
+      } catch {
+        throw new Error(`cannot read ${path}`);
+      }
+    },
     saveScript: (name, source) => {
       const url = `scripts/${name}.js`;
       const file = join(this.opts.baseDir, url);

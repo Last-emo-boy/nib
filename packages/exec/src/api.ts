@@ -6,6 +6,7 @@ import {
 import type { Box } from '@nib/layout';
 import { removeBackground, traceImage, type Pixels } from '@nib/render';
 import { problemOf, type BoundsCache, type ClipProblem } from './bounds.ts';
+import { fakeRows, fill, parseRows, placeholders } from './data.ts';
 import { ExecError } from './errors.ts';
 import { componentDescendant, componentRoot, DOCUMENT, findById, nestedComponent, normalizeDescendantKeys, resolve, type Target } from './targets.ts';
 
@@ -117,6 +118,8 @@ export interface ImageAccess {
   saveShader(name: string, source: string | undefined): string;
   /** Save a script for script nodes (run once first: throws with what is wrong), or copy one of nib's; its url. */
   saveScript(name: string, source: string | undefined): string;
+  /** The text of a file next to the .pen file (data for Repeat). */
+  readText(path: string): string;
 }
 
 /** The topmost image fill a layer shows, with its index in the fill list. */
@@ -395,6 +398,83 @@ export class PenApi {
     } catch (e) {
       throw new ExecError(`Shader: ${(e as Error).message}`);
     }
+  }
+
+  /**
+   * One filled copy of `template` per row, after it in its parent: every `{{field}}` in its strings becomes the
+   * row's value. The template is hidden (it keeps its placeholders); copies made from it before are replaced.
+   * Returns the copies' ids.
+   */
+  repeat(path: unknown, rows: unknown, options?: unknown): string[] {
+    if (!Array.isArray(rows) || rows.some((r) => !r || typeof r !== 'object' || Array.isArray(r))) throw new ExecError('Repeat: rows is a list of objects, e.g. ReadData("people.csv") or FakeData(["name", "email"], 8)');
+    if (rows.length > 500) throw new ExecError('Repeat: at most 500 rows at a time');
+    if (options !== undefined && !isObject(options)) throw new ExecError('Repeat: options must be an object, e.g. {gap: 12}');
+    const gap = (options as { gap?: unknown } | undefined)?.gap ?? 12;
+    if (typeof gap !== 'number') throw new ExecError('Repeat: gap is a number of pixels');
+    // Properties placeholders cannot hold (colors, numbers): {bind: {"Layer name": {fill: "field"}}}.
+    const bind = (options as { bind?: unknown } | undefined)?.bind ?? {};
+    if (!isObject(bind) || Object.values(bind).some((m) => !isObject(m) || Object.values(m).some((f) => typeof f !== 'string'))) throw new ExecError('Repeat: bind maps layer names to {property: "field"}, e.g. {bind: {"Avatar": {fill: "color"}}}');
+    const t = this.mutable(path, 'Repeat');
+    if (t.kind === 'inside') throw new ExecError('Repeat: the template is a layer of this document, not a part of an instance');
+    const template = t.node;
+    const at = this.doc.locate(template.id);
+    if (!at?.parent) throw new ExecError('Repeat: put the template inside a frame (one with a vertical or horizontal layout stacks the rows)');
+    const own = (template as Props).metadata as Props | undefined;
+    if (own && own.type !== 'nib-row') this.out.warnings.push(`Repeat: ${template.id} keeps nib data of its own (${String(own.type)}), so its copies are not marked: repeating again adds rows instead of replacing them.`);
+    // Its height before it is hidden (hidden layers have no box; one hidden before has its stored height).
+    const stored = (template as Props).height;
+    const rowHeight = this.bounds.box(template.id)?.height ?? (typeof stored === 'number' ? stored : 0);
+    // Rows made from this template before go; the template stays, hidden.
+    for (const k of [...(childrenOf(at.parent) ?? [])]) {
+      const m = (k as Props).metadata as Props | undefined;
+      if (m?.type === 'nib-row' && m.template === template.id) this.editor.remove(k.id);
+    }
+    if (template.enabled !== false) this.editor.set(template.id, { enabled: false });
+    const index = this.doc.locate(template.id)!.index;
+    const free = at.parent.type === 'group' || (at.parent as Props).layout === 'none';
+    const ids: string[] = [];
+    for (const [i, row] of (rows as Record<string, unknown>[]).entries()) {
+      const data = fill(template, row) as unknown as Props;
+      delete data.enabled;
+      // By the template's names (before its placeholders are filled), copy and template side by side.
+      const bound = (n: Props, src: Props) => {
+        const map = (bind as Record<string, Record<string, string>>)[String(src.name ?? '')];
+        if (map) for (const [prop, field] of Object.entries(map)) { const v = field.split('.').reduce<unknown>((x, k) => (x && typeof x === 'object' ? (x as Props)[k] : undefined), row); if (v !== undefined) n[prop] = v; }
+        const kids = (n.children as Props[] | undefined) ?? [], from = (src.children as Props[] | undefined) ?? [];
+        kids.forEach((c, i) => { if (from[i]) bound(c, from[i]); });
+      };
+      bound(data, template as unknown as Props);
+      if (!own) data.metadata = { type: 'nib-row', template: template.id, index: i };
+      // In a frame without a layout the rows go down from the template.
+      if (free) data.y = Math.round(((template as Props).y as number | undefined ?? 0) + i * (rowHeight + gap));
+      const node = this.prepareNew(data, 'Repeat');
+      ids.push(this.place(at.parent.id, node, index + 1 + i, 'Repeat'));
+      this.noteCreated(node, true, ids[ids.length - 1]);
+    }
+    const missing = placeholders(template).filter((f) => !(rows as Record<string, unknown>[]).some((r) => f.split('.').reduce<unknown>((v, k) => (v && typeof v === 'object' ? (v as Props)[k] : undefined), r) !== undefined));
+    if (missing.length) this.out.warnings.push(`Repeat: no row has ${missing.map((m) => `"${m}"`).join(', ')}; those placeholders came out empty.`);
+    return ids;
+  }
+
+  /** Rows from a CSV or JSON file next to the .pen file. */
+  readData(path: unknown): Record<string, unknown>[] {
+    if (typeof path !== 'string' || !/\.(csv|tsv|json)$/i.test(path)) throw new ExecError('ReadData: the argument is the path of a .csv or .json file, relative to the .pen file');
+    if (!this.images) throw new ExecError('ReadData is not available here');
+    try {
+      return parseRows(this.images.readText(path), path);
+    } catch (e) {
+      throw new ExecError(`ReadData: ${(e as Error).message}`);
+    }
+  }
+
+  /** Made-up rows for `fields` (names say what each holds: name, email, price, date, status…). */
+  fakeData(fields: unknown, count: unknown, options?: unknown): Record<string, unknown>[] {
+    if (!Array.isArray(fields) || !fields.length || fields.some((f) => typeof f !== 'string')) throw new ExecError('FakeData: fields is a list of field names, e.g. ["name", "email", "status"]');
+    if (!Number.isInteger(count) || (count as number) < 1 || (count as number) > 500) throw new ExecError('FakeData: count is 1 to 500');
+    if (options !== undefined && !isObject(options)) throw new ExecError('FakeData: options must be an object, e.g. {locale: "zh", seed: 2}');
+    const o = (options ?? {}) as { locale?: unknown; seed?: unknown };
+    if (o.locale !== undefined && o.locale !== 'en' && o.locale !== 'zh') throw new ExecError('FakeData: locale is "en" or "zh"');
+    return fakeRows(fields as string[], count as number, { ...(o.locale ? { locale: o.locale as 'en' | 'zh' } : {}), ...(typeof o.seed === 'number' ? { seed: o.seed } : {}) });
   }
 
   /** A script file for script nodes: `source` saved as scripts/<name>.js once it runs, or nib's own `name`. */
